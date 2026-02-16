@@ -1,0 +1,12 @@
+# cache
+__pycache__
+.mypy_cache
+.ipynb_checkpoints
+sync.ffs_db
+
+# IDE config
+.vscode
+mypy.ini
+
+# venv
+.venv
