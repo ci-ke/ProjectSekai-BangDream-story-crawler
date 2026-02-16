@@ -88,7 +88,7 @@ class Story_reader:
     class SnippetAction(int, Enum):
         NoAction = 0
         Talk = 1
-        CharacerLayout = 2
+        CharacterLayout = 2
         InputName = 3
         CharacterMotion = 4
         Selectable = 5
@@ -173,21 +173,8 @@ class Story_reader:
         for snippet in snippets:
             if snippet['Action'] == Story_reader.SnippetAction.SpecialEffect:
                 specialEffect = specialEffects[snippet['ReferenceIndex']]
-                if (
-                    specialEffect['EffectType']
-                    == Story_reader.SpecialEffectType.ChangeBackground
-                ):
-                    ret += '\n（背景切换）\n'
-                    next_talk_need_newline = True
-                elif (
-                    specialEffect['EffectType'] == Story_reader.SpecialEffectType.Telop
-                ):
+                if specialEffect['EffectType'] == Story_reader.SpecialEffectType.Telop:
                     ret += '\n【' + specialEffect['StringVal'] + '】\n'
-                    next_talk_need_newline = True
-                elif (
-                    specialEffect['EffectType'] == Story_reader.SpecialEffectType.Movie
-                ):
-                    ret += '\n（播放视频）\n'
                     next_talk_need_newline = True
                 elif (
                     specialEffect['EffectType']
@@ -213,6 +200,29 @@ class Story_reader:
                         + '\n'
                     )
                     next_talk_need_newline = False
+                elif (
+                    specialEffect['EffectType'] == Story_reader.SpecialEffectType.Movie
+                ):
+                    ret += '\n（播放视频）\n'
+                    next_talk_need_newline = True
+                elif (
+                    specialEffect['EffectType']
+                    == Story_reader.SpecialEffectType.ChangeBackground
+                ):
+                    ret += '\n（背景切换）\n'
+                    next_talk_need_newline = True
+                elif (
+                    specialEffect['EffectType']
+                    == Story_reader.SpecialEffectType.FlashbackIn
+                ):
+                    ret += f"\n（回忆切入）\n"
+                    next_talk_need_newline = True
+                elif (
+                    specialEffect['EffectType']
+                    == Story_reader.SpecialEffectType.FlashbackOut
+                ):
+                    ret += f"\n（回忆切出）\n"
+                    next_talk_need_newline = True
             elif snippet['Action'] == Story_reader.SnippetAction.Talk:
                 talk = talks[snippet['ReferenceIndex']]
 
@@ -607,7 +617,7 @@ if __name__ == '__main__':
     reader = Story_reader('jp')
 
     unit_getter = Unit_story_getter(reader)
-    event_getter = Event_story_getter(reader, 'snowy')
+    event_getter = Event_story_getter(reader)
     card_getter = Card_story_getter(reader)
 
     with ThreadPoolExecutor(max_workers=20) as executor:
@@ -615,18 +625,15 @@ if __name__ == '__main__':
         futures: list[Future[None]] = []
         future: Future[None]
 
-        for i in []:
-            future = executor.submit(event_getter.get, i)
-
         # for i in range(1, 7):
-        #    future = executor.submit(unit_getter.get, i)
-        #    futures.append(future)
-        # for i in range(1, 195):
-        #    future = executor.submit(event_getter.get, i)
-        #    futures.append(future)
-        ## 1-107 initial card, 724-759 2nd grade card
-        # for i in range(1, 1333):
-        #    future = executor.submit(card_getter.get, i)
+        #     future = executor.submit(unit_getter.get, i)
+        #     futures.append(future)
+        # for i in range(1, 196):
+        #     future = executor.submit(event_getter.get, i)
+        #     futures.append(future)
+        # # 1-107 initial card, 724-759 2nd grade card
+        # for i in range(1, 1339):
+        #     future = executor.submit(card_getter.get, i)
 
         for future in as_completed(futures):
             try:

@@ -129,10 +129,7 @@ def read_story_in_json(json_data: Dict[str, Dict[str, Any]]) -> str:
     for snippet in snippets:
         if snippet['actionType'] == SnippetAction.SpecialEffect:
             specialEffect = specialEffects[snippet['referenceIndex']]
-            if specialEffect['effectType'] == SpecialEffectType.ChangeBackground:
-                ret += '\n（背景切换）\n'
-                next_talk_need_newline = True
-            elif specialEffect['effectType'] == SpecialEffectType.Telop:
+            if specialEffect['effectType'] == SpecialEffectType.Telop:
                 ret += '\n【' + specialEffect['stringVal'] + '】\n'
                 next_talk_need_newline = True
             elif specialEffect['effectType'] == SpecialEffectType.FullScreenText:
@@ -144,6 +141,25 @@ def read_story_in_json(json_data: Dict[str, Dict[str, Any]]) -> str:
                     + '\n'
                 )
                 next_talk_need_newline = False
+            elif specialEffect['effectType'] == SpecialEffectType.SimpleSelectable:
+                if next_talk_need_newline:
+                    ret += '\n'
+                ret += (
+                    '（选项）：' + specialEffect['stringVal'].replace('\n', ' ') + '\n'
+                )
+                next_talk_need_newline = False
+            elif specialEffect['effectType'] == SpecialEffectType.Movie:
+                ret += '\n（播放视频）\n'
+                next_talk_need_newline = True
+            elif specialEffect['effectType'] == SpecialEffectType.ChangeBackground:
+                ret += '\n（背景切换）\n'
+                next_talk_need_newline = True
+            elif specialEffect['effectType'] == SpecialEffectType.FlashbackIn:
+                ret += f"\n（回忆切入）\n"
+                next_talk_need_newline = True
+            elif specialEffect['effectType'] == SpecialEffectType.FlashbackOut:
+                ret += f"\n（回忆切出）\n"
+                next_talk_need_newline = True
         elif snippet['actionType'] == SnippetAction.Talk:
             talk = talks[snippet['referenceIndex']]
             if next_talk_need_newline:
@@ -465,13 +481,27 @@ if __name__ == '__main__':
         futures: list[Future[None]] = []
         future: Future[None]
 
-        for i in []:
-            future = executor.submit(e.get, i, 'cn')
-            futures.append(future)
+        # future = executor.submit(m.get, None, 'cn')
+        # futures.append(future)
 
-        for i in []:
-            future = executor.submit(e.get, i, 'jp')
-            futures.append(future)
+        # future = executor.submit(m.get, None, 'jp')
+        # futures.append(future)
+
+        # for i in BAND_ID_NAME:
+        #     future = executor.submit(b.get, i, None, 'cn')
+        #     futures.append(future)
+
+        # for i in BAND_ID_NAME:
+        #     future = executor.submit(b.get, i, None, 'jp')
+        #     futures.append(future)
+
+        # for i in list(range(1, 301)) + [312, 313]:
+        #     future = executor.submit(e.get, i, 'cn')
+        #     futures.append(future)
+
+        # for i in range(1, 322):
+        #     future = executor.submit(e.get, i, 'jp')
+        #     futures.append(future)
 
         for future in as_completed(futures):
             try:
