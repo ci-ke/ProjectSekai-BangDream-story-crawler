@@ -155,10 +155,10 @@ def read_story_in_json(json_data: Dict[str, Dict[str, Any]]) -> str:
                 ret += '\n（背景切换）\n'
                 next_talk_need_newline = True
             elif specialEffect['effectType'] == SpecialEffectType.FlashbackIn:
-                ret += f"\n（回忆切入）\n"
+                ret += '\n（回忆切入）\n'
                 next_talk_need_newline = True
             elif specialEffect['effectType'] == SpecialEffectType.FlashbackOut:
-                ret += f"\n（回忆切出）\n"
+                ret += '\n（回忆切出）\n'
                 next_talk_need_newline = True
         elif snippet['actionType'] == SnippetAction.Talk:
             talk = talks[snippet['referenceIndex']]

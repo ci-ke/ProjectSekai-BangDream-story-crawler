@@ -215,13 +215,13 @@ class Story_reader:
                     specialEffect['EffectType']
                     == Story_reader.SpecialEffectType.FlashbackIn
                 ):
-                    ret += f"\n（回忆切入）\n"
+                    ret += '\n（回忆切入）\n'
                     next_talk_need_newline = True
                 elif (
                     specialEffect['EffectType']
                     == Story_reader.SpecialEffectType.FlashbackOut
                 ):
-                    ret += f"\n（回忆切出）\n"
+                    ret += '\n（回忆切出）\n'
                     next_talk_need_newline = True
             elif snippet['Action'] == Story_reader.SnippetAction.Talk:
                 talk = talks[snippet['ReferenceIndex']]
