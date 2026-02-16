@@ -79,7 +79,7 @@ CHARA_ID_BAND_AND_NAME = {
 class SnippetAction(int, Enum):
     NoAction = 0
     Talk = 1
-    CharacerLayout = 2
+    CharacterLayout = 2
     InputName = 3
     CharacterMotion = 4
     Selectable = 5
