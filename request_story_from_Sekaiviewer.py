@@ -1,18 +1,22 @@
 # https://github.com/ci-ke/ProjectSekai-BangDream-story-crawler
 
-import bisect
-import os
+import bisect, os, json, threading
+from urllib.request import pathname2url
 from enum import Enum
 from typing import Any
 from concurrent.futures import ThreadPoolExecutor, as_completed, Future
+
 import requests  # type: ignore
 
 
 ### CONFIG
 BASE_SAVE_DIR = r'.'
+
 EVENT_SAVE_DIR = BASE_SAVE_DIR + r'\event_story'
 UNIT_SAVE_DIR = BASE_SAVE_DIR + r'\unit_story'
 CARD_SAVE_DIR = BASE_SAVE_DIR + r'\card_story'
+
+ASSET_SAVE_DIR = BASE_SAVE_DIR + r'\assets'
 
 PROXY = None
 # PROXY = {'http': 'http://127.0.0.1:10808', 'https': 'http://127.0.0.1:10808'}
@@ -124,7 +128,18 @@ class Story_reader:
         StopShakeScreen = 25
         StopShakeWindow = 26
 
-    def __init__(self, lang: str = 'cn') -> None:
+    def __init__(
+        self,
+        lang: str = 'cn',
+        online: bool = True,
+        save: bool = False,
+        missing_download: bool = True,
+    ) -> None:
+
+        self.online = online
+        self.save = save
+        self.missing_download = missing_download
+
         self.lang = lang
         if lang == 'cn':
             character2ds_url = 'https://sekai-world.github.io/sekai-master-db-cn-diff/character2ds.json'
@@ -137,9 +152,9 @@ class Story_reader:
         else:
             raise NotImplementedError
 
-        res = requests.get(character2ds_url, proxies=PROXY)
-        res.raise_for_status()
-        self.character2ds: list[dict[str, Any]] = res.json()
+        self.character2ds: list[dict[str, Any]] = Util.get_url_json(
+            character2ds_url, self.online, self.save, self.missing_download
+        )
 
         self.character2ds_lookup = DictLookup(self.character2ds, 'id')
 
@@ -260,7 +275,24 @@ class Story_reader:
 
 
 class Event_story_getter:
-    def __init__(self, reader: Story_reader, src: str = 'sekai.best') -> None:
+    def __init__(
+        self,
+        reader: Story_reader,
+        src: str = 'sekai.best',
+        online: bool = True,
+        save: bool = False,
+        parse: bool = True,
+        missing_download: bool = True,
+    ) -> None:
+        '''
+        src: sekai.best or snowy
+        '''
+
+        self.online = online
+        self.save = save
+        self.parse = parse
+        self.missing_download = missing_download
+
         if reader.lang == 'cn':
             events_url = (
                 'https://sekai-world.github.io/sekai-master-db-cn-diff/events.json'
@@ -291,13 +323,12 @@ class Event_story_getter:
         else:
             raise NotImplementedError
 
-        res = requests.get(events_url, proxies=PROXY)
-        res.raise_for_status()
-        self.events_json: list[dict[str, Any]] = res.json()
-
-        res = requests.get(eventStories_url, proxies=PROXY)
-        res.raise_for_status()
-        self.eventStories_json: list[dict[str, Any]] = res.json()
+        self.events_json: list[dict[str, Any]] = Util.get_url_json(
+            events_url, self.online, self.save, self.missing_download
+        )
+        self.eventStories_json: list[dict[str, Any]] = Util.get_url_json(
+            eventStories_url, self.online, self.save, self.missing_download
+        )
 
         self.events_lookup = DictLookup(self.events_json, 'id')
         self.eventStories_lookup = DictLookup(self.eventStories_json, 'eventId')
@@ -334,15 +365,15 @@ class Event_story_getter:
                 CHARA_ID_UNIT_AND_NAME | EXTRA_CHARA_ID_UNIT_AND_NAME_FOR_BANNER
             )[banner_chara_id]
 
-        event_filename = valid_filename(event_name)
+        event_filename = Util.valid_filename(event_name)
         save_folder_name = f'{event_id} {event_filename}（{banner_name}）'
 
         if self.reader.lang != 'cn':
             save_folder_name = self.reader.lang + '-' + save_folder_name
 
         event_save_dir = os.path.join(EVENT_SAVE_DIR, save_folder_name)
-
-        os.makedirs(event_save_dir, exist_ok=True)
+        if self.parse:
+            os.makedirs(event_save_dir, exist_ok=True)
 
         for episode in eventStory['eventStoryEpisodes']:
             episode_name = (
@@ -356,32 +387,49 @@ class Event_story_getter:
 
             scenarioId = episode['scenarioId']
 
-            res = requests.get(
+            filename = Util.valid_filename(episode_name)
+
+            story_json: dict[str, Any] = Util.get_url_json(
                 self.asset_url.format(
                     assetbundleName=assetbundleName, scenarioId=scenarioId
                 ),
-                proxies=PROXY,
+                self.online,
+                self.save,
+                self.missing_download,
+                filename,
             )
-            res.raise_for_status()
-            story_json: dict[str, Any] = res.json()
 
-            text = self.reader.read_story_in_json(story_json)
+            if self.parse:
+                text = self.reader.read_story_in_json(story_json)
 
-            filename = valid_filename(episode_name)
-
-            with open(
-                os.path.join(event_save_dir, filename) + '.txt', 'w', encoding='utf8'
-            ) as f:
-                if episode['episodeNo'] == 1:
-                    f.write(event_outline + '\n\n')
-                f.write(episode_name + '\n\n')
-                f.write(text + '\n')
+                with open(
+                    os.path.join(event_save_dir, filename) + '.txt',
+                    'w',
+                    encoding='utf8',
+                ) as f:
+                    if episode['episodeNo'] == 1:
+                        f.write(event_outline + '\n\n')
+                    f.write(episode_name + '\n\n')
+                    f.write(text + '\n')
 
             print(f'get event {event_id} {event_name} {episode_name} done.')
 
 
 class Unit_story_getter:
-    def __init__(self, reader: Story_reader) -> None:
+    def __init__(
+        self,
+        reader: Story_reader,
+        online: bool = True,
+        save: bool = False,
+        parse: bool = True,
+        missing_download: bool = True,
+    ) -> None:
+
+        self.online = online
+        self.save = save
+        self.parse = parse
+        self.missing_download = missing_download
+
         if reader.lang == 'cn':
             unitProfiles_url = 'https://sekai-world.github.io/sekai-master-db-cn-diff/unitProfiles.json'
             unitStories_url = (
@@ -405,13 +453,12 @@ class Unit_story_getter:
         else:
             raise NotImplementedError
 
-        res = requests.get(unitProfiles_url, proxies=PROXY)
-        res.raise_for_status()
-        self.unitProfiles_json: list[dict[str, Any]] = res.json()
-
-        res = requests.get(unitStories_url, proxies=PROXY)
-        res.raise_for_status()
-        self.unitStories_json: list[dict[str, Any]] = res.json()
+        self.unitProfiles_json: list[dict[str, Any]] = Util.get_url_json(
+            unitProfiles_url, self.online, self.save, self.missing_download
+        )
+        self.unitStories_json: list[dict[str, Any]] = Util.get_url_json(
+            unitStories_url, self.online, self.save, self.missing_download
+        )
 
         self.reader = reader
 
@@ -435,44 +482,61 @@ class Unit_story_getter:
             print(f'unit {unit_id} does not exist.')
             return
 
-        unit_filename = valid_filename(unitName)
+        unit_filename = Util.valid_filename(unitName)
         save_folder_name = f'{unit_id} {unit_filename}'
 
         if self.reader.lang != 'cn':
             save_folder_name = self.reader.lang + '-' + save_folder_name
 
         unit_save_dir = os.path.join(UNIT_SAVE_DIR, save_folder_name)
-        os.makedirs(unit_save_dir, exist_ok=True)
+        if self.parse:
+            os.makedirs(unit_save_dir, exist_ok=True)
 
         for episode in episodes:
             scenarioId = episode['scenarioId']
             episode_name = f"{scenarioId} {episode['title']}"
-            res = requests.get(
+
+            filename = Util.valid_filename(episode_name)
+
+            story_json: dict[str, Any] = Util.get_url_json(
                 self.asset_url.format(
                     assetbundleName=assetbundleName, scenarioId=scenarioId
                 ),
-                proxies=PROXY,
+                self.online,
+                self.save,
+                self.missing_download,
+                filename,
             )
-            res.raise_for_status()
-            story_json: dict[str, Any] = res.json()
 
-            text = self.reader.read_story_in_json(story_json)
+            if self.parse:
+                text = self.reader.read_story_in_json(story_json)
 
-            filename = valid_filename(episode_name)
-
-            with open(
-                os.path.join(unit_save_dir, filename) + '.txt', 'w', encoding='utf8'
-            ) as f:
-                if episode['episodeNo'] == 1:
-                    f.write(unit_outline + '\n\n')
-                f.write(episode_name + '\n\n')
-                f.write(text + '\n')
+                with open(
+                    os.path.join(unit_save_dir, filename) + '.txt', 'w', encoding='utf8'
+                ) as f:
+                    if episode['episodeNo'] == 1:
+                        f.write(unit_outline + '\n\n')
+                    f.write(episode_name + '\n\n')
+                    f.write(text + '\n')
 
             print(f'get unit {unit_id} {unitName} {episode_name} done.')
 
 
 class Card_story_getter:
-    def __init__(self, reader: Story_reader) -> None:
+    def __init__(
+        self,
+        reader: Story_reader,
+        online: bool = True,
+        save: bool = False,
+        parse: bool = True,
+        missing_download: bool = True,
+    ) -> None:
+
+        self.online = online
+        self.save = save
+        self.parse = parse
+        self.missing_download = missing_download
+
         if reader.lang == 'cn':
             cards_url = (
                 'https://sekai-world.github.io/sekai-master-db-cn-diff/cards.json'
@@ -503,17 +567,16 @@ class Card_story_getter:
         else:
             raise NotImplementedError
 
-        res = requests.get(cards_url, proxies=PROXY)
-        res.raise_for_status()
-        self.cards_json: list[dict[str, Any]] = res.json()
+        self.cards_json: list[dict[str, Any]] = Util.get_url_json(
+            cards_url, self.online, self.save, self.missing_download
+        )
+        self.cardEpisodes_json: list[dict[str, Any]] = Util.get_url_json(
+            cardEpisodes_url, self.online, self.save, self.missing_download
+        )
+        ori_eventCards_json: list[dict[str, Any]] = Util.get_url_json(
+            eventCards_url, self.online, self.save, self.missing_download
+        )
 
-        res = requests.get(cardEpisodes_url, proxies=PROXY)
-        res.raise_for_status()
-        self.cardEpisodes_json: list[dict[str, Any]] = res.json()
-
-        res = requests.get(eventCards_url, proxies=PROXY)
-        res.raise_for_status()
-        ori_eventCards_json: list[dict[str, Any]] = res.json()
         self.eventCards_json: list[dict[str, Any]] = []
         for item in ori_eventCards_json:
             if item['isDisplayCardStory']:
@@ -551,27 +614,8 @@ class Card_story_getter:
         story_2_scenarioId = cardEpisode_2['scenarioId']
 
         card_save_dir = os.path.join(CARD_SAVE_DIR, chara_unit_and_name)
-        os.makedirs(card_save_dir, exist_ok=True)
-
-        res = requests.get(
-            self.asset_url.format(
-                assetbundleName=assetbundleName, scenarioId=story_1_scenarioId
-            ),
-            proxies=PROXY,
-        )
-        res.raise_for_status()
-        story_1_json: dict[str, Any] = res.json()
-        text_1 = self.reader.read_story_in_json(story_1_json)
-
-        res = requests.get(
-            self.asset_url.format(
-                assetbundleName=assetbundleName, scenarioId=story_2_scenarioId
-            ),
-            proxies=PROXY,
-        )
-        res.raise_for_status()
-        story_2_json: dict[str, Any] = res.json()
-        text_2 = self.reader.read_story_in_json(story_2_json)
+        if self.parse:
+            os.makedirs(card_save_dir, exist_ok=True)
 
         if sub_unit != 'none':
             sub_unit_name = f'（{UNIT_CODE_NAME[sub_unit]}）'
@@ -586,25 +630,48 @@ class Card_story_getter:
                 f"（event-{self.eventCards_json[card_event_index]['eventId']}）"
             )
 
-        card_story_filename = valid_filename(
+        card_story_filename = Util.valid_filename(
             f'{card_id}_{chara_name}{sub_unit_name}_{card_id_for_chara}_{cardRarityType} {card_name}{belong_event}'
         )
 
         if self.reader.lang != 'cn':
             card_story_filename = self.reader.lang + '-' + card_story_filename
 
-        with open(
-            os.path.join(card_save_dir, card_story_filename) + '.txt',
-            'w',
-            encoding='utf8',
-        ) as f:
-            f.write(
-                f'{chara_name}{sub_unit_name}-{card_id_for_chara} {card_name}{belong_event}\n\n\n'
-            )
-            f.write(story_1_name + '\n\n')
-            f.write(text_1 + '\n\n\n')
-            f.write(story_2_name + '\n\n')
-            f.write(text_2 + '\n')
+        story_1_json: dict[str, Any] = Util.get_url_json(
+            self.asset_url.format(
+                assetbundleName=assetbundleName, scenarioId=story_1_scenarioId
+            ),
+            self.online,
+            self.save,
+            self.missing_download,
+            card_story_filename + ' 上篇',
+        )
+        story_2_json: dict[str, Any] = Util.get_url_json(
+            self.asset_url.format(
+                assetbundleName=assetbundleName, scenarioId=story_2_scenarioId
+            ),
+            self.online,
+            self.save,
+            self.missing_download,
+            card_story_filename + ' 下篇',
+        )
+
+        if self.parse:
+            text_1 = self.reader.read_story_in_json(story_1_json)
+            text_2 = self.reader.read_story_in_json(story_2_json)
+
+            with open(
+                os.path.join(card_save_dir, card_story_filename) + '.txt',
+                'w',
+                encoding='utf8',
+            ) as f:
+                f.write(
+                    f'{chara_name}{sub_unit_name}-{card_id_for_chara} {card_name}{belong_event}\n\n\n'
+                )
+                f.write(story_1_name + '\n\n')
+                f.write(text_1 + '\n\n\n')
+                f.write(story_2_name + '\n\n')
+                f.write(text_2 + '\n')
 
         print(f'get card {card_story_filename} done.')
 
@@ -621,24 +688,110 @@ class DictLookup:
         return -1
 
 
-def valid_filename(filename: str) -> str:
-    return (
-        filename.strip()
-        .replace('*', '＊')
-        .replace(':', '：')
-        .replace('/', '／')
-        .replace('?', '？')
-        .replace('"', "''")
-        .replace('\n', ' ')
-    )
+class Util:
+
+    missing_assets_file = 'missing_assets.txt'
+
+    @staticmethod
+    def valid_filename(filename: str) -> str:
+        return (
+            filename.strip()
+            .replace('*', '＊')
+            .replace(':', '：')
+            .replace('/', '／')
+            .replace('?', '？')
+            .replace('"', "''")
+            .replace('\n', ' ')
+        )
+
+    @staticmethod
+    def url_to_path(url: str) -> str:
+        url_path = url[url.index('//') + 2 :]
+        return os.path.normpath(os.path.join(ASSET_SAVE_DIR, url_path))
+
+    @staticmethod
+    def path_to_url(path: str) -> str:
+        path_url = pathname2url(path)
+        base_path = os.path.normpath(os.path.join(BASE_SAVE_DIR, ASSET_SAVE_DIR))
+        return 'https:/' + path_url[path_url.index(base_path) + len(base_path) :]
+
+    @staticmethod
+    def save_json_to_url(url: str, content: Any) -> None:
+        path = Util.url_to_path(url)
+        os.makedirs(os.path.split(path)[0], exist_ok=True)
+        with open(path, 'w', encoding='utf8') as f:
+            json.dump(content, f, ensure_ascii=False)
+
+    @staticmethod
+    def read_json_from_url(
+        url: str, auto_donwload: bool, record_missing: bool, extra_missing_msg: str
+    ) -> Any:
+        path = Util.url_to_path(url)
+        if os.path.exists(path):
+            with open(path, encoding='utf8') as f:
+                return json.load(f)
+        else:
+            if auto_donwload:
+                res = requests.get(url, proxies=PROXY)
+                res.raise_for_status()
+                json_content = res.json()
+                Util.save_json_to_url(url, json_content)
+                return json_content
+            else:
+                if record_missing:
+                    if extra_missing_msg:
+                        Util.write_to_file(
+                            Util.missing_assets_file, f'{extra_missing_msg}：{url}'
+                        )
+                    else:
+                        Util.write_to_file('missing_assets.txt', url)
+                return None
+
+    file_lock = threading.Lock()
+
+    @staticmethod
+    def write_to_file(file_path: str, content: str) -> None:
+        with Util.file_lock:
+            with open(file_path, 'a', encoding='utf-8', newline='') as f:
+                f.write(f"{content}\n")
+                f.flush()
+
+    @staticmethod
+    def get_url_json(
+        url: str,
+        online: bool,
+        save: bool,
+        missing_download: bool,
+        extra_missing_msg: str = '',
+    ) -> Any:
+        if online:
+            res = requests.get(url, proxies=PROXY)
+            res.raise_for_status()
+            json_content = res.json()
+            if save:
+                Util.save_json_to_url(url, json_content)
+        else:
+            json_content = Util.read_json_from_url(
+                url,
+                missing_download,
+                record_missing=True,
+                extra_missing_msg=extra_missing_msg,
+            )
+
+        return json_content
 
 
 if __name__ == '__main__':
-    reader = Story_reader('jp')
 
-    unit_getter = Unit_story_getter(reader)
-    event_getter = Event_story_getter(reader)
-    card_getter = Card_story_getter(reader)
+    online = True
+    save = True
+    parse = True
+
+    reader = Story_reader('cn', online=online, save=save)
+
+    unit_getter = Unit_story_getter(reader, online=online, save=save, parse=parse)
+    event_getter = Event_story_getter(reader, online=online, save=save, parse=parse)
+    card_getter = Card_story_getter(reader, online=online, save=save, parse=parse)
 
     with ThreadPoolExecutor(max_workers=20) as executor:
 

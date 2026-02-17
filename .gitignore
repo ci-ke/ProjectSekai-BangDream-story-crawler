@@ -1,3 +1,11 @@
+# content
+*_story/
+assets/
+html_pages/
+txt_output/
+urls.txt
+missing_assets.txt
+
 # cache
 __pycache__
 .mypy_cache
