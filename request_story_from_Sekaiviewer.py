@@ -203,26 +203,46 @@ class Story_reader:
                 elif (
                     specialEffect['EffectType'] == Story_reader.SpecialEffectType.Movie
                 ):
-                    ret += '\n（播放视频）\n'
-                    next_talk_need_newline = True
+                    if next_talk_need_newline:
+                        ret += '\n'
+                    ret += '（播放视频）\n'
+                    next_talk_need_newline = False
                 elif (
                     specialEffect['EffectType']
                     == Story_reader.SpecialEffectType.ChangeBackground
                 ):
-                    ret += '\n（背景切换）\n'
-                    next_talk_need_newline = True
+                    if next_talk_need_newline:
+                        ret += '\n'
+                    ret += '（背景切换）\n'
+                    next_talk_need_newline = False
                 elif (
                     specialEffect['EffectType']
                     == Story_reader.SpecialEffectType.FlashbackIn
                 ):
-                    ret += '\n（回忆切入）\n'
+                    ret += '\n（回忆切入 ↓）\n'
                     next_talk_need_newline = True
                 elif (
                     specialEffect['EffectType']
                     == Story_reader.SpecialEffectType.FlashbackOut
                 ):
-                    ret += '\n（回忆切出）\n'
+                    ret += '\n（回忆切出 ↑）\n'
                     next_talk_need_newline = True
+                elif (
+                    specialEffect['EffectType']
+                    == Story_reader.SpecialEffectType.BlackOut
+                ):
+                    if next_talk_need_newline:
+                        ret += '\n'
+                    ret += '（黑屏转场）\n'
+                    next_talk_need_newline = False
+                elif (
+                    specialEffect['EffectType']
+                    == Story_reader.SpecialEffectType.WhiteOut
+                ):
+                    if next_talk_need_newline:
+                        ret += '\n'
+                    ret += '（白屏转场）\n'
+                    next_talk_need_newline = False
             elif snippet['Action'] == Story_reader.SnippetAction.Talk:
                 talk = talks[snippet['ReferenceIndex']]
 

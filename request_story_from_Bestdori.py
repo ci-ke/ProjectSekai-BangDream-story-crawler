@@ -149,17 +149,31 @@ def read_story_in_json(json_data: Dict[str, Dict[str, Any]]) -> str:
                 )
                 next_talk_need_newline = False
             elif specialEffect['effectType'] == SpecialEffectType.Movie:
-                ret += '\n（播放视频）\n'
-                next_talk_need_newline = True
+                if next_talk_need_newline:
+                    ret += '\n'
+                ret += '（播放视频）\n'
+                next_talk_need_newline = False
             elif specialEffect['effectType'] == SpecialEffectType.ChangeBackground:
-                ret += '\n（背景切换）\n'
-                next_talk_need_newline = True
+                if next_talk_need_newline:
+                    ret += '\n'
+                ret += '（背景切换）\n'
+                next_talk_need_newline = False
             elif specialEffect['effectType'] == SpecialEffectType.FlashbackIn:
-                ret += '\n（回忆切入）\n'
+                ret += '\n（回忆切入 ↓）\n'
                 next_talk_need_newline = True
             elif specialEffect['effectType'] == SpecialEffectType.FlashbackOut:
-                ret += '\n（回忆切出）\n'
+                ret += '\n（回忆切出 ↑）\n'
                 next_talk_need_newline = True
+            elif specialEffect['effectType'] == SpecialEffectType.BlackOut:
+                if next_talk_need_newline:
+                    ret += '\n'
+                ret += '（黑屏转场）\n'
+                next_talk_need_newline = False
+            elif specialEffect['effectType'] == SpecialEffectType.WhiteOut:
+                if next_talk_need_newline:
+                    ret += '\n'
+                ret += '（白屏转场）\n'
+                next_talk_need_newline = False
         elif snippet['actionType'] == SnippetAction.Talk:
             talk = talks[snippet['referenceIndex']]
             if next_talk_need_newline:
@@ -501,6 +515,14 @@ if __name__ == '__main__':
 
         # for i in range(1, 322):
         #     future = executor.submit(e.get, i, 'jp')
+        #     futures.append(future)
+
+        # for i in range(1, 2):
+        #     future = executor.submit(c.get, i, 'cn')
+        #     futures.append(future)
+
+        # for i in range(1, 2):
+        #     future = executor.submit(c.get, i, 'jp')
         #     futures.append(future)
 
         for future in as_completed(futures):
