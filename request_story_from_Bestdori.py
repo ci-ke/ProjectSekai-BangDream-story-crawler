@@ -285,7 +285,7 @@ class Event_story_getter:
                     f.write(synopsis + '\n\n')
                     f.write(text + '\n')
 
-                print(f'get event {event_id} {event_name} {name} done.')
+            print(f'get event {event_id} {event_name} {name} done.')
 
 
 class Band_story_getter:
