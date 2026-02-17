@@ -228,7 +228,13 @@ class Event_story_getter:
         )
 
         event_name = info_json['eventName'][LANG_INDEX[lang]]
-        if event_name is None:
+        try:
+            first_caption = info_json['stories'][0]['caption'][
+                LANG_INDEX[lang]
+            ]  # for 13、20、23
+        except IndexError:  # for 248
+            first_caption = ''
+        if event_name is None or first_caption is None:
             print(f'event {event_id} has no {lang.upper()}.')
             return
 
@@ -682,7 +688,7 @@ class Util:
 
 if __name__ == '__main__':
 
-    online = True
+    online = False
     save = True
     parse = True
 

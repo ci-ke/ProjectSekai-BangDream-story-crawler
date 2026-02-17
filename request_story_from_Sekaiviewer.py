@@ -792,15 +792,21 @@ class Util:
 
 if __name__ == '__main__':
 
-    online = True
+    online = False
     save = True
     parse = True
 
     reader = Story_reader('cn', online=online, save=save)
-
     unit_getter = Unit_story_getter(reader, online=online, save=save, parse=parse)
     event_getter = Event_story_getter(reader, online=online, save=save, parse=parse)
     card_getter = Card_story_getter(reader, online=online, save=save, parse=parse)
+
+    reader_jp = Story_reader('jp', online=online, save=save)
+    unit_getter_jp = Unit_story_getter(reader_jp, online=online, save=save, parse=parse)
+    event_getter_jp = Event_story_getter(
+        reader_jp, online=online, save=save, parse=parse
+    )
+    card_getter_jp = Card_story_getter(reader_jp, online=online, save=save, parse=parse)
 
     with ThreadPoolExecutor(max_workers=20) as executor:
 
@@ -810,12 +816,22 @@ if __name__ == '__main__':
         # for i in range(1, 7):
         #     future = executor.submit(unit_getter.get, i)
         #     futures.append(future)
-        # for i in range(1, 196):
+        # for i in range(1, 162):
         #     future = executor.submit(event_getter.get, i)
         #     futures.append(future)
         # # 1-107 initial card, 724-759 2nd grade card
-        # for i in range(1, 1339):
+        # for i in range(1, 1144):
         #     future = executor.submit(card_getter.get, i)
+
+        # for i in range(1, 7):
+        #     future = executor.submit(unit_getter_jp.get, i)
+        #     futures.append(future)
+        # for i in range(1, 196):
+        #     future = executor.submit(event_getter_jp.get, i)
+        #     futures.append(future)
+        # # 1-107 initial card, 724-759 2nd grade card
+        # for i in range(1, 1339):
+        #     future = executor.submit(card_getter_jp.get, i)
 
         for future in as_completed(futures):
             try:
