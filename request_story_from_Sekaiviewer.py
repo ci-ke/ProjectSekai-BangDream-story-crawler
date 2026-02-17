@@ -158,7 +158,10 @@ class Story_reader:
 
         self.character2ds_lookup = DictLookup(self.character2ds, 'id')
 
-    def read_story_in_json(self, json_data: dict[str, Any]) -> str:
+    def read_story_in_json(self, json_data: str | dict[str, Any]) -> str:
+        if isinstance(json_data, str):
+            return json_data
+
         ret = ''
 
         talks = json_data['TalkData']
@@ -734,7 +737,10 @@ class Util:
             if auto_donwload:
                 res = requests.get(url, proxies=PROXY)
                 res.raise_for_status()
-                json_content = res.json()
+                try:
+                    json_content = res.json()
+                except Exception as e:
+                    json_content = f'读取json出错：{e}'
                 Util.save_json_to_url(url, json_content)
                 return json_content
             else:
@@ -767,7 +773,10 @@ class Util:
         if online:
             res = requests.get(url, proxies=PROXY)
             res.raise_for_status()
-            json_content = res.json()
+            try:
+                json_content = res.json()
+            except Exception as e:
+                json_content = f'读取json出错：{e}'
             if save:
                 Util.save_json_to_url(url, json_content)
         else:

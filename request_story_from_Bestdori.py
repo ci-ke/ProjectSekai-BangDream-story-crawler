@@ -122,7 +122,10 @@ class SpecialEffectType(int, Enum):
     StopShakeWindow = 26
 
 
-def read_story_in_json(json_data: Dict[str, Dict[str, Any]]) -> str:
+def read_story_in_json(json_data: str | Dict[str, Dict[str, Any]]) -> str:
+    if isinstance(json_data, str):
+        return json_data
+
     ret = ''
 
     talks = json_data['Base']['talkData']
@@ -506,6 +509,13 @@ class Card_story_getter:
 
         resourceSetName: str = card['resourceSetName']
 
+        card_story_filename = Util.valid_filename(
+            f'{card_id}_{chara_name}_{cardRarityType}星 {card_name}'
+        )
+
+        if lang != 'cn':
+            card_story_filename = lang + '-' + card_story_filename
+
         if 'episodes' not in card:
             card_has_story = False
             text_1 = ''
@@ -516,25 +526,23 @@ class Card_story_getter:
             story_1_name = card['episodes']['entries'][0]['title'][LANG_INDEX[lang]]
             story_2_name = card['episodes']['entries'][1]['title'][LANG_INDEX[lang]]
 
-            scenarioId_1 = card['episodes']['entries'][0]['scenarioId']
+            story_1_type = card['episodes']['entries'][0]['episodeType']
+            story_2_type = card['episodes']['entries'][1]['episodeType']
+
+            if story_1_type != 'animation':
+                scenarioId_1 = card['episodes']['entries'][0]['scenarioId']
+                story_1_json: str | Dict[str, Dict[str, Any]] = Util.get_url_json(
+                    self.story_url.format(
+                        lang=lang, res_id=resourceSetName, scenarioId=scenarioId_1
+                    ),
+                    self.online,
+                    self.save,
+                    self.missing_download,
+                )
+            else:
+                story_1_json = '动画故事'
+
             scenarioId_2 = card['episodes']['entries'][1]['scenarioId']
-
-            card_story_filename = Util.valid_filename(
-                f'{card_id}_{chara_name}_{cardRarityType}星 {card_name}'
-            )
-
-            if lang != 'cn':
-                card_story_filename = lang + '-' + card_story_filename
-
-            story_1_json: Dict[str, Dict[str, Any]] = Util.get_url_json(
-                self.story_url.format(
-                    lang=lang, res_id=resourceSetName, scenarioId=scenarioId_1
-                ),
-                self.online,
-                self.save,
-                self.missing_download,
-            )
-
             story_2_json: Dict[str, Dict[str, Any]] = Util.get_url_json(
                 self.story_url.format(
                     lang=lang, res_id=resourceSetName, scenarioId=scenarioId_2
@@ -619,7 +627,10 @@ class Util:
             if auto_donwload:
                 res = requests.get(url, proxies=PROXY)
                 res.raise_for_status()
-                json_content = res.json()
+                try:
+                    json_content = res.json()
+                except Exception as e:
+                    json_content = f'读取json出错：{e}'
                 Util.save_json_to_url(url, json_content)
                 return json_content
             else:
@@ -652,7 +663,10 @@ class Util:
         if online:
             res = requests.get(url, proxies=PROXY)
             res.raise_for_status()
-            json_content = res.json()
+            try:
+                json_content = res.json()
+            except Exception as e:
+                json_content = f'读取json出错：{e}'
             if save:
                 Util.save_json_to_url(url, json_content)
         else:
@@ -699,15 +713,15 @@ if __name__ == '__main__':
         #     future = executor.submit(e.get, i, 'cn')
         #     futures.append(future)
 
-        # for i in range(1, 322):
+        # for i in range(1, 323):
         #     future = executor.submit(e.get, i, 'jp')
         #     futures.append(future)
 
-        # for i in range(1, 2):
+        # for i in range(1, 2253):
         #     future = executor.submit(c.get, i, 'cn')
         #     futures.append(future)
 
-        # for i in range(1, 2):
+        # for i in range(1, 2403):
         #     future = executor.submit(c.get, i, 'jp')
         #     futures.append(future)
 
