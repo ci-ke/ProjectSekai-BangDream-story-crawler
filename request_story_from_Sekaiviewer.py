@@ -739,9 +739,9 @@ class Util:
                 res.raise_for_status()
                 try:
                     json_content = res.json()
+                    Util.save_json_to_url(url, json_content)
                 except Exception as e:
                     json_content = f'读取json出错：{e}'
-                Util.save_json_to_url(url, json_content)
                 return json_content
             else:
                 if record_missing:
@@ -751,7 +751,7 @@ class Util:
                         )
                     else:
                         Util.write_to_file('missing_assets.txt', url)
-                return None
+                return '未能读取到json文件'
 
     file_lock = threading.Lock()
 
@@ -775,10 +775,10 @@ class Util:
             res.raise_for_status()
             try:
                 json_content = res.json()
+                if save:
+                    Util.save_json_to_url(url, json_content)
             except Exception as e:
                 json_content = f'读取json出错：{e}'
-            if save:
-                Util.save_json_to_url(url, json_content)
         else:
             json_content = Util.read_json_from_url(
                 url,
