@@ -228,13 +228,7 @@ class Event_story_getter:
         )
 
         event_name = info_json['eventName'][LANG_INDEX[lang]]
-        try:
-            first_caption = info_json['stories'][0]['caption'][
-                LANG_INDEX[lang]
-            ]  # for 13、20、23
-        except IndexError:  # for 248
-            first_caption = ''
-        if event_name is None or first_caption is None:
+        if event_name is None:
             print(f'event {event_id} has no {lang.upper()}.')
             return
 
@@ -259,7 +253,11 @@ class Event_story_getter:
 
         for story in info_json['stories']:
             name = f"{story['scenarioId']} {story['caption'][LANG_INDEX[lang]]} {story['title'][LANG_INDEX[lang]]}"
-            synopsis = story['synopsis'][LANG_INDEX[lang]].replace('\n', ' ')
+
+            synopsis: str | None = story['synopsis'][LANG_INDEX[lang]]
+            if synopsis is not None:  # for 13 20 23, jp meta lost
+                synopsis = synopsis.replace('\n', ' ')
+
             id = story['scenarioId']
 
             filename = Util.valid_filename(name)
@@ -291,7 +289,7 @@ class Event_story_getter:
                     encoding='utf8',
                 ) as f:
                     f.write(name + '\n\n')
-                    f.write(synopsis + '\n\n')
+                    f.write(f'{synopsis}' + '\n\n')
                     f.write(text + '\n')
 
             print(f'get event {event_id} {event_name} {name} done.')
