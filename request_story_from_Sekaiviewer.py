@@ -4,7 +4,7 @@ import bisect, os, json, threading
 from urllib.request import pathname2url
 from enum import Enum
 from typing import Any
-from concurrent.futures import ThreadPoolExecutor, as_completed, Future
+from concurrent.futures import ThreadPoolExecutor, wait, Future
 
 import requests  # type: ignore
 
@@ -864,13 +864,14 @@ if __name__ == '__main__':
         # for i in range(1, 7):
         #     future = executor.submit(unit_getter_jp.get, i)
         #     futures.append(future)
-        # for i in range(1, 196):
+        # for i in range(1, 197):
         #     future = executor.submit(event_getter_jp.get, i)
         #     futures.append(future)
-        # for i in range(1, 1339):
+        # for i in range(1, 1344):
         #     future = executor.submit(card_getter_jp.get, i)
 
-        for future in as_completed(futures):
+        wait(futures)
+        for future in futures:
             try:
                 result = future.result()
             except Exception as e:

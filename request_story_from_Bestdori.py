@@ -2,7 +2,7 @@
 
 import os, json, threading
 from urllib.request import pathname2url
-from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from concurrent.futures import Future, ThreadPoolExecutor, wait
 from enum import Enum
 from typing import Any, Dict, Optional, Sequence
 
@@ -753,7 +753,8 @@ if __name__ == '__main__':
         #     future = executor.submit(c.get, i, 'jp')
         #     futures.append(future)
 
-        for future in as_completed(futures):
+        wait(futures)
+        for future in futures:
             try:
                 result = future.result()
             except Exception as e:
