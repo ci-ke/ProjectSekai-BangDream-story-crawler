@@ -288,7 +288,7 @@ class Event_story_getter:
         missing_download: bool = True,
     ) -> None:
         '''
-        src: sekai.best or snowy
+        src: sekai.best or pjsk.moe
         '''
 
         self.online = online
@@ -309,7 +309,7 @@ class Event_story_getter:
                 )
                 eventStories_url = 'https://sekai-world.github.io/sekai-master-db-diff/eventStories.json'
                 self.asset_url = 'https://storage.sekai.best/sekai-jp-assets/event_story/{assetbundleName}/scenario/{scenarioId}.asset'
-            elif src == 'snowy':
+            elif src == 'pjsk.moe':
                 events_url = 'https://sekaimaster.exmeaning.com/master/events.json'
                 eventStories_url = (
                     'https://sekaimaster.exmeaning.com/master/eventStories.json'
