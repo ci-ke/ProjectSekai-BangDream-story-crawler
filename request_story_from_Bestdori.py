@@ -447,6 +447,7 @@ class Main_story_getter:
                 self.online,
                 self.save,
                 self.missing_download,
+                filename,
             )
 
             if self.parse:
@@ -542,6 +543,7 @@ class Card_story_getter:
                     self.online,
                     self.save,
                     self.missing_download,
+                    card_story_filename,
                 )
             else:
                 story_1_json = '动画故事'
@@ -554,6 +556,7 @@ class Card_story_getter:
                 self.online,
                 self.save,
                 self.missing_download,
+                card_story_filename,
             )
 
             if self.parse:
@@ -587,6 +590,7 @@ class Card_story_getter:
 
 class Util:
 
+    error_assets_file = 'error_assets.txt'
     missing_assets_file = 'missing_assets.txt'
 
     @staticmethod
@@ -621,7 +625,11 @@ class Util:
 
     @staticmethod
     def read_json_from_url(
-        url: str, auto_donwload: bool, record_missing: bool, extra_missing_msg: str
+        url: str,
+        auto_donwload: bool,
+        extra_record_msg: str,
+        record_error: bool,
+        record_missing: bool,
     ) -> Any:
         path = Util.url_to_path(url)
         if os.path.exists(path):
@@ -629,22 +637,23 @@ class Util:
                 return json.load(f)
         else:
             if auto_donwload:
-                res = requests.get(url, proxies=PROXY)
-                res.raise_for_status()
-                try:
-                    json_content = res.json()
-                    Util.save_json_to_url(url, json_content)
-                except Exception as e:
-                    json_content = f'读取json出错：{e}'
-                return json_content
+                return Util.get_url_json(
+                    url,
+                    True,
+                    True,
+                    False,
+                    extra_record_msg,
+                    record_error,
+                    record_missing,
+                )
             else:
                 if record_missing:
-                    if extra_missing_msg:
+                    if extra_record_msg:
                         Util.write_to_file(
-                            Util.missing_assets_file, f'{extra_missing_msg}：{url}'
+                            Util.missing_assets_file, f'{extra_record_msg}：{url}'
                         )
                     else:
-                        Util.write_to_file('missing_assets.txt', url)
+                        Util.write_to_file(Util.missing_assets_file, url)
                 return '未能读取到json文件'
 
     file_lock = threading.Lock()
@@ -662,7 +671,9 @@ class Util:
         online: bool,
         save: bool,
         missing_download: bool,
-        extra_missing_msg: str = '',
+        extra_record_msg: str = '',
+        record_error: bool = True,
+        record_missing: bool = True,
     ) -> Any:
         if online:
             res = requests.get(url, proxies=PROXY)
@@ -673,12 +684,16 @@ class Util:
                     Util.save_json_to_url(url, json_content)
             except Exception as e:
                 json_content = f'读取json出错：{e}'
+                if record_error:
+                    if extra_record_msg:
+                        Util.write_to_file(
+                            Util.error_assets_file, f'{extra_record_msg}：{url}'
+                        )
+                    else:
+                        Util.write_to_file(Util.error_assets_file, url)
         else:
             json_content = Util.read_json_from_url(
-                url,
-                missing_download,
-                record_missing=True,
-                extra_missing_msg=extra_missing_msg,
+                url, missing_download, extra_record_msg, record_error, record_missing
             )
 
         return json_content
@@ -689,11 +704,20 @@ if __name__ == '__main__':
     online = False
     save = True
     parse = True
+    missing_download = True
 
-    m = Main_story_getter(online=online, save=save, parse=parse)
-    b = Band_story_getter(online=online, save=save, parse=parse)
-    e = Event_story_getter(online=online, save=save, parse=parse)
-    c = Card_story_getter(online=online, save=save, parse=parse)
+    m = Main_story_getter(
+        online=online, save=save, parse=parse, missing_download=missing_download
+    )
+    b = Band_story_getter(
+        online=online, save=save, parse=parse, missing_download=missing_download
+    )
+    e = Event_story_getter(
+        online=online, save=save, parse=parse, missing_download=missing_download
+    )
+    c = Card_story_getter(
+        online=online, save=save, parse=parse, missing_download=missing_download
+    )
 
     with ThreadPoolExecutor(max_workers=10) as executor:
         futures: list[Future[None]] = []
