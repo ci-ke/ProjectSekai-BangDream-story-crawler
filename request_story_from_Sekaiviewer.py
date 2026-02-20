@@ -99,6 +99,7 @@ class Story_reader:
         SpecialEffect = 6
         Sound = 7
 
+    # https://github.com/moe-sekai/Moesekai/blob/main/web/src/types/story.ts
     class SpecialEffectType(int, Enum):
         NoEffect = 0
         BlackIn = 1
@@ -127,6 +128,23 @@ class Story_reader:
         FullScreenText = 24
         StopShakeScreen = 25
         StopShakeWindow = 26
+        MemoryIn = 27
+        MemoryOut = 28
+        BlackWipeInLeft = 29
+        BlackWipeOutLeft = 30
+        BlackWipeInRight = 31
+        BlackWipeOutRight = 32
+        BlackWipeInTop = 33
+        BlackWipeOutTop = 34
+        BlackWipeInBottom = 35
+        BlackWipeOutBottom = 36
+        FullScreenTextShow = 38
+        FullScreenTextHide = 39
+        SekaiInCenter = 40
+        SekaiOutCenter = 41
+        ChangeCameraPosition = 42
+        ChangeCameraZoomLevel = 43
+        Blur = 44
 
     def __init__(
         self,
@@ -134,11 +152,14 @@ class Story_reader:
         online: bool = True,
         save: bool = False,
         missing_download: bool = True,
+        debug_parse: bool = False,
     ) -> None:
 
         self.online = online
         self.save = save
         self.missing_download = missing_download
+
+        self.debug_parse = debug_parse
 
         self.lang = lang
         if lang == 'cn':
@@ -261,6 +282,16 @@ class Story_reader:
                         ret += '\n'
                     ret += '（白屏转场）\n'
                     next_talk_need_newline = False
+                else:
+                    if self.debug_parse:
+                        try:
+                            effect_name = Story_reader.SpecialEffectType(
+                                specialEffect['EffectType']
+                            ).name
+                        except ValueError:
+                            effect_name = specialEffect['EffectType']
+                        ret += f'SpecialEffectType: {effect_name}\n'
+
             elif snippet['Action'] == Story_reader.SnippetAction.Talk:
                 talk = talks[snippet['ReferenceIndex']]
 
@@ -273,6 +304,15 @@ class Story_reader:
                     + '\n'
                 )
                 next_talk_need_newline = False
+            else:
+                if self.debug_parse:
+                    try:
+                        snippet_name = Story_reader.SnippetAction(
+                            snippet['Action']
+                        ).name
+                    except ValueError:
+                        snippet_name = snippet['Action']
+                    ret += f'SnippetAction: {snippet_name}\n'
 
         return ret[:-1]
 
@@ -804,13 +844,18 @@ class Util:
 
 if __name__ == '__main__':
 
-    online = False
+    online = True
     save = True
     parse = True
     missing_download = True
+    debug_parse = False
 
     reader = Story_reader(
-        'cn', online=online, save=save, missing_download=missing_download
+        'cn',
+        online=online,
+        save=save,
+        missing_download=missing_download,
+        debug_parse=debug_parse,
     )
     unit_getter = Unit_story_getter(
         reader, online=online, save=save, parse=parse, missing_download=missing_download
@@ -823,7 +868,11 @@ if __name__ == '__main__':
     )
 
     reader_jp = Story_reader(
-        'jp', online=online, save=save, missing_download=missing_download
+        'jp',
+        online=online,
+        save=save,
+        missing_download=missing_download,
+        debug_parse=debug_parse,
     )
     unit_getter_jp = Unit_story_getter(
         reader_jp,
@@ -860,6 +909,7 @@ if __name__ == '__main__':
         #     futures.append(future)
         # for i in range(1, 1144):
         #     future = executor.submit(card_getter.get, i)
+        #     futures.append(future)
 
         # for i in range(1, 7):
         #     future = executor.submit(unit_getter_jp.get, i)
@@ -869,6 +919,7 @@ if __name__ == '__main__':
         #     futures.append(future)
         # for i in range(1, 1344):
         #     future = executor.submit(card_getter_jp.get, i)
+        #     futures.append(future)
 
         wait(futures)
         for future in futures:

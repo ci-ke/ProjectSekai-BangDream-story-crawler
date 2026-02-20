@@ -21,6 +21,7 @@ ASSET_SAVE_DIR = BASE_SAVE_DIR + r'\assets'
 PROXY = None
 # PROXY = {'http': 'http://127.0.0.1:10808', 'https': 'http://127.0.0.1:10808'}
 
+DEBUG_PARSE = False
 
 ### CONSTANT
 LANG_INDEX = {'jp': 0, 'en': 1, 'tw': 2, 'cn': 3, 'kr': 4}
@@ -92,6 +93,7 @@ class SnippetAction(int, Enum):
     Sound = 7
 
 
+# https://github.com/moe-sekai/Moesekai/blob/main/web/src/types/story.ts
 class SpecialEffectType(int, Enum):
     NoEffect = 0
     BlackIn = 1
@@ -120,9 +122,28 @@ class SpecialEffectType(int, Enum):
     FullScreenText = 24
     StopShakeScreen = 25
     StopShakeWindow = 26
+    MemoryIn = 27
+    MemoryOut = 28
+    BlackWipeInLeft = 29
+    BlackWipeOutLeft = 30
+    BlackWipeInRight = 31
+    BlackWipeOutRight = 32
+    BlackWipeInTop = 33
+    BlackWipeOutTop = 34
+    BlackWipeInBottom = 35
+    BlackWipeOutBottom = 36
+    FullScreenTextShow = 38
+    FullScreenTextHide = 39
+    SekaiInCenter = 40
+    SekaiOutCenter = 41
+    ChangeCameraPosition = 42
+    ChangeCameraZoomLevel = 43
+    Blur = 44
 
 
-def read_story_in_json(json_data: str | Dict[str, Dict[str, Any]]) -> str:
+def read_story_in_json(
+    json_data: str | Dict[str, Dict[str, Any]], debug_parse: bool = DEBUG_PARSE
+) -> str:
     if isinstance(json_data, str):
         return json_data
 
@@ -182,6 +203,15 @@ def read_story_in_json(json_data: str | Dict[str, Dict[str, Any]]) -> str:
                     ret += '\n'
                 ret += '（白屏转场）\n'
                 next_talk_need_newline = False
+            else:
+                if debug_parse:
+                    try:
+                        effect_name = SpecialEffectType(
+                            specialEffect['effectType']
+                        ).name
+                    except ValueError:
+                        effect_name = specialEffect['effectType']
+                    ret += f'SpecialEffectType: {effect_name}\n'
         elif snippet['actionType'] == SnippetAction.Talk:
             talk = talks[snippet['referenceIndex']]
             if next_talk_need_newline:
@@ -193,6 +223,13 @@ def read_story_in_json(json_data: str | Dict[str, Dict[str, Any]]) -> str:
                 + '\n'
             )
             next_talk_need_newline = False
+        else:
+            if debug_parse:
+                try:
+                    snippet_name = SnippetAction(snippet['actionType']).name
+                except ValueError:
+                    snippet_name = snippet['actionType']
+                ret += f'SnippetAction: {snippet_name}\n'
 
     return ret[:-1]
 
