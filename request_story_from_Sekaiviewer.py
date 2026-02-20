@@ -227,11 +227,7 @@ class Story_reader:
                 ):
                     if next_talk_need_newline:
                         ret += '\n'
-                    ret += (
-                        '（地点）：'
-                        + specialEffect['StringVal'].replace('\n', ' ')
-                        + '\n'
-                    )
+                    ret += f"（地点）：{specialEffect['StringVal']}\n"
                     next_talk_need_newline = False
                 elif (
                     specialEffect['EffectType']
@@ -251,22 +247,14 @@ class Story_reader:
                 ):
                     if next_talk_need_newline:
                         ret += '\n'
-                    ret += (
-                        '（选项）：'
-                        + specialEffect['StringVal'].replace('\n', ' ')
-                        + '\n'
-                    )
+                    ret += f"（选项）：{specialEffect['StringVal']}\n"
                     next_talk_need_newline = False
                 elif (
                     specialEffect['EffectType'] == Story_reader.SpecialEffectType.Movie
                 ):
                     if next_talk_need_newline:
                         ret += '\n'
-                    ret += (
-                        '（播放视频）：'
-                        + specialEffect['StringVal'].replace('\n', ' ')
-                        + '\n'
-                    )
+                    ret += f"（播放视频）：{specialEffect['StringVal']}\n"
                     next_talk_need_newline = False
                 elif (
                     specialEffect['EffectType'] == Story_reader.SpecialEffectType.PlayMV
@@ -281,7 +269,7 @@ class Story_reader:
                 ):
                     if next_talk_need_newline:
                         ret += '\n'
-                    ret += '（背景切换）\n'
+                    ret += f"（背景切换）：{specialEffect['StringVal']}\n"
                     next_talk_need_newline = False
                 elif (
                     specialEffect['EffectType']
@@ -319,7 +307,7 @@ class Story_reader:
                             ).name
                         except ValueError:
                             effect_name = specialEffect['EffectType']
-                        ret += f'SpecialEffectType: {effect_name}\n'
+                        ret += f"SpecialEffectType: {effect_name}, {specialEffect['StringVal']}\n"
 
             elif snippet['Action'] == Story_reader.SnippetAction.Talk:
                 talk = talks[snippet['ReferenceIndex']]
@@ -877,6 +865,7 @@ if __name__ == '__main__':
     save = True
     parse = True
     missing_download = True
+
     debug_parse = False
 
     reader = Story_reader(
@@ -939,7 +928,7 @@ if __name__ == '__main__':
         #     futures.append(executor.submit(unit_getter_jp.get, i))
         # for i in range(1, 197):
         #     futures.append(executor.submit(event_getter_jp.get, i))
-        # for i in range(1, 1344):
+        # for i in range(1, 1345):
         #     futures.append(executor.submit(card_getter_jp.get, i))
 
         wait(futures)

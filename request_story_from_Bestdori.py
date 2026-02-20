@@ -161,42 +161,10 @@ def read_story_in_json(
             if specialEffect['effectType'] == SpecialEffectType.Telop:
                 ret += '\n【' + specialEffect['stringVal'] + '】\n'
                 next_talk_need_newline = True
-            # elif specialEffect['effectType'] == SpecialEffectType.PlaceInfo:
-            #     if next_talk_need_newline:
-            #         ret += '\n'
-            #     ret += (
-            #         '（地点）：' + specialEffect['stringVal'].replace('\n', ' ') + '\n'
-            #     )
-            #     next_talk_need_newline = False
-            elif specialEffect['effectType'] == SpecialEffectType.FullScreenText:
-                if next_talk_need_newline:
-                    ret += '\n'
-                ret += (
-                    '（全屏幕文字）：'
-                    + specialEffect['stringVal'].replace('\n', ' ')
-                    + '\n'
-                )
-                next_talk_need_newline = False
-            elif specialEffect['effectType'] == SpecialEffectType.SimpleSelectable:
-                if next_talk_need_newline:
-                    ret += '\n'
-                ret += (
-                    '（选项）：' + specialEffect['stringVal'].replace('\n', ' ') + '\n'
-                )
-                next_talk_need_newline = False
-            # elif specialEffect['effectType'] == SpecialEffectType.Movie:
-            #     if next_talk_need_newline:
-            #         ret += '\n'
-            #     ret += (
-            #         '（播放视频）：'
-            #         + specialEffect['stringVal'].replace('\n', ' ')
-            #         + '\n'
-            #     )
-            #     next_talk_need_newline = False
             elif specialEffect['effectType'] == SpecialEffectType.ChangeBackground:
                 if next_talk_need_newline:
                     ret += '\n'
-                ret += '（背景切换）\n'
+                ret += "（背景切换）\n"
                 next_talk_need_newline = False
             elif specialEffect['effectType'] == SpecialEffectType.FlashbackIn:
                 ret += '\n（回忆切入 ↓）\n'
@@ -222,7 +190,7 @@ def read_story_in_json(
                         ).name
                     except ValueError:
                         effect_name = specialEffect['effectType']
-                    ret += f'SpecialEffectType: {effect_name}\n'
+                    ret += f"SpecialEffectType: {effect_name}, {specialEffect['stringVal']}\n"
         elif snippet['actionType'] == SnippetAction.Talk:
             talk = talks[snippet['referenceIndex']]
             if next_talk_need_newline:
