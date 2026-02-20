@@ -138,7 +138,7 @@ class Story_reader:
         BlackWipeOutTop = 34
         BlackWipeInBottom = 35
         BlackWipeOutBottom = 36
-        PlayMV = 37  # special,only in unit main
+        PlayMV = 37  # special, only in unit main story
         FullScreenTextShow = 38
         FullScreenTextHide = 39
         SekaiInCenter = 40
@@ -191,11 +191,15 @@ class Story_reader:
 
         appearCharacters = json_data['AppearCharacters']
         chara_id = set()
+
+        have_mob = False
         for chara in appearCharacters:
             chara2dId = chara['Character2dId']
             chara2d = self.character2ds[self.character2ds_lookup.find_index(chara2dId)]
             if chara2d['characterId'] in CHARA_ID_UNIT_AND_NAME:
                 chara_id.add(chara2d['characterId'])
+            else:
+                have_mob = True
         chara_id_list = sorted(chara_id)
 
         if len(chara_id_list) > 0:
@@ -204,6 +208,7 @@ class Story_reader:
                 + '、'.join(
                     [CHARA_ID_UNIT_AND_NAME[id].split('_')[1] for id in chara_id_list]
                 )
+                # + ('、配角' if have_mob else '')
                 + '）\n\n'
             )
 
@@ -216,6 +221,18 @@ class Story_reader:
                 if specialEffect['EffectType'] == Story_reader.SpecialEffectType.Telop:
                     ret += '\n【' + specialEffect['StringVal'] + '】\n'
                     next_talk_need_newline = True
+                elif (
+                    specialEffect['EffectType']
+                    == Story_reader.SpecialEffectType.PlaceInfo
+                ):
+                    if next_talk_need_newline:
+                        ret += '\n'
+                    ret += (
+                        '（地点）：'
+                        + specialEffect['StringVal'].replace('\n', ' ')
+                        + '\n'
+                    )
+                    next_talk_need_newline = False
                 elif (
                     specialEffect['EffectType']
                     == Story_reader.SpecialEffectType.FullScreenText
