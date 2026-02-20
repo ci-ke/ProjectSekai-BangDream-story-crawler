@@ -180,7 +180,11 @@ def read_story_in_json(
             elif specialEffect['effectType'] == SpecialEffectType.Movie:
                 if next_talk_need_newline:
                     ret += '\n'
-                ret += '（播放视频）\n'
+                ret += (
+                    '（播放视频）：'
+                    + specialEffect['stringVal'].replace('\n', ' ')
+                    + '\n'
+                )
                 next_talk_need_newline = False
             elif specialEffect['effectType'] == SpecialEffectType.ChangeBackground:
                 if next_talk_need_newline:
@@ -758,37 +762,24 @@ if __name__ == '__main__':
 
     with ThreadPoolExecutor(max_workers=10) as executor:
         futures: list[Future[None]] = []
-        future: Future[None]
 
-        # future = executor.submit(m.get, None, 'cn')
-        # futures.append(future)
-
-        # future = executor.submit(m.get, None, 'jp')
-        # futures.append(future)
+        # futures.append(executor.submit(m.get, None, 'cn'))
+        # futures.append(executor.submit(m.get, None, 'jp'))
 
         # for i in BAND_ID_NAME:
-        #     future = executor.submit(b.get, i, None, 'cn')
-        #     futures.append(future)
-
+        #     futures.append(executor.submit(b.get, i, None, 'cn'))
         # for i in BAND_ID_NAME:
-        #     future = executor.submit(b.get, i, None, 'jp')
-        #     futures.append(future)
+        #     futures.append(executor.submit(b.get, i, None, 'jp'))
 
         # for i in list(range(1, 301)) + [312, 313]:
-        #     future = executor.submit(e.get, i, 'cn')
-        #     futures.append(future)
-
+        #     futures.append(executor.submit(e.get, i, 'cn'))
         # for i in range(1, 323):
-        #     future = executor.submit(e.get, i, 'jp')
-        #     futures.append(future)
+        #     futures.append(executor.submit(e.get, i, 'jp'))
 
         # for i in range(1, 2253):
-        #     future = executor.submit(c.get, i, 'cn')
-        #     futures.append(future)
-
+        #     futures.append(executor.submit(c.get, i, 'cn'))
         # for i in range(1, 2403):
-        #     future = executor.submit(c.get, i, 'jp')
-        #     futures.append(future)
+        #     futures.append(executor.submit(c.get, i, 'jp'))
 
         wait(futures)
         for future in futures:

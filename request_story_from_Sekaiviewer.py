@@ -138,6 +138,7 @@ class Story_reader:
         BlackWipeOutTop = 34
         BlackWipeInBottom = 35
         BlackWipeOutBottom = 36
+        PlayMV = 37  # special,only in unit main
         FullScreenTextShow = 38
         FullScreenTextHide = 39
         SekaiInCenter = 40
@@ -244,7 +245,18 @@ class Story_reader:
                 ):
                     if next_talk_need_newline:
                         ret += '\n'
-                    ret += '（播放视频）\n'
+                    ret += (
+                        '（播放视频）：'
+                        + specialEffect['StringVal'].replace('\n', ' ')
+                        + '\n'
+                    )
+                    next_talk_need_newline = False
+                elif (
+                    specialEffect['EffectType'] == Story_reader.SpecialEffectType.PlayMV
+                ):
+                    if next_talk_need_newline:
+                        ret += '\n'
+                    ret += f"（播放MV）：{specialEffect['IntVal']}\n"
                     next_talk_need_newline = False
                 elif (
                     specialEffect['EffectType']
@@ -844,7 +856,7 @@ class Util:
 
 if __name__ == '__main__':
 
-    online = True
+    online = False
     save = True
     parse = True
     missing_download = True
@@ -897,29 +909,21 @@ if __name__ == '__main__':
     )
 
     with ThreadPoolExecutor(max_workers=20) as executor:
-
         futures: list[Future[None]] = []
-        future: Future[None]
 
         # for i in range(1, 7):
-        #     future = executor.submit(unit_getter.get, i)
-        #     futures.append(future)
+        #     futures.append(executor.submit(unit_getter.get, i))
         # for i in range(1, 162):
-        #     future = executor.submit(event_getter.get, i)
-        #     futures.append(future)
+        #     futures.append(executor.submit(event_getter.get, i))
         # for i in range(1, 1144):
-        #     future = executor.submit(card_getter.get, i)
-        #     futures.append(future)
+        #     futures.append(executor.submit(card_getter.get, i))
 
         # for i in range(1, 7):
-        #     future = executor.submit(unit_getter_jp.get, i)
-        #     futures.append(future)
+        #     futures.append(executor.submit(unit_getter_jp.get, i))
         # for i in range(1, 197):
-        #     future = executor.submit(event_getter_jp.get, i)
-        #     futures.append(future)
+        #     futures.append(executor.submit(event_getter_jp.get, i))
         # for i in range(1, 1344):
-        #     future = executor.submit(card_getter_jp.get, i)
-        #     futures.append(future)
+        #     futures.append(executor.submit(card_getter_jp.get, i))
 
         wait(futures)
         for future in futures:
