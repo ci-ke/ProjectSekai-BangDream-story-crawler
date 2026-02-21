@@ -216,6 +216,7 @@ class Story_reader:
         next_talk_need_newline = True
 
         for snippet in snippets:
+            snippet_index = snippet['Index']
             if snippet['Action'] == Story_reader.SnippetAction.SpecialEffect:
                 specialEffect = specialEffects[snippet['ReferenceIndex']]
                 if specialEffect['EffectType'] == Story_reader.SpecialEffectType.Telop:
@@ -307,7 +308,7 @@ class Story_reader:
                             ).name
                         except ValueError:
                             effect_name = specialEffect['EffectType']
-                        ret += f"SpecialEffectType: {effect_name}, {specialEffect['StringVal']}\n"
+                        ret += f"SpecialEffectType: {effect_name}, {snippet_index}, {specialEffect['StringVal']}\n"
 
             elif snippet['Action'] == Story_reader.SnippetAction.Talk:
                 talk = talks[snippet['ReferenceIndex']]
@@ -329,7 +330,7 @@ class Story_reader:
                         ).name
                     except ValueError:
                         snippet_name = snippet['Action']
-                    ret += f'SnippetAction: {snippet_name}\n'
+                    ret += f"SnippetAction: {snippet_name}, {snippet_index}\n"
 
         return ret[:-1]
 

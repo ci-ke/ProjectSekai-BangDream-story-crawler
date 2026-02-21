@@ -155,7 +155,9 @@ def read_story_in_json(
     snippets = json_data['Base']['snippets']
     next_talk_need_newline = True
 
+    index = -1
     for snippet in snippets:
+        index += 1
         if snippet['actionType'] == SnippetAction.SpecialEffect:
             specialEffect = specialEffects[snippet['referenceIndex']]
             if specialEffect['effectType'] == SpecialEffectType.Telop:
@@ -190,7 +192,7 @@ def read_story_in_json(
                         ).name
                     except ValueError:
                         effect_name = specialEffect['effectType']
-                    ret += f"SpecialEffectType: {effect_name}, {specialEffect['stringVal']}\n"
+                    ret += f"SpecialEffectType: {effect_name}, {index}, {specialEffect['stringVal']}\n"
         elif snippet['actionType'] == SnippetAction.Talk:
             talk = talks[snippet['referenceIndex']]
             if next_talk_need_newline:
@@ -208,7 +210,7 @@ def read_story_in_json(
                     snippet_name = SnippetAction(snippet['actionType']).name
                 except ValueError:
                     snippet_name = snippet['actionType']
-                ret += f'SnippetAction: {snippet_name}\n'
+                ret += f'SnippetAction: {snippet_name}, {index}\n'
 
     return ret[:-1]
 
