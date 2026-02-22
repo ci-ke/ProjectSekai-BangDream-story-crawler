@@ -97,6 +97,7 @@ def read_json_from_url(
     extra_record_msg: str,
     error_assets_file: str | None,
     missing_assets_file: str | None,
+    proxies: dict[str, str] | None,
 ) -> Any:
     path = url_to_path(url, save_dir)
     if os.path.exists(path):
@@ -113,6 +114,7 @@ def read_json_from_url(
                 extra_record_msg,
                 error_assets_file,
                 None,
+                proxies,
             )
         else:
             if missing_assets_file:
@@ -169,6 +171,7 @@ def get_url_json(
             extra_record_msg,
             error_assets_file,
             missing_assets_file,
+            proxies,
         )
 
     return json_content
