@@ -90,7 +90,15 @@ def read_story_in_json(
             elif specialEffect['effectType'] == util.SpecialEffectType.ChangeBackground:
                 if next_talk_need_newline:
                     ret += '\n'
-                ret += "（背景切换）\n"
+                ret += (
+                    '（背景切换）'
+                    + (
+                        f"：{specialEffect['stringVal']}, {specialEffect['stringValSub']}"
+                        if debug_parse
+                        else ''
+                    )
+                    + '\n'
+                )
                 next_talk_need_newline = False
             elif specialEffect['effectType'] == util.SpecialEffectType.FlashbackIn:
                 ret += '\n（回忆切入 ↓）\n'
