@@ -1,10 +1,14 @@
+# test
+test*
+
 # content
 *_story/
 assets/
 html_pages/
 txt_output/
+
+assets_*.txt
 urls.txt
-missing_assets.txt
 
 # cache
 __pycache__
