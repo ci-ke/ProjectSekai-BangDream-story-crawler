@@ -71,6 +71,15 @@ class Constant:
         'rarity_birthday': '生日',
     }
 
+    @staticmethod
+    def is_cg(pic_name: str) -> bool:
+        if pic_name[:4] == 'bg_a' and (1 <= int(pic_name[4:]) <= 99):
+            return True
+        elif pic_name[:4] == 'bg_s':
+            return True
+        else:
+            return False
+
 
 class Story_reader:
     def __init__(
@@ -198,7 +207,15 @@ class Story_reader:
                 ):
                     if next_talk_need_newline:
                         ret += '\n'
-                    ret += f"（背景切换）：{specialEffect['StringVal']}\n"
+                    pic_name = specialEffect['StringVal']
+                    if Constant.is_cg(pic_name):
+                        ret += f'（插入CG）：{pic_name}\n'
+                    else:
+                        ret += (
+                            '（背景切换）'
+                            + (f'：{pic_name}' if self.debug_parse else '')
+                            + '\n'
+                        )
                     next_talk_need_newline = False
                 elif specialEffect['EffectType'] == util.SpecialEffectType.FlashbackIn:
                     ret += '\n（回忆切入 ↓）\n'
