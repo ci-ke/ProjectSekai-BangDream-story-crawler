@@ -93,10 +93,10 @@ def save_json_to_url(url: str, content: Any, save_dir: str) -> None:
 def read_json_from_url(
     url: str,
     missing_donwload: bool,
+    save_dir: str,
     extra_record_msg: str,
     error_assets_file: str | None,
     missing_assets_file: str | None,
-    save_dir: str,
 ) -> Any:
     path = url_to_path(url, save_dir)
     if os.path.exists(path):
@@ -108,11 +108,11 @@ def read_json_from_url(
                 url,
                 True,
                 True,
+                save_dir,
                 False,
                 extra_record_msg,
                 error_assets_file,
                 None,
-                save_dir,
             )
         else:
             if missing_assets_file:
@@ -137,11 +137,11 @@ def get_url_json(
     url: str,
     online: bool,
     save: bool,
+    save_dir: str,
     missing_download: bool,
     extra_record_msg: str = '',
     error_assets_file: str | None = 'assets_error.txt',
     missing_assets_file: str | None = 'assets_missing.txt',
-    save_dir: str = './assets',
     proxies: dict[str, str] | None = None,
 ) -> Any:
     '''
@@ -165,10 +165,10 @@ def get_url_json(
         json_content = read_json_from_url(
             url,
             missing_download,
+            save_dir,
             extra_record_msg,
             error_assets_file,
             missing_assets_file,
-            save_dir,
         )
 
     return json_content

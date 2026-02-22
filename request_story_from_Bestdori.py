@@ -173,8 +173,8 @@ class Event_story_getter:
             self.info_url.format(event_id=event_id),
             self.online,
             self.save_assets,
+            self.assets_save_dir,
             self.missing_download,
-            save_dir=self.assets_save_dir,
         )
 
         event_name = info_json['eventName'][Constant.lang_index[lang]]
@@ -219,9 +219,9 @@ class Event_story_getter:
                     self.story_url.format(lang=lang, event_id=event_id, id=id),
                     self.online,
                     self.save_assets,
+                    self.assets_save_dir,
                     self.missing_download,
                     filename,
-                    save_dir=self.assets_save_dir,
                 )
 
                 if self.parse:
@@ -283,8 +283,8 @@ class Band_story_getter:
             self.info_url,
             self.online,
             self.save_assets,
+            self.assets_save_dir,
             self.missing_download,
-            save_dir=self.assets_save_dir,
         )
 
         for band_story in info_json.values():
@@ -332,9 +332,9 @@ class Band_story_getter:
                     self.story_url.format(lang=lang, band_id=band_id, id=id),
                     self.online,
                     self.save_assets,
+                    self.assets_save_dir,
                     self.missing_download,
                     filename,
-                    save_dir=self.assets_save_dir,
                 )
 
                 if self.parse:
@@ -385,8 +385,8 @@ class Main_story_getter:
             self.info_url,
             self.online,
             self.save_assets,
+            self.assets_save_dir,
             self.missing_download,
-            save_dir=self.assets_save_dir,
         )
 
         if self.parse:
@@ -418,9 +418,9 @@ class Main_story_getter:
                 self.story_url.format(lang=lang, id=id),
                 self.online,
                 self.save_assets,
+                self.assets_save_dir,
                 self.missing_download,
                 filename,
-                save_dir=self.assets_save_dir,
             )
 
             if self.parse:
@@ -467,8 +467,8 @@ class Card_story_getter:
                 self.all_cards_list_url,
                 self.online,
                 self.save_assets,
+                self.assets_save_dir,
                 self.missing_download,
-                save_dir=self.assets_save_dir,
             ).keys()
         ]
 
@@ -481,8 +481,8 @@ class Card_story_getter:
             self.info_url.format(id=card_id),
             self.online,
             self.save_assets,
+            self.assets_save_dir,
             self.missing_download,
-            save_dir=self.assets_save_dir,
         )
 
         chara_band_and_name = Constant.chara_id_band_and_name[card['characterId']]
@@ -528,9 +528,9 @@ class Card_story_getter:
                     ),
                     self.online,
                     self.save_assets,
+                    self.assets_save_dir,
                     self.missing_download,
                     card_story_filename,
-                    save_dir=self.assets_save_dir,
                 )
             else:
                 story_1_json = '动画故事'
@@ -542,9 +542,9 @@ class Card_story_getter:
                 ),
                 self.online,
                 self.save_assets,
+                self.assets_save_dir,
                 self.missing_download,
                 card_story_filename,
-                save_dir=self.assets_save_dir,
             )
 
             if self.parse:

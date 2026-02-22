@@ -107,8 +107,8 @@ class Story_reader:
             character2ds_url,
             self.online,
             self.save_assets,
+            self.assets_save_dir,
             self.missing_download,
-            save_dir=self.assets_save_dir,
         )
 
         self.character2ds_lookup = DictLookup(self.character2ds, 'id')
@@ -308,15 +308,15 @@ class Event_story_getter:
             events_url,
             self.online,
             self.save_assets,
+            self.assets_save_dir,
             self.missing_download,
-            save_dir=self.assets_save_dir,
         )
         self.eventStories_json: list[dict[str, Any]] = util.get_url_json(
             eventStories_url,
             self.online,
             self.save_assets,
+            self.assets_save_dir,
             self.missing_download,
-            save_dir=self.assets_save_dir,
         )
 
         self.events_lookup = DictLookup(self.events_json, 'id')
@@ -385,9 +385,9 @@ class Event_story_getter:
                 ),
                 self.online,
                 self.save_assets,
+                self.assets_save_dir,
                 self.missing_download,
                 filename,
-                save_dir=self.assets_save_dir,
             )
 
             if self.parse:
@@ -454,15 +454,15 @@ class Unit_story_getter:
             unitProfiles_url,
             self.online,
             self.save_assets,
+            self.assets_save_dir,
             self.missing_download,
-            save_dir=self.assets_save_dir,
         )
         self.unitStories_json: list[dict[str, Any]] = util.get_url_json(
             unitStories_url,
             self.online,
             self.save_assets,
+            self.assets_save_dir,
             self.missing_download,
-            save_dir=self.assets_save_dir,
         )
 
     def get(self, unit_id: int) -> None:
@@ -507,9 +507,9 @@ class Unit_story_getter:
                 ),
                 self.online,
                 self.save_assets,
+                self.assets_save_dir,
                 self.missing_download,
                 filename,
-                save_dir=self.assets_save_dir,
             )
 
             if self.parse:
@@ -581,22 +581,22 @@ class Card_story_getter:
             cards_url,
             self.online,
             self.save_assets,
+            self.assets_save_dir,
             self.missing_download,
-            save_dir=self.assets_save_dir,
         )
         self.cardEpisodes_json: list[dict[str, Any]] = util.get_url_json(
             cardEpisodes_url,
             self.online,
             self.save_assets,
+            self.assets_save_dir,
             self.missing_download,
-            save_dir=self.assets_save_dir,
         )
         ori_eventCards_json: list[dict[str, Any]] = util.get_url_json(
             eventCards_url,
             self.online,
             self.save_assets,
+            self.assets_save_dir,
             self.missing_download,
-            save_dir=self.assets_save_dir,
         )
 
         self.eventCards_json: list[dict[str, Any]] = []
@@ -663,9 +663,9 @@ class Card_story_getter:
             ),
             self.online,
             self.save_assets,
+            self.assets_save_dir,
             self.missing_download,
             card_story_filename + ' 上篇',
-            save_dir=self.assets_save_dir,
         )
         story_2_json: dict[str, Any] = util.get_url_json(
             self.asset_url.format(
@@ -673,9 +673,9 @@ class Card_story_getter:
             ),
             self.online,
             self.save_assets,
+            self.assets_save_dir,
             self.missing_download,
             card_story_filename + ' 下篇',
-            save_dir=self.assets_save_dir,
         )
 
         if self.parse:
