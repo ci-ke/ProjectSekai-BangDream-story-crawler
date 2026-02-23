@@ -86,7 +86,7 @@ class Constant:
         11: "神山高中",
         12: "主题乐园",
         13: "宫益坂女子学园",
-        14: "恶之大罪系列的世界",
+        14: "恶之大罪系列的“世界”",
         15: "MIKUdemy 教室",
         16: "MIKUdemy 运动场",
         17: "教室的“世界”",
@@ -94,10 +94,10 @@ class Constant:
         19: "街头的“世界”",
         20: "游乐园的“世界”",
         20: "空无一人的“世界”",
-        22: "彩虹乐园的世界",
-        23: "不可思议时空的世界？",
-        24: "不可思议时空的世界？",
-        25: "敞开之窗的世界",
+        22: "彩虹乐园的“世界”",
+        23: "不可思议时空的“世界”？",
+        24: "不可思议时空的“世界”？",
+        25: "敞开之窗的“世界”",
         26: "ASTRO FES会场",
         27: "？？？的“世界”",
     }
@@ -795,68 +795,137 @@ class Area_talk_getter:
 
         self.info_json_lookup = DictLookup(self.info_json, 'id')
 
-    def get(self, target: int | str) -> None:
+    def get(self, target: int | str, thread_num: int = 0) -> None:
         '''
-        target: event_id, grade1, grade2, limited-(area_id), theater, aprilfool2022-
+        target: int: event_id; str: grade1, grade2, theater, limited-{area_id}, aprilfool2022-
         '''
-
         if isinstance(target, int):  # event id
             talk_infos = [
                 talk
                 for talk in self.info_json
-                if (len(cond := str(talk['releaseConditionId'])) == 6)
+                if ('scenarioId' in talk)
+                and (len(cond := str(talk['releaseConditionId'])) == 6)
                 and (cond[0] == '1')
                 and (int(cond[1:4]) == target - 1)
             ]
-            if len(talk_infos) == 0:
-                print(f'talk event {target} does not exist.')
-                return
-
+        elif target == 'grade1':
+            talk_infos = [
+                talk
+                for talk in self.info_json
+                if ('scenarioId' in talk)
+                and (talk.get("actionSetType") == "normal")
+                and (talk["isNextGrade"] == False)
+                and (talk["releaseConditionId"] == 1)
+            ]
+        elif target == 'grade2':
+            talk_infos = [
+                talk
+                for talk in self.info_json
+                if ('scenarioId' in talk)
+                and (talk.get("actionSetType") == "normal")
+                and (talk["isNextGrade"] == True)
+                and (talk["releaseConditionId"] == 1)
+            ]
+        elif target == 'theater':
+            talk_infos = [
+                talk
+                for talk in self.info_json
+                if ('scenarioId' in talk) and (talk["releaseConditionId"] >= 2000000)
+            ]
+        elif target.startswith('limited-'):
+            area_id = int(target.split('-')[1])
+            talk_infos = [
+                talk
+                for talk in self.info_json
+                if ('scenarioId' in talk)
+                and (talk.get("actionSetType") == "limited")
+                and (talk['areaId'] == area_id)
+                and ('aprilfool' not in talk['scenarioId'])
+            ]
+        elif target.startswith('aprilfool'):
+            assert len(target) == 9 + 4
+            talk_infos = [
+                talk
+                for talk in self.info_json
+                if ('scenarioId' in talk)
+                and (talk.get("actionSetType") == "limited")
+                and ((target in talk['scenarioId']))
+            ]
         else:
             raise NotImplementedError
+
+        if len(talk_infos) == 0:
+            print(f'talk {target} does not exist.')
+            return
 
         if self.parse:
             os.makedirs(self.save_dir, exist_ok=True)
 
         talk_jsons = []
-        for talk_info in talk_infos:
-            talk_jsons.append(
-                util.get_url_json(
-                    self.asset_url.format(
-                        group=math.floor(talk_info['id'] / 100),
-                        scenarioId=talk_info['scenarioId'],
-                    ),
-                    self.online,
-                    self.save_assets,
-                    self.assets_save_dir,
-                    self.missing_download,
+
+        if thread_num > 0:
+            with ThreadPoolExecutor(max_workers=thread_num) as executor:
+                futures: list[Future] = []
+
+                for talk_info in talk_infos:
+                    futures.append(
+                        executor.submit(
+                            util.get_url_json,
+                            self.asset_url.format(
+                                group=math.floor(talk_info['id'] / 100),
+                                scenarioId=talk_info['scenarioId'],
+                            ),
+                            self.online,
+                            self.save_assets,
+                            self.assets_save_dir,
+                            self.missing_download,
+                            print_done=True,
+                        )
+                    )
+
+                wait(futures)
+                for future in futures:
+                    talk_jsons.append(future.result())
+        else:
+            for talk_info in talk_infos:
+                talk_jsons.append(
+                    util.get_url_json(
+                        self.asset_url.format(
+                            group=math.floor(talk_info['id'] / 100),
+                            scenarioId=talk_info['scenarioId'],
+                        ),
+                        self.online,
+                        self.save_assets,
+                        self.assets_save_dir,
+                        self.missing_download,
+                    )
                 )
-            )
 
         if self.parse:
             texts: list[str] = []
             for talk_json in talk_jsons:
                 texts.append(self.reader.read_story_in_json(talk_json))
 
-            filename = f'talk_event_{target}'
+            if isinstance(target, int):  # event id
+                filename = f'talk_event_{target}'
+            else:
+                filename = f'talk_{target}'
+
             if self.reader.lang != 'cn':
                 filename = self.reader.lang + '-' + filename
 
-            if isinstance(target, int):  # event id
-                with open(
-                    os.path.join(self.save_dir, filename) + '.txt',
-                    'w',
-                    encoding='utf8',
-                ) as f:
-                    for talk_info, text in zip(talk_infos, texts):
-                        f.write(
-                            f"{talk_info['id']}【{Constant.area_name[talk_info['areaId']]}】\n\n"
-                        )
-                        f.write(text + '\n\n\n')
+            with open(
+                os.path.join(self.save_dir, filename) + '.txt',
+                'w',
+                encoding='utf8',
+            ) as f:
+                for index, (talk_info, text) in enumerate(zip(talk_infos, texts)):
+                    f.write(
+                        f"{index+1}: {talk_info['id']} 【{Constant.area_name[talk_info['areaId']]}】\n\n"
+                    )
+                    f.write(text + '\n\n\n')
 
-                print(f'get talk event-{target} done.')
-            else:
-                raise NotImplementedError
+            print(f'get talk {filename} done.')
 
     # for debug
     def get_id(self, talk_id: int) -> None:

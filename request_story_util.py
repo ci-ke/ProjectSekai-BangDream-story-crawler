@@ -145,6 +145,7 @@ def get_url_json(
     error_assets_file: str | None = 'assets_error.txt',
     missing_assets_file: str | None = 'assets_missing.txt',
     proxies: dict[str, str] | None = None,
+    print_done: bool = False,
 ) -> Any:
     '''
     proxies: example: {'http': 'http://127.0.0.1:10808', 'https': 'http://127.0.0.1:10808'}
@@ -173,5 +174,8 @@ def get_url_json(
             missing_assets_file,
             proxies,
         )
+
+    if print_done:
+        print('get ' + url + ' done.')
 
     return json_content
