@@ -1,6 +1,6 @@
 # https://github.com/ci-ke/ProjectSekai-BangDream-story-crawler
 
-import bisect, os
+import bisect, os, math
 from typing import Any
 from concurrent.futures import ThreadPoolExecutor, wait, Future
 
@@ -69,6 +69,37 @@ class Constant:
         'rarity_3': '三星',
         'rarity_4': '四星',
         'rarity_birthday': '生日',
+    }
+
+    # https://i18n-json.sekai.best/zh-CN/area_name.json
+    # https://i18n-json.sekai.best/ja/area_name.json
+    area_name = {
+        1: "全向十字路口",
+        2: "中心大街",
+        3: "购物广场",
+        4: "音乐商店",
+        5: "教室的“世界”",
+        7: "舞台的“世界”",
+        8: "街头的“世界”",
+        9: "游乐园的“世界”",
+        10: "空无一人的“世界”",
+        11: "神山高中",
+        12: "主题乐园",
+        13: "宫益坂女子学园",
+        14: "恶之大罪系列的世界",
+        15: "MIKUdemy 教室",
+        16: "MIKUdemy 运动场",
+        17: "教室的“世界”",
+        18: "舞台的“世界”",
+        19: "街头的“世界”",
+        20: "游乐园的“世界”",
+        20: "空无一人的“世界”",
+        22: "彩虹乐园的世界",
+        23: "不可思议时空的世界？",
+        24: "不可思议时空的世界？",
+        25: "敞开之窗的世界",
+        26: "ASTRO FES会场",
+        27: "？？？的“世界”",
     }
 
     @staticmethod
@@ -713,6 +744,157 @@ class Card_story_getter:
                 f.write(text_2 + '\n')
 
         print(f'get card {card_story_filename} done.')
+
+
+class Area_talk_getter:
+    def __init__(
+        self,
+        reader: Story_reader,
+        save_dir: str = './area_talk',
+        assets_save_dir: str = './assets',
+        online: bool = True,
+        save_assets: bool = True,
+        parse: bool = True,
+        missing_download: bool = True,
+    ) -> None:
+
+        self.reader = reader
+        self.save_dir = save_dir
+        self.assets_save_dir = assets_save_dir
+
+        self.online = online
+        self.save_assets = save_assets
+        self.parse = parse
+        self.missing_download = missing_download
+
+        if reader.lang == 'cn':
+            info_url = (
+                'https://sekai-world.github.io/sekai-master-db-cn-diff/actionSets.json'
+            )
+            self.asset_url = 'https://storage.sekai.best/sekai-cn-assets/scenario/actionset/group{group}/{scenarioId}.asset'
+        elif reader.lang == 'jp':
+            info_url = (
+                'https://sekai-world.github.io/sekai-master-db-diff/actionSets.json'
+            )
+            self.asset_url = 'https://storage.sekai.best/sekai-jp-assets/scenario/actionset/group{group}/{scenarioId}.asset'
+        elif reader.lang == 'tw':
+            info_url = (
+                'https://sekai-world.github.io/sekai-master-db-tc-diff/actionSets.json'
+            )
+            self.asset_url = 'https://storage.sekai.best/sekai-tc-assets/scenario/actionset/group{group}/{scenarioId}.asset'
+        else:
+            raise NotImplementedError
+
+        self.info_json: list[dict[str, Any]] = util.get_url_json(
+            info_url,
+            self.online,
+            self.save_assets,
+            self.assets_save_dir,
+            self.missing_download,
+        )
+
+        self.info_json_lookup = DictLookup(self.info_json, 'id')
+
+    def get(self, target: int | str) -> None:
+        '''
+        target: event_id, grade1, grade2, limited-(area_id), theater, aprilfool2022-
+        '''
+
+        if isinstance(target, int):  # event id
+            talk_infos = [
+                talk
+                for talk in self.info_json
+                if (len(cond := str(talk['releaseConditionId'])) == 6)
+                and (cond[0] == '1')
+                and (int(cond[1:4]) == target - 1)
+            ]
+            if len(talk_infos) == 0:
+                print(f'talk event {target} does not exist.')
+                return
+
+        else:
+            raise NotImplementedError
+
+        if self.parse:
+            os.makedirs(self.save_dir, exist_ok=True)
+
+        talk_jsons = []
+        for talk_info in talk_infos:
+            talk_jsons.append(
+                util.get_url_json(
+                    self.asset_url.format(
+                        group=math.floor(talk_info['id'] / 100),
+                        scenarioId=talk_info['scenarioId'],
+                    ),
+                    self.online,
+                    self.save_assets,
+                    self.assets_save_dir,
+                    self.missing_download,
+                )
+            )
+
+        if self.parse:
+            texts: list[str] = []
+            for talk_json in talk_jsons:
+                texts.append(self.reader.read_story_in_json(talk_json))
+
+            filename = f'talk_event_{target}'
+            if self.reader.lang != 'cn':
+                filename = self.reader.lang + '-' + filename
+
+            if isinstance(target, int):  # event id
+                with open(
+                    os.path.join(self.save_dir, filename) + '.txt',
+                    'w',
+                    encoding='utf8',
+                ) as f:
+                    for talk_info, text in zip(talk_infos, texts):
+                        f.write(
+                            f"{talk_info['id']}【{Constant.area_name[talk_info['areaId']]}】\n\n"
+                        )
+                        f.write(text + '\n\n\n')
+
+                print(f'get talk event-{target} done.')
+            else:
+                raise NotImplementedError
+
+    # for debug
+    def get_id(self, talk_id: int) -> None:
+        talk_info_index = self.info_json_lookup.find_index(talk_id)
+        if talk_info_index == -1:
+            print(f'talk {talk_id} does not exist.')
+            return
+
+        talk_info = self.info_json[talk_info_index]
+
+        if 'scenarioId' not in talk_info:
+            print(f'talk {talk_id} does have content.')
+            return
+
+        if self.parse:
+            os.makedirs(self.save_dir, exist_ok=True)
+
+        talk_json = util.get_url_json(
+            self.asset_url.format(
+                group=math.floor(talk_id / 100), scenarioId=talk_info['scenarioId']
+            ),
+            self.online,
+            self.save_assets,
+            self.assets_save_dir,
+            self.missing_download,
+        )
+
+        if self.parse:
+            text = self.reader.read_story_in_json(talk_json)
+
+            with open(
+                os.path.join(self.save_dir, f'talk_{talk_id}') + '.txt',
+                'w',
+                encoding='utf8',
+            ) as f:
+                f.write(text + '\n')
+
+            print(f'get talk {talk_id} done.')
 
 
 class DictLookup:

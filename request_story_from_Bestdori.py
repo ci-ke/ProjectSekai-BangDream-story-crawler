@@ -604,12 +604,12 @@ if __name__ == '__main__':
         # for i in Constant.band_id_name:
         #     futures.append(executor.submit(band_getter.get, i, None, 'jp'))
 
-        # for i in list(range(1, 301)) + [312, 313]:
+        # for i in list(range(1, 302)) + [312, 313]:
         #     futures.append(executor.submit(event_getter.get, i, 'cn'))
         # for i in range(1, 323):
         #     futures.append(executor.submit(event_getter.get, i, 'jp'))
 
-        # for i in range(1, 2253):
+        # for i in range(1, 2258):
         #     futures.append(executor.submit(card_getter.get, i, 'cn'))
         # for i in range(1, 2403):
         #     futures.append(executor.submit(card_getter.get, i, 'jp'))
