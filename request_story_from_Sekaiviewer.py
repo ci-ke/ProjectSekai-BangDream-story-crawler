@@ -930,7 +930,7 @@ class Area_talk_getter:
                     )
                     f.write(text + '\n\n\n')
 
-            print(f'get talk {filename} done.')
+        print(f'get talk {filename} done.')
 
     # for debug
     def get_id(self, talk_id: int) -> None:
@@ -961,8 +961,12 @@ class Area_talk_getter:
         if self.parse:
             text = self.reader.read_story_in_json(talk_json)
 
+            filename = f'talk_{talk_id}'
+            if self.reader.lang != 'cn':
+                filename = self.reader.lang + '-' + filename
+
             with open(
-                os.path.join(self.save_dir, f'talk_{talk_id}') + '.txt',
+                os.path.join(self.save_dir, filename) + '.txt',
                 'w',
                 encoding='utf8',
             ) as f:
@@ -971,7 +975,7 @@ class Area_talk_getter:
                 )
                 f.write(text + '\n')
 
-            print(f'get talk {talk_id} done.')
+        print(f'get talk {talk_id} done.')
 
 
 class DictLookup:
