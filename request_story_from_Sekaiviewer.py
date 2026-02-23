@@ -808,6 +808,11 @@ class Area_talk_getter:
                 and (cond[0] == '1')
                 and (int(cond[1:4]) == target - 1)
             ]
+            if target == 145:
+                talk_info_index = self.info_json_lookup.find_index(
+                    2373
+                )  # special for mzk5
+                talk_infos.append(self.info_json[talk_info_index])
         elif target == 'grade1':
             talk_infos = [
                 talk
@@ -961,6 +966,9 @@ class Area_talk_getter:
                 'w',
                 encoding='utf8',
             ) as f:
+                f.write(
+                    f"{talk_info['id']} 【{Constant.area_name[talk_info['areaId']]}】\n\n"
+                )
                 f.write(text + '\n')
 
             print(f'get talk {talk_id} done.')
