@@ -1,4 +1,4 @@
-import os, json, threading
+import os, json, threading, traceback
 from enum import Enum
 from typing import Any
 
@@ -158,8 +158,8 @@ def get_url_json(
             json_content = res.json()
             if save:
                 save_json_to_url(url, json_content, save_dir)
-        except Exception as e:
-            json_content = f'读取json出错：{e}'
+        except Exception:
+            json_content = f'读取json出错：{traceback.format_exc()}'
             if error_assets_file:
                 if extra_record_msg:
                     write_to_file(error_assets_file, f'{extra_record_msg}：{url}')

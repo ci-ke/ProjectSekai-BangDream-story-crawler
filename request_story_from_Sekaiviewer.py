@@ -2,7 +2,7 @@
 
 import bisect, os, math
 from typing import Any
-from concurrent.futures import ThreadPoolExecutor, wait, Future
+from concurrent.futures import Executor, ThreadPoolExecutor, wait, Future
 
 import request_story_util as util
 
@@ -782,7 +782,7 @@ class Area_talk_getter:
         self.area_name_lookup = DictLookup(self.area_name_json, 'id')
         self.info_json_lookup = DictLookup(self.info_json, 'id')
 
-    def get(self, target: int | str, thread_num: int = 0) -> None:
+    def get(self, target: int | str, executor: Executor | None = None) -> None:
         '''
         target: int: event_id; str: grade1, grade2, theater, limited-{area_id}, aprilfool2022-
         '''
@@ -855,29 +855,28 @@ class Area_talk_getter:
 
         talk_jsons = []
 
-        if thread_num > 0:
-            with ThreadPoolExecutor(max_workers=thread_num) as executor:
-                futures: list[Future] = []
+        if executor is not None:
+            futures: list[Future] = []
 
-                for talk_info in talk_infos:
-                    futures.append(
-                        executor.submit(
-                            util.get_url_json,
-                            self.asset_url.format(
-                                group=math.floor(talk_info['id'] / 100),
-                                scenarioId=talk_info['scenarioId'],
-                            ),
-                            self.online,
-                            self.save_assets,
-                            self.assets_save_dir,
-                            self.missing_download,
-                            print_done=True,
-                        )
+            for talk_info in talk_infos:
+                futures.append(
+                    executor.submit(
+                        util.get_url_json,
+                        self.asset_url.format(
+                            group=math.floor(talk_info['id'] / 100),
+                            scenarioId=talk_info['scenarioId'],
+                        ),
+                        self.online,
+                        self.save_assets,
+                        self.assets_save_dir,
+                        self.missing_download,
+                        print_done=True,
                     )
+                )
 
-                wait(futures)
-                for future in futures:
-                    talk_jsons.append(future.result())
+            wait(futures)
+            for future in futures:
+                talk_jsons.append(future.result())
         else:
             for talk_info in talk_infos:
                 talk_jsons.append(
