@@ -71,37 +71,6 @@ class Constant:
         'rarity_birthday': '生日',
     }
 
-    # https://i18n-json.sekai.best/zh-CN/area_name.json
-    # https://i18n-json.sekai.best/ja/area_name.json
-    area_name = {
-        1: "全向十字路口",
-        2: "中心大街",
-        3: "购物广场",
-        4: "音乐商店",
-        5: "教室的“世界”",
-        7: "舞台的“世界”",
-        8: "街头的“世界”",
-        9: "游乐园的“世界”",
-        10: "空无一人的“世界”",
-        11: "神山高中",
-        12: "主题乐园",
-        13: "宫益坂女子学园",
-        14: "恶之大罪系列的“世界”",
-        15: "MIKUdemy 教室",
-        16: "MIKUdemy 运动场",
-        17: "教室的“世界”",
-        18: "舞台的“世界”",
-        19: "街头的“世界”",
-        20: "游乐园的“世界”",
-        21: "空无一人的“世界”",
-        22: "彩虹乐园的“世界”",
-        23: "不可思议时空的“世界”？",
-        24: "不可思议时空的“世界”？",
-        25: "敞开之窗的“世界”",
-        26: "ASTRO FES会场",
-        27: "？？？的“世界”",
-    }
-
     @staticmethod
     def is_cg(pic_name: str) -> bool:
         if pic_name[:4] == 'bg_a' and (1 <= int(pic_name[4:]) <= 99):
@@ -768,22 +737,39 @@ class Area_talk_getter:
         self.missing_download = missing_download
 
         if reader.lang == 'cn':
+            area_name_url = (
+                'https://sekai-world.github.io/sekai-master-db-cn-diff/areas.json'
+            )
             info_url = (
                 'https://sekai-world.github.io/sekai-master-db-cn-diff/actionSets.json'
             )
             self.asset_url = 'https://storage.sekai.best/sekai-cn-assets/scenario/actionset/group{group}/{scenarioId}.asset'
         elif reader.lang == 'jp':
+            area_name_url = (
+                'https://sekai-world.github.io/sekai-master-db-diff/areas.json'
+            )
             info_url = (
                 'https://sekai-world.github.io/sekai-master-db-diff/actionSets.json'
             )
             self.asset_url = 'https://storage.sekai.best/sekai-jp-assets/scenario/actionset/group{group}/{scenarioId}.asset'
         elif reader.lang == 'tw':
+            area_name_url = (
+                'https://sekai-world.github.io/sekai-master-db-tc-diff/areas.json'
+            )
             info_url = (
                 'https://sekai-world.github.io/sekai-master-db-tc-diff/actionSets.json'
             )
             self.asset_url = 'https://storage.sekai.best/sekai-tc-assets/scenario/actionset/group{group}/{scenarioId}.asset'
         else:
             raise NotImplementedError
+
+        self.area_name_json: list[dict[str, Any]] = util.get_url_json(
+            area_name_url,
+            self.online,
+            self.save_assets,
+            self.assets_save_dir,
+            self.missing_download,
+        )
 
         self.info_json: list[dict[str, Any]] = util.get_url_json(
             info_url,
@@ -793,6 +779,7 @@ class Area_talk_getter:
             self.missing_download,
         )
 
+        self.area_name_lookup = DictLookup(self.area_name_json, 'id')
         self.info_json_lookup = DictLookup(self.info_json, 'id')
 
     def get(self, target: int | str, thread_num: int = 0) -> None:
@@ -925,9 +912,14 @@ class Area_talk_getter:
                 encoding='utf8',
             ) as f:
                 for index, (talk_info, text) in enumerate(zip(talk_infos, texts)):
-                    f.write(
-                        f"{index+1}: {talk_info['id']} 【{Constant.area_name[talk_info['areaId']]}】\n\n"
+                    area_name_index = self.area_name_lookup.find_index(
+                        talk_info['areaId']
                     )
+                    area_name = self.area_name_json[area_name_index]['name']
+                    sub_name = self.area_name_json[area_name_index].get('subName')
+                    if sub_name is not None:
+                        area_name += ' - ' + sub_name
+                    f.write(f"{index+1}: {talk_info['id']} 【{area_name}】\n\n")
                     f.write(text + '\n\n\n')
 
         print(f'get talk {filename} done.')
@@ -965,14 +957,18 @@ class Area_talk_getter:
             if self.reader.lang != 'cn':
                 filename = self.reader.lang + '-' + filename
 
+            area_name_index = self.area_name_lookup.find_index(talk_info['areaId'])
+            area_name = self.area_name_json[area_name_index]['name']
+            sub_name = self.area_name_json[area_name_index].get('subName')
+            if sub_name is not None:
+                area_name += ' - ' + sub_name
+
             with open(
                 os.path.join(self.save_dir, filename) + '.txt',
                 'w',
                 encoding='utf8',
             ) as f:
-                f.write(
-                    f"{talk_info['id']} 【{Constant.area_name[talk_info['areaId']]}】\n\n"
-                )
+                f.write(f"{talk_info['id']} 【{area_name}】\n\n")
                 f.write(text + '\n')
 
         print(f'get talk {talk_id} done.')
