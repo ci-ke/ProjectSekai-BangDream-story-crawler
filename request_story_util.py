@@ -1,8 +1,8 @@
-import os, json, threading
+import os, json, asyncio, traceback
 from enum import Enum
 from typing import Any
 
-import requests  # type: ignore
+import aiohttp, aiofiles
 
 
 # https://github.com/EternalFlower/Project-Sekai-Story-Parser/blob/main/PJSekai%20Story%20parser.py
@@ -66,6 +66,17 @@ class SpecialEffectType(int, Enum):
     Blur = 44
 
 
+class AsyncNullContext:
+    async def __aenter__(self):
+        pass
+
+    async def __aexit__(self, *args):
+        pass
+
+
+NO_LIMIT = AsyncNullContext()
+
+
 def valid_filename(filename: str) -> str:
     return (
         filename.strip()
@@ -84,29 +95,40 @@ def url_to_path(url: str, save_dir: str) -> str:
     return os.path.normpath(os.path.join(save_dir, url_path))
 
 
-def save_json_to_url(url: str, content: Any, save_dir: str) -> None:
+async def save_json_to_url(
+    url: str,
+    content: Any,
+    save_dir: str,
+    file_semaphore: asyncio.Semaphore | AsyncNullContext = NO_LIMIT,
+) -> None:
     path = url_to_path(url, save_dir)
     os.makedirs(os.path.split(path)[0], exist_ok=True)
-    with open(path, 'w', encoding='utf8') as f:
-        json.dump(content, f, ensure_ascii=False)
+
+    async with file_semaphore:
+        async with aiofiles.open(path, 'w', encoding='utf8') as f:
+            await f.write(json.dumps(content, ensure_ascii=False))
 
 
-def read_json_from_url(
+async def read_json_from_url(
     url: str,
-    missing_donwload: bool,
+    missing_download: bool,
     save_dir: str,
     extra_record_msg: str,
     error_assets_file: str | None,
     missing_assets_file: str | None,
-    proxies: dict[str, str] | None,
+    session: aiohttp.ClientSession | None,
+    network_semaphore: asyncio.Semaphore | AsyncNullContext = NO_LIMIT,
+    file_semaphore: asyncio.Semaphore | AsyncNullContext = NO_LIMIT,
 ) -> Any:
     path = url_to_path(url, save_dir)
     if os.path.exists(path):
-        with open(path, encoding='utf8') as f:
-            return json.load(f)
+        async with file_semaphore:
+            async with aiofiles.open(path, encoding='utf8') as f:
+                content = await f.read()
+                return json.loads(content)
     else:
-        if missing_donwload:
-            return get_url_json(
+        if missing_download:
+            return await get_url_json(
                 url,
                 True,
                 True,
@@ -115,28 +137,35 @@ def read_json_from_url(
                 extra_record_msg,
                 error_assets_file,
                 None,
-                proxies,
+                session,
+                network_semaphore,
+                file_semaphore,
             )
         else:
             if missing_assets_file:
-                if extra_record_msg:
-                    write_to_file(missing_assets_file, f'{extra_record_msg}：{url}')
-                else:
-                    write_to_file(missing_assets_file, url)
+                await write_to_file(
+                    missing_assets_file,
+                    f'{extra_record_msg}{'：' if extra_record_msg else ''}{url}',
+                    file_semaphore,
+                )
             return '未能读取json文件'
 
 
-file_lock = threading.Lock()
+file_lock = asyncio.Lock()
 
 
-def write_to_file(file_path: str, content: str) -> None:
-    with file_lock:
-        with open(file_path, 'a', encoding='utf-8', newline='') as f:
-            f.write(f"{content}\n")
-            f.flush()
+async def write_to_file(
+    file_path: str,
+    content: str,
+    file_semaphore: asyncio.Semaphore | AsyncNullContext = NO_LIMIT,
+) -> None:
+    async with file_semaphore:
+        async with aiofiles.open(file_path, 'a', encoding='utf-8', newline='') as f:
+            await f.write(f"{content}\n")
+            await f.flush()
 
 
-def get_url_json(
+async def get_url_json(
     url: str,
     online: bool,
     save: bool,
@@ -145,35 +174,43 @@ def get_url_json(
     extra_record_msg: str = '',
     error_assets_file: str | None = 'assets_error.txt',
     missing_assets_file: str | None = 'assets_missing.txt',
-    proxies: dict[str, str] | None = None,
+    session: aiohttp.ClientSession | None = None,
+    network_semaphore: asyncio.Semaphore | AsyncNullContext = NO_LIMIT,
+    file_semaphore: asyncio.Semaphore | AsyncNullContext = NO_LIMIT,
     print_done: bool = False,
 ) -> Any:
-    '''
-    proxies: example: {'http': 'http://127.0.0.1:10808', 'https': 'http://127.0.0.1:10808'}
-    '''
     if online:
-        res = requests.get(url, proxies=proxies)
-        res.raise_for_status()
-        try:
-            json_content = res.json()
-            if save:
-                save_json_to_url(url, json_content, save_dir)
-        except Exception as e:
-            json_content = f'读取json出错：{e}'
-            if error_assets_file:
-                if extra_record_msg:
-                    write_to_file(error_assets_file, f'{extra_record_msg}：{url}')
-                else:
-                    write_to_file(error_assets_file, url)
+        assert session is not None
+
+        async with network_semaphore:
+            async with session.get(url) as res:
+                res.raise_for_status()
+                try:
+                    json_content = await res.json(content_type=None)
+                    if save:
+                        await save_json_to_url(
+                            url, json_content, save_dir, file_semaphore
+                        )
+
+                except Exception:
+                    json_content = f'读取json出错：{traceback.format_exc()}'
+                    if error_assets_file:
+                        await write_to_file(
+                            error_assets_file,
+                            f'{extra_record_msg}{'：' if extra_record_msg else ''}{url}',
+                            file_semaphore,
+                        )
     else:
-        json_content = read_json_from_url(
+        json_content = await read_json_from_url(
             url,
             missing_download,
             save_dir,
             extra_record_msg,
             error_assets_file,
             missing_assets_file,
-            proxies,
+            session,
+            network_semaphore,
+            file_semaphore,
         )
 
     if print_done:

@@ -1,8 +1,12 @@
 # https://github.com/ci-ke/ProjectSekai-BangDream-story-crawler
 
-import bisect, os, math
+
+import bisect, os, math, asyncio
+from asyncio import Semaphore
 from typing import Any
 from concurrent.futures import ThreadPoolExecutor, wait, Future
+
+from aiohttp import ClientSession
 
 import request_story_util as util
 
@@ -102,22 +106,35 @@ class Story_reader:
         self.debug_parse = debug_parse
 
         if lang == 'cn':
-            character2ds_url = 'https://sekai-world.github.io/sekai-master-db-cn-diff/character2ds.json'
+            self.character2ds_url = 'https://sekai-world.github.io/sekai-master-db-cn-diff/character2ds.json'
         elif lang == 'jp':
-            character2ds_url = (
+            self.character2ds_url = (
                 'https://sekai-world.github.io/sekai-master-db-diff/character2ds.json'
             )
         elif lang == 'tw':
-            character2ds_url = 'https://sekai-world.github.io/sekai-master-db-tc-diff/character2ds.json'
+            self.character2ds_url = 'https://sekai-world.github.io/sekai-master-db-tc-diff/character2ds.json'
         else:
             raise NotImplementedError
 
-        self.character2ds: list[dict[str, Any]] = util.get_url_json(
-            character2ds_url,
+    async def init(
+        self,
+        session: ClientSession | None = None,
+        network_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+        file_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+    ) -> None:
+        self.session = session
+        self.network_semaphore = network_semaphore
+        self.file_semaphore = file_semaphore
+
+        self.character2ds: list[dict[str, Any]] = await util.get_url_json(
+            self.character2ds_url,
             self.online,
             self.save_assets,
             self.assets_save_dir,
             self.missing_download,
+            session=session,
+            network_semaphore=network_semaphore,
+            file_semaphore=file_semaphore,
         )
 
         self.character2ds_lookup = DictLookup(self.character2ds, 'id')
@@ -292,54 +309,79 @@ class Event_story_getter:
         self.missing_download = missing_download
 
         if reader.lang == 'cn':
-            events_url = (
+            self.events_url = (
                 'https://sekai-world.github.io/sekai-master-db-cn-diff/events.json'
             )
-            eventStories_url = 'https://sekai-world.github.io/sekai-master-db-cn-diff/eventStories.json'
+            self.eventStories_url = 'https://sekai-world.github.io/sekai-master-db-cn-diff/eventStories.json'
             self.asset_url = 'https://storage.sekai.best/sekai-cn-assets/event_story/{assetbundleName}/scenario/{scenarioId}.asset'
         elif reader.lang == 'jp':
             if src == 'sekai.best':
-                events_url = (
+                self.events_url = (
                     'https://sekai-world.github.io/sekai-master-db-diff/events.json'
                 )
-                eventStories_url = 'https://sekai-world.github.io/sekai-master-db-diff/eventStories.json'
+                self.eventStories_url = 'https://sekai-world.github.io/sekai-master-db-diff/eventStories.json'
                 self.asset_url = 'https://storage.sekai.best/sekai-jp-assets/event_story/{assetbundleName}/scenario/{scenarioId}.asset'
             elif src == 'pjsk.moe':
-                events_url = 'https://sekaimaster.exmeaning.com/master/events.json'
-                eventStories_url = (
+                self.events_url = 'https://sekaimaster.exmeaning.com/master/events.json'
+                self.eventStories_url = (
                     'https://sekaimaster.exmeaning.com/master/eventStories.json'
                 )
                 self.asset_url = 'https://snowyassets.exmeaning.com/ondemand/event_story/{assetbundleName}/scenario/{scenarioId}.json'
             else:
                 raise NotImplementedError
         elif reader.lang == 'tw':
-            events_url = (
+            self.events_url = (
                 'https://sekai-world.github.io/sekai-master-db-tc-diff/events.json'
             )
-            eventStories_url = 'https://sekai-world.github.io/sekai-master-db-tc-diff/eventStories.json'
+            self.eventStories_url = 'https://sekai-world.github.io/sekai-master-db-tc-diff/eventStories.json'
             self.asset_url = 'https://storage.sekai.best/sekai-tc-assets/event_story/{assetbundleName}/scenario/{scenarioId}.asset'
         else:
             raise NotImplementedError
 
-        self.events_json: list[dict[str, Any]] = util.get_url_json(
-            events_url,
-            self.online,
-            self.save_assets,
-            self.assets_save_dir,
-            self.missing_download,
+    async def init(
+        self,
+        session: ClientSession | None = None,
+        network_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+        file_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+    ) -> None:
+        self.session = session
+        self.network_semaphore = network_semaphore
+        self.file_semaphore = file_semaphore
+
+        events_json_task: asyncio.Task[list[dict[str, Any]]] = asyncio.create_task(
+            util.get_url_json(
+                self.events_url,
+                self.online,
+                self.save_assets,
+                self.assets_save_dir,
+                self.missing_download,
+                session=session,
+                network_semaphore=network_semaphore,
+                file_semaphore=file_semaphore,
+            )
         )
-        self.eventStories_json: list[dict[str, Any]] = util.get_url_json(
-            eventStories_url,
-            self.online,
-            self.save_assets,
-            self.assets_save_dir,
-            self.missing_download,
+        eventStories_json_task: asyncio.Task[list[dict[str, Any]]] = (
+            asyncio.create_task(
+                util.get_url_json(
+                    self.eventStories_url,
+                    self.online,
+                    self.save_assets,
+                    self.assets_save_dir,
+                    self.missing_download,
+                    session=self.session,
+                    network_semaphore=self.network_semaphore,
+                    file_semaphore=self.file_semaphore,
+                )
+            )
         )
+
+        self.events_json = await events_json_task
+        self.eventStories_json = await eventStories_json_task
 
         self.events_lookup = DictLookup(self.events_json, 'id')
         self.eventStories_lookup = DictLookup(self.eventStories_json, 'eventId')
 
-    def get(self, event_id: int) -> None:
+    async def get(self, event_id: int) -> None:
 
         event_index = self.events_lookup.find_index(event_id)
         eventStory_index = self.eventStories_lookup.find_index(event_id)
@@ -380,47 +422,76 @@ class Event_story_getter:
         if self.parse:
             os.makedirs(event_save_dir, exist_ok=True)
 
+        tasks = []
         for episode in eventStory['eventStoryEpisodes']:
-            episode_name = (
-                f"{episode['eventStoryId']}-{episode['episodeNo']} {episode['title']}"
+            tasks.append(
+                asyncio.create_task(
+                    self.get_episode(
+                        episode,
+                        event_type,
+                        assetbundleName,
+                        event_save_dir,
+                        event_outline,
+                        event_id,
+                        event_name,
+                    )
+                )
             )
-            if event_type == 'world_bloom':
-                gameCharacterId = episode.get('gameCharacterId', -1)
-                if gameCharacterId != -1:
-                    chara_name = Constant.chara_id_unit_and_name[gameCharacterId].split(
-                        '_'
-                    )[1]
-                    episode_name += f"（{chara_name}）"
+        await asyncio.wait(tasks)
 
-            scenarioId = episode['scenarioId']
+    async def get_episode(
+        self,
+        episode: dict[str, Any],
+        event_type: str,
+        assetbundleName: str,
+        event_save_dir: str,
+        event_outline: str,
+        event_id: int,
+        event_name: str,
+    ) -> None:
+        episode_name = (
+            f"{episode['eventStoryId']}-{episode['episodeNo']} {episode['title']}"
+        )
+        if event_type == 'world_bloom':
+            gameCharacterId = episode.get('gameCharacterId', -1)
+            if gameCharacterId != -1:
+                chara_name = Constant.chara_id_unit_and_name[gameCharacterId].split(
+                    '_'
+                )[1]
+                episode_name += f"（{chara_name}）"
 
-            filename = util.valid_filename(episode_name)
+        scenarioId = episode['scenarioId']
 
-            story_json: dict[str, Any] = util.get_url_json(
-                self.asset_url.format(
-                    assetbundleName=assetbundleName, scenarioId=scenarioId
-                ),
-                self.online,
-                self.save_assets,
-                self.assets_save_dir,
-                self.missing_download,
-                filename,
-            )
+        filename = util.valid_filename(episode_name)
 
-            if self.parse:
-                text = self.reader.read_story_in_json(story_json)
+        story_json: dict[str, Any] = await util.get_url_json(
+            self.asset_url.format(
+                assetbundleName=assetbundleName, scenarioId=scenarioId
+            ),
+            self.online,
+            self.save_assets,
+            self.assets_save_dir,
+            self.missing_download,
+            filename,
+            session=self.session,
+            network_semaphore=self.network_semaphore,
+            file_semaphore=self.file_semaphore,
+        )
 
-                with open(
-                    os.path.join(event_save_dir, filename) + '.txt',
-                    'w',
-                    encoding='utf8',
-                ) as f:
-                    if episode['episodeNo'] == 1:
-                        f.write(event_outline + '\n\n')
-                    f.write(episode_name + '\n\n')
-                    f.write(text + '\n')
+        if self.parse:
+            text = self.reader.read_story_in_json(story_json)
 
-            print(f'get event {event_id} {event_name} {episode_name} done.')
+            with open(
+                os.path.join(event_save_dir, filename) + '.txt',
+                'w',
+                encoding='utf8',
+            ) as f:
+                if episode['episodeNo'] == 1:
+                    f.write(event_outline + '\n\n')
+                f.write(episode_name + '\n\n')
+                f.write(text + '\n')
+
+        print(f'get event {event_id} {event_name} {episode_name} done.')
 
 
 class Unit_story_getter:
