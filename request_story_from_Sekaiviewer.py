@@ -994,28 +994,19 @@ if __name__ == '__main__':
     unit_getter = Unit_story_getter(reader, online=online)
     event_getter = Event_story_getter(reader, online=online)
     card_getter = Card_story_getter(reader, online=online)
-
-    reader_jp = Story_reader('jp', online=online)
-    unit_getter_jp = Unit_story_getter(reader_jp, online=online)
-    event_getter_jp = Event_story_getter(reader_jp, online=online)
-    card_getter_jp = Card_story_getter(reader_jp, online=online)
+    area_getter = Area_talk_getter(reader, online=online)
 
     with ThreadPoolExecutor(max_workers=20) as executor:
         futures: list[Future[None]] = []
 
-        # for i in range(1, 7):
+        # for i in range(1, 3):
         #     futures.append(executor.submit(unit_getter.get, i))
-        # for i in range(1, 162):
+        # for i in range(1, 11):
         #     futures.append(executor.submit(event_getter.get, i))
-        # for i in range(1, 1144):
+        # for i in range(1, 11):
         #     futures.append(executor.submit(card_getter.get, i))
-
-        # for i in range(1, 7):
-        #     futures.append(executor.submit(unit_getter_jp.get, i))
-        # for i in range(1, 197):
-        #     futures.append(executor.submit(event_getter_jp.get, i))
-        # for i in range(1, 1345):
-        #     futures.append(executor.submit(card_getter_jp.get, i))
+        # for i in range(1, 11):
+        #     futures.append(executor.submit(area_getter.get, i))
 
         wait(futures)
         for future in futures:

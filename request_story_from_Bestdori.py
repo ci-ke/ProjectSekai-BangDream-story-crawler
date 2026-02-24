@@ -596,23 +596,18 @@ if __name__ == '__main__':
     with ThreadPoolExecutor(max_workers=10) as executor:
         futures: list[Future[None]] = []
 
-        # futures.append(executor.submit(main_getter.get, None, 'cn'))
-        # futures.append(executor.submit(main_getter.get, None, 'jp'))
+        # for i in range(1, 4):
+        #     futures.append(executor.submit(main_getter.get, [i], 'cn'))
 
-        # for i in Constant.band_id_name:
-        #     futures.append(executor.submit(band_getter.get, i, None, 'cn'))
-        # for i in Constant.band_id_name:
-        #     futures.append(executor.submit(band_getter.get, i, None, 'jp'))
+        # for i in [1, 2]:
+        #     for j in [1]:
+        #         futures.append(executor.submit(band_getter.get, i, j, 'cn'))
 
-        # for i in list(range(1, 302)) + [312, 313]:
+        # for i in range(1, 11):
         #     futures.append(executor.submit(event_getter.get, i, 'cn'))
-        # for i in range(1, 323):
-        #     futures.append(executor.submit(event_getter.get, i, 'jp'))
 
-        # for i in range(1, 2258):
+        # for i in range(1, 11):
         #     futures.append(executor.submit(card_getter.get, i, 'cn'))
-        # for i in range(1, 2403):
-        #     futures.append(executor.submit(card_getter.get, i, 'jp'))
 
         wait(futures)
         for future in futures:
