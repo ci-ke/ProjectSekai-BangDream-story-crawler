@@ -1,12 +1,10 @@
 # https://github.com/ci-ke/ProjectSekai-BangDream-story-crawler
 
-
 import bisect, os, math, asyncio
 from asyncio import Semaphore
 from typing import Any
-from concurrent.futures import ThreadPoolExecutor, wait, Future
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, TCPConnector  # type: ignore
 
 import request_story_util as util
 
@@ -132,9 +130,9 @@ class Story_reader:
             self.save_assets,
             self.assets_save_dir,
             self.missing_download,
-            session=session,
-            network_semaphore=network_semaphore,
-            file_semaphore=file_semaphore,
+            session=self.session,
+            network_semaphore=self.network_semaphore,
+            file_semaphore=self.file_semaphore,
         )
 
         self.character2ds_lookup = DictLookup(self.character2ds, 'id')
@@ -348,35 +346,28 @@ class Event_story_getter:
         self.network_semaphore = network_semaphore
         self.file_semaphore = file_semaphore
 
-        events_json_task: asyncio.Task[list[dict[str, Any]]] = asyncio.create_task(
+        self.events_json, self.eventStories_json = await asyncio.gather(
             util.get_url_json(
                 self.events_url,
                 self.online,
                 self.save_assets,
                 self.assets_save_dir,
                 self.missing_download,
-                session=session,
-                network_semaphore=network_semaphore,
-                file_semaphore=file_semaphore,
-            )
+                session=self.session,
+                network_semaphore=self.network_semaphore,
+                file_semaphore=self.file_semaphore,
+            ),
+            util.get_url_json(
+                self.eventStories_url,
+                self.online,
+                self.save_assets,
+                self.assets_save_dir,
+                self.missing_download,
+                session=self.session,
+                network_semaphore=self.network_semaphore,
+                file_semaphore=self.file_semaphore,
+            ),
         )
-        eventStories_json_task: asyncio.Task[list[dict[str, Any]]] = (
-            asyncio.create_task(
-                util.get_url_json(
-                    self.eventStories_url,
-                    self.online,
-                    self.save_assets,
-                    self.assets_save_dir,
-                    self.missing_download,
-                    session=self.session,
-                    network_semaphore=self.network_semaphore,
-                    file_semaphore=self.file_semaphore,
-                )
-            )
-        )
-
-        self.events_json = await events_json_task
-        self.eventStories_json = await eventStories_json_task
 
         self.events_lookup = DictLookup(self.events_json, 'id')
         self.eventStories_lookup = DictLookup(self.eventStories_json, 'eventId')
@@ -437,7 +428,7 @@ class Event_story_getter:
                     )
                 )
             )
-        await asyncio.wait(tasks)
+        await asyncio.gather(*tasks)
 
     async def get_episode(
         self,
@@ -516,44 +507,62 @@ class Unit_story_getter:
         self.missing_download = missing_download
 
         if reader.lang == 'cn':
-            unitProfiles_url = 'https://sekai-world.github.io/sekai-master-db-cn-diff/unitProfiles.json'
-            unitStories_url = (
+            self.unitProfiles_url = 'https://sekai-world.github.io/sekai-master-db-cn-diff/unitProfiles.json'
+            self.unitStories_url = (
                 'https://sekai-world.github.io/sekai-master-db-cn-diff/unitStories.json'
             )
             self.asset_url = 'https://storage.sekai.best/sekai-cn-assets/scenario/unitstory/{assetbundleName}/{scenarioId}.asset'
         elif reader.lang == 'jp':
-            unitProfiles_url = (
+            self.unitProfiles_url = (
                 'https://sekai-world.github.io/sekai-master-db-diff/unitProfiles.json'
             )
-            unitStories_url = (
+            self.unitStories_url = (
                 'https://sekai-world.github.io/sekai-master-db-diff/unitStories.json'
             )
             self.asset_url = 'https://storage.sekai.best/sekai-jp-assets/scenario/unitstory/{assetbundleName}/{scenarioId}.asset'
         elif reader.lang == 'tw':
-            unitProfiles_url = 'https://sekai-world.github.io/sekai-master-db-tc-diff/unitProfiles.json'
-            unitStories_url = (
+            self.unitProfiles_url = 'https://sekai-world.github.io/sekai-master-db-tc-diff/unitProfiles.json'
+            self.unitStories_url = (
                 'https://sekai-world.github.io/sekai-master-db-tc-diff/unitStories.json'
             )
             self.asset_url = 'https://storage.sekai.best/sekai-tc-assets/scenario/unitstory/{assetbundleName}/{scenarioId}.asset'
         else:
             raise NotImplementedError
 
-        self.unitProfiles_json: list[dict[str, Any]] = util.get_url_json(
-            unitProfiles_url,
-            self.online,
-            self.save_assets,
-            self.assets_save_dir,
-            self.missing_download,
-        )
-        self.unitStories_json: list[dict[str, Any]] = util.get_url_json(
-            unitStories_url,
-            self.online,
-            self.save_assets,
-            self.assets_save_dir,
-            self.missing_download,
+    async def init(
+        self,
+        session: ClientSession | None = None,
+        network_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+        file_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+    ) -> None:
+        self.session = session
+        self.network_semaphore = network_semaphore
+        self.file_semaphore = file_semaphore
+
+        self.unitProfiles_json, self.unitStories_json = await asyncio.gather(
+            util.get_url_json(
+                self.unitProfiles_url,
+                self.online,
+                self.save_assets,
+                self.assets_save_dir,
+                self.missing_download,
+                session=self.session,
+                network_semaphore=self.network_semaphore,
+                file_semaphore=self.file_semaphore,
+            ),
+            util.get_url_json(
+                self.unitStories_url,
+                self.online,
+                self.save_assets,
+                self.assets_save_dir,
+                self.missing_download,
+                session=self.session,
+                network_semaphore=self.network_semaphore,
+                file_semaphore=self.file_semaphore,
+            ),
         )
 
-    def get(self, unit_id: int) -> None:
+    async def get(self, unit_id: int) -> None:
         for unitProfile in self.unitProfiles_json:
             if unitProfile['seq'] == unit_id:
                 unitName = unitProfile['unitName']
@@ -583,35 +592,60 @@ class Unit_story_getter:
         if self.parse:
             os.makedirs(unit_save_dir, exist_ok=True)
 
+        tasks = []
         for episode in episodes:
-            scenarioId = episode['scenarioId']
-            episode_name = f"{scenarioId} {episode['title']}"
-
-            filename = util.valid_filename(episode_name)
-
-            story_json: dict[str, Any] = util.get_url_json(
-                self.asset_url.format(
-                    assetbundleName=assetbundleName, scenarioId=scenarioId
-                ),
-                self.online,
-                self.save_assets,
-                self.assets_save_dir,
-                self.missing_download,
-                filename,
+            tasks.append(
+                self.get_episode(
+                    episode,
+                    assetbundleName,
+                    unit_save_dir,
+                    unit_outline,
+                    unit_id,
+                    unitName,
+                )
             )
+        await asyncio.gather(*tasks)
 
-            if self.parse:
-                text = self.reader.read_story_in_json(story_json)
+    async def get_episode(
+        self,
+        episode: dict[str, Any],
+        assetbundleName: str,
+        unit_save_dir: str,
+        unit_outline: str,
+        unit_id: int,
+        unitName: str,
+    ) -> None:
+        scenarioId = episode['scenarioId']
+        episode_name = f"{scenarioId} {episode['title']}"
 
-                with open(
-                    os.path.join(unit_save_dir, filename) + '.txt', 'w', encoding='utf8'
-                ) as f:
-                    if episode['episodeNo'] == 1:
-                        f.write(unit_outline + '\n\n')
-                    f.write(episode_name + '\n\n')
-                    f.write(text + '\n')
+        filename = util.valid_filename(episode_name)
 
-            print(f'get unit {unit_id} {unitName} {episode_name} done.')
+        story_json: dict[str, Any] = await util.get_url_json(
+            self.asset_url.format(
+                assetbundleName=assetbundleName, scenarioId=scenarioId
+            ),
+            self.online,
+            self.save_assets,
+            self.assets_save_dir,
+            self.missing_download,
+            filename,
+            session=self.session,
+            network_semaphore=self.network_semaphore,
+            file_semaphore=self.file_semaphore,
+        )
+
+        if self.parse:
+            text = self.reader.read_story_in_json(story_json)
+
+            with open(
+                os.path.join(unit_save_dir, filename) + '.txt', 'w', encoding='utf8'
+            ) as f:
+                if episode['episodeNo'] == 1:
+                    f.write(unit_outline + '\n\n')
+                f.write(episode_name + '\n\n')
+                f.write(text + '\n')
+
+        print(f'get unit {unit_id} {unitName} {episode_name} done.')
 
 
 class Card_story_getter:
@@ -636,55 +670,80 @@ class Card_story_getter:
         self.missing_download = missing_download
 
         if reader.lang == 'cn':
-            cards_url = (
+            self.cards_url = (
                 'https://sekai-world.github.io/sekai-master-db-cn-diff/cards.json'
             )
-            cardEpisodes_url = 'https://sekai-world.github.io/sekai-master-db-cn-diff/cardEpisodes.json'
-            eventCards_url = (
+            self.cardEpisodes_url = 'https://sekai-world.github.io/sekai-master-db-cn-diff/cardEpisodes.json'
+            self.eventCards_url = (
                 'https://sekai-world.github.io/sekai-master-db-cn-diff/eventCards.json'
             )
             self.asset_url = 'https://storage.sekai.best/sekai-cn-assets/character/member/{assetbundleName}/{scenarioId}.asset'
         elif reader.lang == 'jp':
-            cards_url = 'https://sekai-world.github.io/sekai-master-db-diff/cards.json'
-            cardEpisodes_url = (
+            self.cards_url = (
+                'https://sekai-world.github.io/sekai-master-db-diff/cards.json'
+            )
+            self.cardEpisodes_url = (
                 'https://sekai-world.github.io/sekai-master-db-diff/cardEpisodes.json'
             )
-            eventCards_url = (
+            self.eventCards_url = (
                 'https://sekai-world.github.io/sekai-master-db-diff/eventCards.json'
             )
             self.asset_url = 'https://storage.sekai.best/sekai-jp-assets/character/member/{assetbundleName}/{scenarioId}.asset'
         elif reader.lang == 'tw':
-            cards_url = (
+            self.cards_url = (
                 'https://sekai-world.github.io/sekai-master-db-tc-diff/cards.json'
             )
-            cardEpisodes_url = 'https://sekai-world.github.io/sekai-master-db-tc-diff/cardEpisodes.json'
-            eventCards_url = (
+            self.cardEpisodes_url = 'https://sekai-world.github.io/sekai-master-db-tc-diff/cardEpisodes.json'
+            self.eventCards_url = (
                 'https://sekai-world.github.io/sekai-master-db-tc-diff/eventCards.json'
             )
             self.asset_url = 'https://storage.sekai.best/sekai-tc-assets/character/member/{assetbundleName}/{scenarioId}.asset'
         else:
             raise NotImplementedError
 
-        self.cards_json: list[dict[str, Any]] = util.get_url_json(
-            cards_url,
-            self.online,
-            self.save_assets,
-            self.assets_save_dir,
-            self.missing_download,
-        )
-        self.cardEpisodes_json: list[dict[str, Any]] = util.get_url_json(
-            cardEpisodes_url,
-            self.online,
-            self.save_assets,
-            self.assets_save_dir,
-            self.missing_download,
-        )
-        ori_eventCards_json: list[dict[str, Any]] = util.get_url_json(
-            eventCards_url,
-            self.online,
-            self.save_assets,
-            self.assets_save_dir,
-            self.missing_download,
+    async def init(
+        self,
+        session: ClientSession | None = None,
+        network_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+        file_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+    ) -> None:
+        self.session = session
+        self.network_semaphore = network_semaphore
+        self.file_semaphore = file_semaphore
+
+        self.cards_json, self.cardEpisodes_json, ori_eventCards_json = (
+            await asyncio.gather(
+                util.get_url_json(
+                    self.cards_url,
+                    self.online,
+                    self.save_assets,
+                    self.assets_save_dir,
+                    self.missing_download,
+                    session=self.session,
+                    network_semaphore=self.network_semaphore,
+                    file_semaphore=self.file_semaphore,
+                ),
+                util.get_url_json(
+                    self.cardEpisodes_url,
+                    self.online,
+                    self.save_assets,
+                    self.assets_save_dir,
+                    self.missing_download,
+                    session=self.session,
+                    network_semaphore=self.network_semaphore,
+                    file_semaphore=self.file_semaphore,
+                ),
+                util.get_url_json(
+                    self.eventCards_url,
+                    self.online,
+                    self.save_assets,
+                    self.assets_save_dir,
+                    self.missing_download,
+                    session=self.session,
+                    network_semaphore=self.network_semaphore,
+                    file_semaphore=self.file_semaphore,
+                ),
+            )
         )
 
         self.eventCards_json: list[dict[str, Any]] = []
@@ -696,7 +755,7 @@ class Card_story_getter:
         self.cardEpisodes_lookup = DictLookup(self.cardEpisodes_json, 'cardId')
         self.eventCards_lookup = DictLookup(self.eventCards_json, 'cardId')
 
-    def get(self, card_id: int) -> None:
+    async def get(self, card_id: int) -> None:
         card_index = self.cards_lookup.find_index(card_id)
         cardEpisode_index = self.cardEpisodes_lookup.find_index(card_id)
 
@@ -745,25 +804,33 @@ class Card_story_getter:
         if self.reader.lang != 'cn':
             card_story_filename = self.reader.lang + '-' + card_story_filename
 
-        story_1_json: dict[str, Any] = util.get_url_json(
-            self.asset_url.format(
-                assetbundleName=assetbundleName, scenarioId=story_1_scenarioId
+        story_1_json, story_2_json = await asyncio.gather(
+            util.get_url_json(
+                self.asset_url.format(
+                    assetbundleName=assetbundleName, scenarioId=story_1_scenarioId
+                ),
+                self.online,
+                self.save_assets,
+                self.assets_save_dir,
+                self.missing_download,
+                card_story_filename + ' 上篇',
+                session=self.session,
+                network_semaphore=self.network_semaphore,
+                file_semaphore=self.file_semaphore,
             ),
-            self.online,
-            self.save_assets,
-            self.assets_save_dir,
-            self.missing_download,
-            card_story_filename + ' 上篇',
-        )
-        story_2_json: dict[str, Any] = util.get_url_json(
-            self.asset_url.format(
-                assetbundleName=assetbundleName, scenarioId=story_2_scenarioId
+            util.get_url_json(
+                self.asset_url.format(
+                    assetbundleName=assetbundleName, scenarioId=story_2_scenarioId
+                ),
+                self.online,
+                self.save_assets,
+                self.assets_save_dir,
+                self.missing_download,
+                card_story_filename + ' 下篇',
+                session=self.session,
+                network_semaphore=self.network_semaphore,
+                file_semaphore=self.file_semaphore,
             ),
-            self.online,
-            self.save_assets,
-            self.assets_save_dir,
-            self.missing_download,
-            card_story_filename + ' 下篇',
         )
 
         if self.parse:
@@ -808,52 +875,69 @@ class Area_talk_getter:
         self.missing_download = missing_download
 
         if reader.lang == 'cn':
-            area_name_url = (
+            self.area_name_url = (
                 'https://sekai-world.github.io/sekai-master-db-cn-diff/areas.json'
             )
-            info_url = (
+            self.info_url = (
                 'https://sekai-world.github.io/sekai-master-db-cn-diff/actionSets.json'
             )
             self.asset_url = 'https://storage.sekai.best/sekai-cn-assets/scenario/actionset/group{group}/{scenarioId}.asset'
         elif reader.lang == 'jp':
-            area_name_url = (
+            self.area_name_url = (
                 'https://sekai-world.github.io/sekai-master-db-diff/areas.json'
             )
-            info_url = (
+            self.info_url = (
                 'https://sekai-world.github.io/sekai-master-db-diff/actionSets.json'
             )
             self.asset_url = 'https://storage.sekai.best/sekai-jp-assets/scenario/actionset/group{group}/{scenarioId}.asset'
         elif reader.lang == 'tw':
-            area_name_url = (
+            self.area_name_url = (
                 'https://sekai-world.github.io/sekai-master-db-tc-diff/areas.json'
             )
-            info_url = (
+            self.info_url = (
                 'https://sekai-world.github.io/sekai-master-db-tc-diff/actionSets.json'
             )
             self.asset_url = 'https://storage.sekai.best/sekai-tc-assets/scenario/actionset/group{group}/{scenarioId}.asset'
         else:
             raise NotImplementedError
 
-        self.area_name_json: list[dict[str, Any]] = util.get_url_json(
-            area_name_url,
-            self.online,
-            self.save_assets,
-            self.assets_save_dir,
-            self.missing_download,
-        )
+    async def init(
+        self,
+        session: ClientSession | None = None,
+        network_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+        file_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+    ) -> None:
+        self.session = session
+        self.network_semaphore = network_semaphore
+        self.file_semaphore = file_semaphore
 
-        self.info_json: list[dict[str, Any]] = util.get_url_json(
-            info_url,
-            self.online,
-            self.save_assets,
-            self.assets_save_dir,
-            self.missing_download,
+        self.area_name_json, self.info_json = await asyncio.gather(
+            util.get_url_json(
+                self.area_name_url,
+                self.online,
+                self.save_assets,
+                self.assets_save_dir,
+                self.missing_download,
+                session=self.session,
+                network_semaphore=self.network_semaphore,
+                file_semaphore=self.file_semaphore,
+            ),
+            util.get_url_json(
+                self.info_url,
+                self.online,
+                self.save_assets,
+                self.assets_save_dir,
+                self.missing_download,
+                session=self.session,
+                network_semaphore=self.network_semaphore,
+                file_semaphore=self.file_semaphore,
+            ),
         )
 
         self.area_name_lookup = DictLookup(self.area_name_json, 'id')
         self.info_json_lookup = DictLookup(self.info_json, 'id')
 
-    def get(self, target: int | str, thread_num: int = 0) -> None:
+    async def get(self, target: int | str) -> None:
         '''
         target: int: event_id; str: grade1, grade2, theater, limited-{area_id}, aprilfool2022-
         '''
@@ -924,45 +1008,26 @@ class Area_talk_getter:
         if self.parse:
             os.makedirs(self.save_dir, exist_ok=True)
 
-        talk_jsons = []
-
-        if thread_num > 0:
-            with ThreadPoolExecutor(max_workers=thread_num) as executor:
-                futures: list[Future] = []
-
-                for talk_info in talk_infos:
-                    futures.append(
-                        executor.submit(
-                            util.get_url_json,
-                            self.asset_url.format(
-                                group=math.floor(talk_info['id'] / 100),
-                                scenarioId=talk_info['scenarioId'],
-                            ),
-                            self.online,
-                            self.save_assets,
-                            self.assets_save_dir,
-                            self.missing_download,
-                            print_done=True,
-                        )
-                    )
-
-                wait(futures)
-                for future in futures:
-                    talk_jsons.append(future.result())
-        else:
-            for talk_info in talk_infos:
-                talk_jsons.append(
-                    util.get_url_json(
-                        self.asset_url.format(
-                            group=math.floor(talk_info['id'] / 100),
-                            scenarioId=talk_info['scenarioId'],
-                        ),
-                        self.online,
-                        self.save_assets,
-                        self.assets_save_dir,
-                        self.missing_download,
-                    )
+        tasks = []
+        for talk_info in talk_infos:
+            tasks.append(
+                util.get_url_json(
+                    self.asset_url.format(
+                        group=math.floor(talk_info['id'] / 100),
+                        scenarioId=talk_info['scenarioId'],
+                    ),
+                    self.online,
+                    self.save_assets,
+                    self.assets_save_dir,
+                    self.missing_download,
+                    print_done=True,
+                    session=self.session,
+                    network_semaphore=self.network_semaphore,
+                    file_semaphore=self.file_semaphore,
                 )
+            )
+
+        talk_jsons = await asyncio.gather(*tasks)
 
         if self.parse:
             texts: list[str] = []
@@ -996,7 +1061,7 @@ class Area_talk_getter:
         print(f'get talk {filename} done.')
 
     # for debug
-    def get_id(self, talk_id: int) -> None:
+    async def get_id(self, talk_id: int) -> None:
         talk_info_index = self.info_json_lookup.find_index(talk_id)
         if talk_info_index == -1:
             print(f'talk {talk_id} does not exist.')
@@ -1011,7 +1076,7 @@ class Area_talk_getter:
         if self.parse:
             os.makedirs(self.save_dir, exist_ok=True)
 
-        talk_json = util.get_url_json(
+        talk_json = await util.get_url_json(
             self.asset_url.format(
                 group=math.floor(talk_id / 100), scenarioId=talk_info['scenarioId']
             ),
@@ -1019,6 +1084,9 @@ class Area_talk_getter:
             self.save_assets,
             self.assets_save_dir,
             self.missing_download,
+            session=self.session,
+            network_semaphore=self.network_semaphore,
+            file_semaphore=self.file_semaphore,
         )
 
         if self.parse:
@@ -1059,7 +1127,7 @@ class DictLookup:
 
 if __name__ == '__main__':
 
-    online = True
+    online = False
 
     reader = Story_reader('cn', online=online)
     unit_getter = Unit_story_getter(reader, online=online)
@@ -1067,21 +1135,28 @@ if __name__ == '__main__':
     card_getter = Card_story_getter(reader, online=online)
     area_getter = Area_talk_getter(reader, online=online)
 
-    with ThreadPoolExecutor(max_workers=20) as executor:
-        futures: list[Future[None]] = []
+    async def main():
+        async with ClientSession(
+            trust_env=True, connector=TCPConnector(limit=20)
+        ) as session:
+            await asyncio.gather(
+                reader.init(session),
+                unit_getter.init(session),
+                event_getter.init(session),
+                card_getter.init(session),
+                area_getter.init(session),
+            )
 
-        # for i in range(1, 3):
-        #     futures.append(executor.submit(unit_getter.get, i))
-        # for i in range(1, 11):
-        #     futures.append(executor.submit(event_getter.get, i))
-        # for i in range(1, 11):
-        #     futures.append(executor.submit(card_getter.get, i))
-        # for i in range(1, 11):
-        #     futures.append(executor.submit(area_getter.get, i))
+            tasks = []
+            for i in range(1, 3):
+                tasks.append(unit_getter.get(i))
+            for i in range(1, 11):
+                tasks.append(event_getter.get(i))
+            for i in range(1, 11):
+                tasks.append(card_getter.get(i))
+            for i in range(1, 11):
+                tasks.append(area_getter.get(i))
 
-        wait(futures)
-        for future in futures:
-            try:
-                future.result()
-            except Exception as e:
-                print(f"Exception: {e}")
+            await asyncio.gather(*tasks)
+
+    asyncio.run(main())
