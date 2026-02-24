@@ -2,7 +2,7 @@ import os, json, asyncio, traceback
 from enum import Enum
 from typing import Any
 
-import aiohttp, aiofiles # type: ignore
+import aiohttp, aiofiles  # type: ignore
 
 
 # https://github.com/EternalFlower/Project-Sekai-Story-Parser/blob/main/PJSekai%20Story%20parser.py

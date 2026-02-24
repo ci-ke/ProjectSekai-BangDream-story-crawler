@@ -416,21 +416,19 @@ class Event_story_getter:
         tasks = []
         for episode in eventStory['eventStoryEpisodes']:
             tasks.append(
-                asyncio.create_task(
-                    self.get_episode(
-                        episode,
-                        event_type,
-                        assetbundleName,
-                        event_save_dir,
-                        event_outline,
-                        event_id,
-                        event_name,
-                    )
+                self.__get_episode(
+                    episode,
+                    event_type,
+                    assetbundleName,
+                    event_save_dir,
+                    event_outline,
+                    event_id,
+                    event_name,
                 )
             )
         await asyncio.gather(*tasks)
 
-    async def get_episode(
+    async def __get_episode(
         self,
         episode: dict[str, Any],
         event_type: str,
@@ -595,7 +593,7 @@ class Unit_story_getter:
         tasks = []
         for episode in episodes:
             tasks.append(
-                self.get_episode(
+                self.__get_episode(
                     episode,
                     assetbundleName,
                     unit_save_dir,
@@ -606,7 +604,7 @@ class Unit_story_getter:
             )
         await asyncio.gather(*tasks)
 
-    async def get_episode(
+    async def __get_episode(
         self,
         episode: dict[str, Any],
         assetbundleName: str,

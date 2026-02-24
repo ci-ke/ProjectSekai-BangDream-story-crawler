@@ -1,8 +1,10 @@
 # https://github.com/ci-ke/ProjectSekai-BangDream-story-crawler
 
-import os
-from concurrent.futures import Future, ThreadPoolExecutor, wait
+import os, asyncio
 from typing import Any
+from asyncio import Semaphore
+
+from aiohttp import ClientSession, TCPConnector
 
 import request_story_util as util
 
@@ -175,14 +177,27 @@ class Event_story_getter:
         self.info_url = 'https://bestdori.com/api/events/{event_id}.json'
         self.story_url = 'https://bestdori.com/assets/{lang}/scenario/eventstory/event{event_id}_rip/Scenario{id}.asset'
 
-    def get(self, event_id: int, lang: str = 'cn') -> None:
+    def init(
+        self,
+        session: ClientSession | None = None,
+        network_semaphore: asyncio.Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+        file_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+    ) -> None:
+        self.session = session
+        self.network_semaphore = network_semaphore
+        self.file_semaphore = file_semaphore
 
-        info_json: dict[str, Any] = util.get_url_json(
+    async def get(self, event_id: int, lang: str = 'cn') -> None:
+
+        info_json: dict[str, Any] = await util.get_url_json(
             self.info_url.format(event_id=event_id),
             self.online,
             self.save_assets,
             self.assets_save_dir,
             self.missing_download,
+            session=self.session,
+            network_semaphore=self.network_semaphore,
+            file_semaphore=self.file_semaphore,
         )
 
         event_name = info_json['eventName'][Constant.lang_index[lang]]
@@ -209,49 +224,66 @@ class Event_story_getter:
                     f.write('本活动没有活动剧情\n')
                 return
 
+        tasks = []
         for story in info_json['stories']:
-            name = f"{story['scenarioId']} {story['caption'][Constant.lang_index[lang]]} {story['title'][Constant.lang_index[lang]]}"
+            tasks.append(
+                self.__get_story(story, lang, event_id, event_save_dir, event_name)
+            )
+        await asyncio.gather(*tasks)
 
-            synopsis: str | None = story['synopsis'][Constant.lang_index[lang]]
-            if synopsis is not None:  # for 13 20 23, jp meta lost
-                synopsis = synopsis.replace('\n', ' ')
+    async def __get_story(
+        self,
+        story: dict[str, Any],
+        lang: str,
+        event_id: int,
+        event_save_dir: str,
+        event_name: str,
+    ):
+        name = f"{story['scenarioId']} {story['caption'][Constant.lang_index[lang]]} {story['title'][Constant.lang_index[lang]]}"
 
-            id = story['scenarioId']
+        synopsis: str | None = story['synopsis'][Constant.lang_index[lang]]
+        if synopsis is not None:  # for 13 20 23, jp meta lost
+            synopsis = synopsis.replace('\n', ' ')
 
-            filename = util.valid_filename(name)
+        id = story['scenarioId']
 
-            if ('bandStoryId' not in story) and (
-                event_id not in Event_story_getter.event_is_main
-            ):
-                story_json: dict[str, dict[str, Any]] = util.get_url_json(
-                    self.story_url.format(lang=lang, event_id=event_id, id=id),
-                    self.online,
-                    self.save_assets,
-                    self.assets_save_dir,
-                    self.missing_download,
-                    filename,
-                )
+        filename = util.valid_filename(name)
 
-                if self.parse:
-                    text = read_story_in_json(story_json, self.debug_parse)
-                else:
-                    text = ''
-            elif event_id in Event_story_getter.event_is_main:
-                text = '见主线故事'
-            else:
-                text = '见乐队故事'
+        if ('bandStoryId' not in story) and (
+            event_id not in Event_story_getter.event_is_main
+        ):
+            story_json: dict[str, dict[str, Any]] = await util.get_url_json(
+                self.story_url.format(lang=lang, event_id=event_id, id=id),
+                self.online,
+                self.save_assets,
+                self.assets_save_dir,
+                self.missing_download,
+                filename,
+                session=self.session,
+                network_semaphore=self.network_semaphore,
+                file_semaphore=self.file_semaphore,
+            )
 
             if self.parse:
-                with open(
-                    os.path.join(event_save_dir, filename) + '.txt',
-                    'w',
-                    encoding='utf8',
-                ) as f:
-                    f.write(name + '\n\n')
-                    f.write(f'{synopsis}' + '\n\n')
-                    f.write(text + '\n')
+                text = read_story_in_json(story_json, self.debug_parse)
+            else:
+                text = ''
+        elif event_id in Event_story_getter.event_is_main:
+            text = '见主线故事'
+        else:
+            text = '见乐队故事'
 
-            print(f'get event {event_id} {event_name} {name} done.')
+        if self.parse:
+            with open(
+                os.path.join(event_save_dir, filename) + '.txt',
+                'w',
+                encoding='utf8',
+            ) as f:
+                f.write(name + '\n\n')
+                f.write(f'{synopsis}' + '\n\n')
+                f.write(text + '\n')
+
+        print(f'get event {event_id} {event_name} {name} done.')
 
 
 class Band_story_getter:
@@ -278,7 +310,17 @@ class Band_story_getter:
         self.info_url = 'https://bestdori.com/api/misc/bandstories.5.json'
         self.story_url = 'https://bestdori.com/assets/{lang}/scenario/band/{band_id:03}_rip/Scenario{id}.asset'
 
-    def get(
+    def init(
+        self,
+        session: ClientSession | None = None,
+        network_semaphore: asyncio.Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+        file_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+    ) -> None:
+        self.session = session
+        self.network_semaphore = network_semaphore
+        self.file_semaphore = file_semaphore
+
+    async def get(
         self,
         want_band_id: int | None = None,
         want_chapter_number: int | None = None,
@@ -287,14 +329,18 @@ class Band_story_getter:
         if want_band_id is not None:
             assert want_band_id in Constant.band_id_name
 
-        info_json: dict[str, dict[str, Any]] = util.get_url_json(
+        info_json: dict[str, dict[str, Any]] = await util.get_url_json(
             self.info_url,
             self.online,
             self.save_assets,
             self.assets_save_dir,
             self.missing_download,
+            session=self.session,
+            network_semaphore=self.network_semaphore,
+            file_semaphore=self.file_semaphore,
         )
 
+        tasks = []
         for band_story in info_json.values():
             band_id = band_story['bandId']
             try:
@@ -328,38 +374,55 @@ class Band_story_getter:
                 os.makedirs(band_save_dir, exist_ok=True)
 
             for story in band_story['stories'].values():
-                name = f"{story['scenarioId']} {story['caption'][Constant.lang_index[lang]]} {story['title'][Constant.lang_index[lang]]}"
-                synopsis = story['synopsis'][Constant.lang_index[lang]].replace(
-                    '\n', ' '
+                tasks.append(
+                    self.__get_story(
+                        story, lang, band_id, band_save_dir, band_name, band_story
+                    )
                 )
-                id = story['scenarioId']
+        await asyncio.gather(*tasks)
 
-                filename = util.valid_filename(name)
+    async def __get_story(
+        self,
+        story: dict[str, Any],
+        lang: str,
+        band_id: int,
+        band_save_dir: str,
+        band_name: str,
+        band_story: dict[str, Any],
+    ):
+        name = f"{story['scenarioId']} {story['caption'][Constant.lang_index[lang]]} {story['title'][Constant.lang_index[lang]]}"
+        synopsis = story['synopsis'][Constant.lang_index[lang]].replace('\n', ' ')
+        id = story['scenarioId']
 
-                story_json: dict[str, dict[str, Any]] = util.get_url_json(
-                    self.story_url.format(lang=lang, band_id=band_id, id=id),
-                    self.online,
-                    self.save_assets,
-                    self.assets_save_dir,
-                    self.missing_download,
-                    filename,
-                )
+        filename = util.valid_filename(name)
 
-                if self.parse:
-                    text = read_story_in_json(story_json, self.debug_parse)
+        story_json: dict[str, dict[str, Any]] = await util.get_url_json(
+            self.story_url.format(lang=lang, band_id=band_id, id=id),
+            self.online,
+            self.save_assets,
+            self.assets_save_dir,
+            self.missing_download,
+            filename,
+            session=self.session,
+            network_semaphore=self.network_semaphore,
+            file_semaphore=self.file_semaphore,
+        )
 
-                    with open(
-                        os.path.join(band_save_dir, filename) + '.txt',
-                        'w',
-                        encoding='utf8',
-                    ) as f:
-                        f.write(name + '\n\n')
-                        f.write(synopsis + '\n\n')
-                        f.write(text + '\n')
+        if self.parse:
+            text = read_story_in_json(story_json, self.debug_parse)
 
-                print(
-                    f'get band story {band_name} {band_story["mainTitle"][Constant.lang_index[lang]]} {name} done.'
-                )
+            with open(
+                os.path.join(band_save_dir, filename) + '.txt',
+                'w',
+                encoding='utf8',
+            ) as f:
+                f.write(name + '\n\n')
+                f.write(synopsis + '\n\n')
+                f.write(text + '\n')
+
+        print(
+            f'get band story {band_name} {band_story["mainTitle"][Constant.lang_index[lang]]} {name} done.'
+        )
 
 
 class Main_story_getter:
@@ -388,18 +451,32 @@ class Main_story_getter:
             'https://bestdori.com/assets/{lang}/scenario/main_rip/Scenario{id}.asset'
         )
 
-    def get(self, id_range: list[int] | None = None, lang: str = 'cn') -> None:
-        info_json: dict[str, dict[str, Any]] = util.get_url_json(
+    def init(
+        self,
+        session: ClientSession | None = None,
+        network_semaphore: asyncio.Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+        file_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+    ) -> None:
+        self.session = session
+        self.network_semaphore = network_semaphore
+        self.file_semaphore = file_semaphore
+
+    async def get(self, id_range: list[int] | None = None, lang: str = 'cn') -> None:
+        info_json: dict[str, dict[str, Any]] = await util.get_url_json(
             self.info_url,
             self.online,
             self.save_assets,
             self.assets_save_dir,
             self.missing_download,
+            session=self.session,
+            network_semaphore=self.network_semaphore,
+            file_semaphore=self.file_semaphore,
         )
 
         if self.parse:
             os.makedirs(self.save_dir, exist_ok=True)
 
+        tasks = []
         for strId, main_story in info_json.items():
             if id_range is not None and int(strId) not in id_range:
                 continue
@@ -422,26 +499,35 @@ class Main_story_getter:
             )
             id = main_story['scenarioId']
 
-            story_json: dict[str, dict[str, Any]] = util.get_url_json(
-                self.story_url.format(lang=lang, id=id),
-                self.online,
-                self.save_assets,
-                self.assets_save_dir,
-                self.missing_download,
-                filename,
-            )
+            tasks.append(self.__get_story(lang, id, filename, name, synopsis))
+        await asyncio.gather(*tasks)
 
-            if self.parse:
-                text = read_story_in_json(story_json, self.debug_parse)
+    async def __get_story(
+        self, lang: str, id: str, filename: str, name: str, synopsis: str
+    ) -> None:
+        story_json: dict[str, dict[str, Any]] = await util.get_url_json(
+            self.story_url.format(lang=lang, id=id),
+            self.online,
+            self.save_assets,
+            self.assets_save_dir,
+            self.missing_download,
+            filename,
+            session=self.session,
+            network_semaphore=self.network_semaphore,
+            file_semaphore=self.file_semaphore,
+        )
 
-                with open(
-                    os.path.join(self.save_dir, filename) + '.txt', 'w', encoding='utf8'
-                ) as f:
-                    f.write(name + '\n\n')
-                    f.write(synopsis + '\n\n')
-                    f.write(text + '\n')
+        if self.parse:
+            text = read_story_in_json(story_json, self.debug_parse)
 
-            print(f'get main story {name} done.')
+            with open(
+                os.path.join(self.save_dir, filename) + '.txt', 'w', encoding='utf8'
+            ) as f:
+                f.write(name + '\n\n')
+                f.write(synopsis + '\n\n')
+                f.write(text + '\n')
+
+        print(f'get main story {name} done.')
 
 
 class Card_story_getter:
@@ -469,28 +555,43 @@ class Card_story_getter:
         self.info_url = 'https://bestdori.com/api/cards/{id}.json'
         self.story_url = 'https://bestdori.com/assets/{lang}/characters/resourceset/{res_id}_rip/Scenario{scenarioId}.asset'
 
-        self.cards_ids: list[int] = [
-            int(id)
-            for id in util.get_url_json(
-                self.all_cards_list_url,
-                self.online,
-                self.save_assets,
-                self.assets_save_dir,
-                self.missing_download,
-            ).keys()
-        ]
+    async def init(
+        self,
+        session: ClientSession | None = None,
+        network_semaphore: asyncio.Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+        file_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+    ) -> None:
+        self.session = session
+        self.network_semaphore = network_semaphore
+        self.file_semaphore = file_semaphore
 
-    def get(self, card_id: int, lang: str = 'cn') -> None:
+        all_cards_list: dict[int, Any] = await util.get_url_json(
+            self.all_cards_list_url,
+            self.online,
+            self.save_assets,
+            self.assets_save_dir,
+            self.missing_download,
+            session=self.session,
+            network_semaphore=self.network_semaphore,
+            file_semaphore=self.file_semaphore,
+        )
+
+        self.cards_ids: list[int] = [int(id) for id in all_cards_list.keys()]
+
+    async def get(self, card_id: int, lang: str = 'cn') -> None:
         if card_id not in self.cards_ids:
             print(f'card {card_id} does not exist.')
             return
 
-        card = util.get_url_json(
+        card = await util.get_url_json(
             self.info_url.format(id=card_id),
             self.online,
             self.save_assets,
             self.assets_save_dir,
             self.missing_download,
+            session=self.session,
+            network_semaphore=self.network_semaphore,
+            file_semaphore=self.file_semaphore,
         )
 
         chara_band_and_name = Constant.chara_id_band_and_name[card['characterId']]
@@ -528,9 +629,10 @@ class Card_story_getter:
             story_1_type = card['episodes']['entries'][0]['episodeType']
             story_2_type = card['episodes']['entries'][1]['episodeType']
 
+            tasks = []  # str | dict[str, dict[str, Any]]
             if story_1_type != 'animation':
                 scenarioId_1 = card['episodes']['entries'][0]['scenarioId']
-                story_1_json: str | dict[str, dict[str, Any]] = util.get_url_json(
+                story_1_json_task = util.get_url_json(
                     self.story_url.format(
                         lang=lang, res_id=resourceSetName, scenarioId=scenarioId_1
                     ),
@@ -539,12 +641,20 @@ class Card_story_getter:
                     self.assets_save_dir,
                     self.missing_download,
                     card_story_filename,
+                    session=self.session,
+                    network_semaphore=self.network_semaphore,
+                    file_semaphore=self.file_semaphore,
                 )
             else:
-                story_1_json = '动画故事'
+
+                async def noop() -> str:
+                    return '动画故事'
+
+                story_1_json_task = noop()
 
             scenarioId_2 = card['episodes']['entries'][1]['scenarioId']
-            story_2_json: dict[str, dict[str, Any]] = util.get_url_json(
+
+            story_2_json_task = util.get_url_json(
                 self.story_url.format(
                     lang=lang, res_id=resourceSetName, scenarioId=scenarioId_2
                 ),
@@ -553,6 +663,13 @@ class Card_story_getter:
                 self.assets_save_dir,
                 self.missing_download,
                 card_story_filename,
+                session=self.session,
+                network_semaphore=self.network_semaphore,
+                file_semaphore=self.file_semaphore,
+            )
+
+            story_1_json, story_2_json = await asyncio.gather(
+                story_1_json_task, story_2_json_task
             )
 
             if self.parse:
@@ -586,32 +703,33 @@ class Card_story_getter:
 
 if __name__ == '__main__':
 
-    online = True
+    online = False
 
     main_getter = Main_story_getter(online=online)
     band_getter = Band_story_getter(online=online)
     event_getter = Event_story_getter(online=online)
     card_getter = Card_story_getter(online=online)
 
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        futures: list[Future[None]] = []
+    async def main():
+        async with ClientSession(
+            trust_env=True, connector=TCPConnector(limit=10)
+        ) as session:
 
-        # for i in range(1, 4):
-        #     futures.append(executor.submit(main_getter.get, [i], 'cn'))
+            main_getter.init(session)
+            band_getter.init(session)
+            event_getter.init(session)
+            await card_getter.init(session)
 
-        # for i in [1, 2]:
-        #     for j in [1]:
-        #         futures.append(executor.submit(band_getter.get, i, j, 'cn'))
+            tasks = []
+            tasks.append(main_getter.get(list(range(1, 4)), 'cn'))
+            for i in [1, 2]:
+                for j in [1]:
+                    tasks.append(band_getter.get(i, j, 'cn'))
+            for i in range(1, 11):
+                tasks.append(event_getter.get(i))
+            for i in range(1, 11):
+                tasks.append(card_getter.get(i))
 
-        # for i in range(1, 11):
-        #     futures.append(executor.submit(event_getter.get, i, 'cn'))
+            await asyncio.gather(*tasks)
 
-        # for i in range(1, 11):
-        #     futures.append(executor.submit(card_getter.get, i, 'cn'))
-
-        wait(futures)
-        for future in futures:
-            try:
-                future.result()
-            except Exception as e:
-                print(f"Exception: {e}")
+    asyncio.run(main())
