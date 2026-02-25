@@ -234,8 +234,8 @@ async def fetch_url_json(
 
         async with network_semaphore:
             async with session.get(url) as res:
-                res.raise_for_status()
                 try:
+                    res.raise_for_status()
                     json_content = await res.json(content_type=None)
                     if save:
                         await save_json_to_url(
@@ -244,7 +244,7 @@ async def fetch_url_json(
 
                 except Exception:
                     # if encounter "Can not decode content-encoding: br", pip install -U brotli
-                    json_content = f'读取json出错：{traceback.format_exc()}'
+                    json_content = f'获取json出错：{traceback.format_exc()}'
                     print(json_content)
                     if error_assets_file:
                         await write_to_file(

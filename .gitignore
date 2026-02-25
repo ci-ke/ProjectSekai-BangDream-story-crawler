@@ -7,7 +7,7 @@ assets/
 html_pages/
 txt_output/
 
-assets_*.txt
+*.log
 urls.txt
 
 # cache

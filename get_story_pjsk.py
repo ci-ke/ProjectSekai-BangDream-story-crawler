@@ -846,9 +846,9 @@ class Area_talk_getter((util.Base_getter)):
         talk_jsons = await asyncio.gather(*tasks)
 
         if self.parse:
-            texts: list[str] = []
-            for talk_json in talk_jsons:
-                texts.append(self.reader.read_story_in_json(talk_json))
+            texts = [
+                self.reader.read_story_in_json(talk_json) for talk_json in talk_jsons
+            ]
 
             if isinstance(target, int):  # event id
                 filename = f'talk_event_{target}'
@@ -857,6 +857,8 @@ class Area_talk_getter((util.Base_getter)):
 
             if self.reader.lang != 'cn':
                 filename = self.reader.lang + '-' + filename
+
+            filename = util.valid_filename(filename)
 
             async with self.file_semaphore:
                 async with aiofiles.open(
@@ -997,6 +999,7 @@ class Self_intro_getter(util.Base_getter):
             filename = self.reader.lang + '-' + chara_unit_name
         else:
             filename = chara_unit_name
+        filename = util.valid_filename(filename)
 
         profile = self.characterProfiles_json[profile_index]
         scenarioId: str = profile['scenarioId']
@@ -1033,6 +1036,110 @@ class Self_intro_getter(util.Base_getter):
         print(f'get self intro {filename} done.')
 
 
+class Special_story_getter(util.Base_getter):
+    def __init__(
+        self,
+        reader: Story_reader,
+        save_dir: str = './story_special',
+        assets_save_dir: str = './assets',
+        online: bool = True,
+        save_assets: bool = True,
+        parse: bool = True,
+        missing_download: bool = True,
+    ):
+        super().__init__(
+            save_dir, assets_save_dir, online, save_assets, parse, missing_download
+        )
+
+        self.reader = reader
+
+        if reader.lang == 'cn':
+            self.specialStories_url = URLS['cn']['sekai.best']['specialStories']
+            self.special_asset_url = URLS['cn']['sekai.best']['special_asset']
+        elif reader.lang == 'jp':
+            self.specialStories_url = URLS['jp']['sekai.best']['specialStories']
+            self.special_asset_url = URLS['jp']['sekai.best']['special_asset']
+        elif reader.lang == 'tw':
+            self.specialStories_url = URLS['tw']['sekai.best']['specialStories']
+            self.special_asset_url = URLS['tw']['sekai.best']['special_asset']
+        else:
+            raise NotImplementedError
+
+    async def init(
+        self,
+        session: ClientSession | None = None,
+        network_semaphore: Semaphore | None = None,
+        file_semaphore: Semaphore | None = None,
+    ) -> None:
+        await super().init(session, network_semaphore, file_semaphore)
+
+        self.specialStories_json: list[dict[str, Any]] = (
+            await util.fetch_url_json_simple(self.specialStories_url, self)
+        )
+
+        self.specialStories_lookup = DictLookup(self.specialStories_json, 'id')
+
+    async def get(self, id: int) -> None:
+        story_index = self.specialStories_lookup.find_index(id)
+        if story_index == -1 or id == 2:  # special case id2
+            print(f'special story {id} does not exist.')
+            return
+
+        story = self.specialStories_json[story_index]
+        episodes = story['episodes']
+        title = story.get('title')
+
+        if title is None:
+            title = episodes[0]['title']
+
+        filename = f'sp{id}_{title}'
+        if self.reader.lang != 'cn':
+            filename = self.reader.lang + '-' + filename
+        filename = util.valid_filename(filename)
+
+        episode_tasks = []
+        for episode in episodes:
+            episode_tasks.append(
+                util.fetch_url_json_simple(
+                    self.special_asset_url.format(
+                        assetbundleName=episode['assetbundleName'],
+                        scenarioId=episode['scenarioId'],
+                    ),
+                    self,
+                    filename,
+                )
+            )
+        episode_story_jsons = await asyncio.gather(*episode_tasks)
+
+        if self.parse:
+            os.makedirs(self.save_dir, exist_ok=True)
+
+            texts = [
+                self.reader.read_story_in_json(episode_story_json)
+                for episode_story_json in episode_story_jsons
+            ]
+
+            if len(episodes) > 1:
+                record_No = True
+            else:
+                record_No = False
+
+            async with self.file_semaphore:
+                async with aiofiles.open(
+                    os.path.join(self.save_dir, filename) + '.txt',
+                    'w',
+                    encoding='utf8',
+                ) as f:
+                    await f.write(f'SP{id} {title}\n\n\n')
+                    for episode, text in zip(episodes, texts):
+                        if record_No:
+                            await f.write(str(episode['episodeNo']) + ' ')
+                        await f.write(episode['title'] + '\n\n')
+                        await f.write(text + '\n\n\n')
+
+        print(f'get special {filename} done.')
+
+
 class DictLookup:
     def __init__(self, data: list[dict[str, Any]], attr_name: str):
         self.data = data
@@ -1057,6 +1164,7 @@ if __name__ == '__main__':
     card_getter = Card_story_getter(reader, online=online)
     area_getter = Area_talk_getter(reader, online=online)
     self_getter = Self_intro_getter(reader, online=online)
+    special_getter = Special_story_getter(reader, online=online)
 
     async def main():
         async with ClientSession(
@@ -1069,6 +1177,7 @@ if __name__ == '__main__':
                 card_getter.init(session),
                 area_getter.init(session),
                 self_getter.init(session),
+                special_getter.init(session),
             )
 
             tasks = []
@@ -1083,6 +1192,8 @@ if __name__ == '__main__':
                 tasks.append(area_getter.get(i))
             for i in range(1, 3):
                 tasks.append(self_getter.get(i))
+            for i in range(1, 5):
+                tasks.append(special_getter.get(i))
 
             await asyncio.gather(*tasks)
 
