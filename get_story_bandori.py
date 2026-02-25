@@ -4,6 +4,7 @@ import os, asyncio, json
 from typing import Any
 from asyncio import Semaphore
 
+import aiofiles # type: ignore
 from aiohttp import ClientSession, TCPConnector  # type: ignore
 
 import get_story_util as util
@@ -207,11 +208,12 @@ class Event_story_getter(util.Base_getter):
             os.makedirs(event_save_dir, exist_ok=True)
 
             if event_id in Event_story_getter.event_no_story:
-                with open(
-                    os.path.join(event_save_dir, '无剧情.txt'), 'w', encoding='utf8'
-                ) as f:
-                    f.write('本活动没有活动剧情\n')
-                return
+                async with self.file_semaphore:
+                    async with aiofiles.open(
+                        os.path.join(event_save_dir, '无剧情.txt'), 'w', encoding='utf8'
+                    ) as f:
+                        await f.write('本活动没有活动剧情\n')
+                    return
 
         tasks = []
         for story in info_json['stories']:
@@ -263,14 +265,15 @@ class Event_story_getter(util.Base_getter):
             text = '见乐队故事'
 
         if self.parse:
-            with open(
-                os.path.join(event_save_dir, filename) + '.txt',
-                'w',
-                encoding='utf8',
-            ) as f:
-                f.write(name + '\n\n')
-                f.write(f'{synopsis}' + '\n\n')
-                f.write(text + '\n')
+            async with self.file_semaphore:
+                async with aiofiles.open(
+                    os.path.join(event_save_dir, filename) + '.txt',
+                    'w',
+                    encoding='utf8',
+                ) as f:
+                    await f.write(name + '\n\n')
+                    await f.write(f'{synopsis}' + '\n\n')
+                    await f.write(text + '\n')
 
         print(f'get event {event_id} {event_name} {name} done.')
 
@@ -387,14 +390,15 @@ class Band_story_getter(util.Base_getter):
         if self.parse:
             text = read_story_in_json(story_json, self.debug_parse)
 
-            with open(
-                os.path.join(band_save_dir, filename) + '.txt',
-                'w',
-                encoding='utf8',
-            ) as f:
-                f.write(name + '\n\n')
-                f.write(synopsis + '\n\n')
-                f.write(text + '\n')
+            async with self.file_semaphore:
+                async with aiofiles.open(
+                    os.path.join(band_save_dir, filename) + '.txt',
+                    'w',
+                    encoding='utf8',
+                ) as f:
+                    await f.write(name + '\n\n')
+                    await f.write(synopsis + '\n\n')
+                    await f.write(text + '\n')
 
         print(
             f'get band story {band_name} {band_story["mainTitle"][Constant.lang_index[lang]]} {name} done.'
@@ -481,12 +485,13 @@ class Main_story_getter(util.Base_getter):
         if self.parse:
             text = read_story_in_json(story_json, self.debug_parse)
 
-            with open(
-                os.path.join(self.save_dir, filename) + '.txt', 'w', encoding='utf8'
-            ) as f:
-                f.write(name + '\n\n')
-                f.write(synopsis + '\n\n')
-                f.write(text + '\n')
+            async with self.file_semaphore:
+                async with aiofiles.open(
+                    os.path.join(self.save_dir, filename) + '.txt', 'w', encoding='utf8'
+                ) as f:
+                    await f.write(name + '\n\n')
+                    await f.write(synopsis + '\n\n')
+                    await f.write(text + '\n')
 
         print(f'get main story {name} done.')
 
@@ -639,19 +644,20 @@ class Card_story_getter(util.Base_getter):
 
             os.makedirs(card_save_dir, exist_ok=True)
 
-            with open(
-                os.path.join(card_save_dir, card_story_filename) + '.txt',
-                'w',
-                encoding='utf8',
-            ) as f:
-                if card_has_story:
-                    f.write(f'{chara_name} {card_name}\n\n\n')
-                    f.write(f'《{story_1_name}》' + '\n\n')
-                    f.write(text_1 + '\n\n\n')
-                    f.write(f'《{story_2_name}》' + '\n\n')
-                    f.write(text_2 + '\n')
-                else:
-                    f.write('本卡面没有剧情\n')
+            async with self.file_semaphore:
+                async with aiofiles.open(
+                    os.path.join(card_save_dir, card_story_filename) + '.txt',
+                    'w',
+                    encoding='utf8',
+                ) as f:
+                    if card_has_story:
+                        await f.write(f'{chara_name} {card_name}\n\n\n')
+                        await f.write(f'《{story_1_name}》' + '\n\n')
+                        await f.write(text_1 + '\n\n\n')
+                        await f.write(f'《{story_2_name}》' + '\n\n')
+                        await f.write(text_2 + '\n')
+                    else:
+                        await f.write('本卡面没有剧情\n')
 
         print(f'get card {card_story_filename} done.')
 

@@ -4,6 +4,7 @@ import bisect, os, math, asyncio, json
 from asyncio import Semaphore
 from typing import Any
 
+import aiofiles # type: ignore
 from aiohttp import ClientSession, TCPConnector  # type: ignore
 
 import get_story_util as util
@@ -459,15 +460,16 @@ class Event_story_getter(util.Base_getter):
         if self.parse:
             text = self.reader.read_story_in_json(story_json)
 
-            with open(
-                os.path.join(event_save_dir, filename) + '.txt',
-                'w',
-                encoding='utf8',
-            ) as f:
-                if episode['episodeNo'] == 1:
-                    f.write(event_outline + '\n\n')
-                f.write(episode_name + '\n\n')
-                f.write(text + '\n')
+            async with self.file_semaphore:
+                async with aiofiles.open(
+                    os.path.join(event_save_dir, filename) + '.txt',
+                    'w',
+                    encoding='utf8',
+                ) as f:
+                    if episode['episodeNo'] == 1:
+                        await f.write(event_outline + '\n\n')
+                    await f.write(episode_name + '\n\n')
+                    await f.write(text + '\n')
 
         print(f'get event {event_id} {event_name} {episode_name} done.')
 
@@ -611,13 +613,14 @@ class Unit_story_getter(util.Base_getter):
         if self.parse:
             text = self.reader.read_story_in_json(story_json)
 
-            with open(
-                os.path.join(unit_save_dir, filename) + '.txt', 'w', encoding='utf8'
-            ) as f:
-                if episode['episodeNo'] == 1:
-                    f.write(unit_outline + '\n\n')
-                f.write(episode_name + '\n\n')
-                f.write(text + '\n')
+            async with self.file_semaphore:
+                async with aiofiles.open(
+                    os.path.join(unit_save_dir, filename) + '.txt', 'w', encoding='utf8'
+                ) as f:
+                    if episode['episodeNo'] == 1:
+                        await f.write(unit_outline + '\n\n')
+                    await f.write(episode_name + '\n\n')
+                    await f.write(text + '\n')
 
         print(f'get unit {unit_id} {unitName} {episode_name} done.')
 
@@ -792,18 +795,19 @@ class Card_story_getter(util.Base_getter):
             text_1 = self.reader.read_story_in_json(story_1_json)
             text_2 = self.reader.read_story_in_json(story_2_json)
 
-            with open(
-                os.path.join(card_save_dir, card_story_filename) + '.txt',
-                'w',
-                encoding='utf8',
-            ) as f:
-                f.write(
-                    f'{chara_name}{sub_unit_name}-{card_id_for_chara} {card_name}{belong_event}\n\n\n'
-                )
-                f.write(story_1_name + '\n\n')
-                f.write(text_1 + '\n\n\n')
-                f.write(story_2_name + '\n\n')
-                f.write(text_2 + '\n')
+            async with self.file_semaphore:
+                async with aiofiles.open(
+                    os.path.join(card_save_dir, card_story_filename) + '.txt',
+                    'w',
+                    encoding='utf8',
+                ) as f:
+                    await f.write(
+                        f'{chara_name}{sub_unit_name}-{card_id_for_chara} {card_name}{belong_event}\n\n\n'
+                    )
+                    await f.write(story_1_name + '\n\n')
+                    await f.write(text_1 + '\n\n\n')
+                    await f.write(story_2_name + '\n\n')
+                    await f.write(text_2 + '\n')
 
         print(f'get card {card_story_filename} done.')
 
@@ -981,37 +985,38 @@ class Area_talk_getter((util.Base_getter)):
             if self.reader.lang != 'cn':
                 filename = self.reader.lang + '-' + filename
 
-            with open(
-                os.path.join(self.save_dir, filename) + '.txt',
-                'w',
-                encoding='utf8',
-            ) as f:
-                for index, (talk_info, text) in enumerate(zip(talk_infos, texts)):
-                    area_name_index = self.area_name_lookup.find_index(
-                        talk_info['areaId']
-                    )
-                    area_name = self.area_name_json[area_name_index]['name']
-                    sub_name = self.area_name_json[area_name_index].get('subName')
-                    if sub_name is not None:
-                        area_name += ' - ' + sub_name
+            async with self.file_semaphore:
+                async with aiofiles.open(
+                    os.path.join(self.save_dir, filename) + '.txt',
+                    'w',
+                    encoding='utf8',
+                ) as f:
+                    for index, (talk_info, text) in enumerate(zip(talk_infos, texts)):
+                        area_name_index = self.area_name_lookup.find_index(
+                            talk_info['areaId']
+                        )
+                        area_name = self.area_name_json[area_name_index]['name']
+                        sub_name = self.area_name_json[area_name_index].get('subName')
+                        if sub_name is not None:
+                            area_name += ' - ' + sub_name
 
-                    talk_type = ''
-                    if isinstance(target, int):
-                        if '_ev_' in talk_info['scenarioId']:
-                            talk_type = ' event'
-                        elif '_wl_' in talk_info['scenarioId']:
-                            talk_type = ' wl'
-                        elif '_monthly' in talk_info['scenarioId']:
-                            talk_type = ' monthly'
-                        elif '_add_' in talk_info['scenarioId']:
-                            talk_type = ' add'
-                        else:
-                            assert talk_info['id'] == 618  # special case
+                        talk_type = ''
+                        if isinstance(target, int):
+                            if '_ev_' in talk_info['scenarioId']:
+                                talk_type = ' event'
+                            elif '_wl_' in talk_info['scenarioId']:
+                                talk_type = ' wl'
+                            elif '_monthly' in talk_info['scenarioId']:
+                                talk_type = ' monthly'
+                            elif '_add_' in talk_info['scenarioId']:
+                                talk_type = ' add'
+                            else:
+                                assert talk_info['id'] == 618  # special case
 
-                    f.write(
-                        f"{index+1}: {talk_info['id']}{talk_type} 【{area_name}】\n\n"
-                    )
-                    f.write(text + '\n\n\n')
+                        await f.write(
+                            f"{index+1}: {talk_info['id']}{talk_type} 【{area_name}】\n\n"
+                        )
+                        await f.write(text + '\n\n\n')
 
         print(f'get talk {filename} done.')
 
@@ -1057,13 +1062,14 @@ class Area_talk_getter((util.Base_getter)):
             if sub_name is not None:
                 area_name += ' - ' + sub_name
 
-            with open(
-                os.path.join(self.save_dir, filename) + '.txt',
-                'w',
-                encoding='utf8',
-            ) as f:
-                f.write(f"{talk_info['id']} 【{area_name}】\n\n")
-                f.write(text + '\n')
+            async with self.file_semaphore:
+                async with aiofiles.open(
+                    os.path.join(self.save_dir, filename) + '.txt',
+                    'w',
+                    encoding='utf8',
+                ) as f:
+                    await f.write(f"{talk_info['id']} 【{area_name}】\n\n")
+                    await f.write(text + '\n')
 
         print(f'get talk {talk_id} done.')
 

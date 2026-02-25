@@ -67,11 +67,14 @@ class SpecialEffectType(int, Enum):
     Blur = 44
 
 
-_net_semaphore = asyncio.Semaphore(100)
-_file_semaphore = asyncio.Semaphore(100)
+_net_semaphore = asyncio.Semaphore(50)
+_file_semaphore = asyncio.Semaphore(50)
 
 
 class Base_getter:
+    network_semaphore: Semaphore
+    file_semaphore: Semaphore
+
     def __init__(
         self,
         save_dir: str,
@@ -96,8 +99,16 @@ class Base_getter:
         file_semaphore: Semaphore | None = None,
     ) -> None:
         self.session = session
-        self.network_semaphore = network_semaphore
-        self.file_semaphore = file_semaphore
+
+        if network_semaphore is None:
+            self.network_semaphore = _net_semaphore
+        else:
+            self.network_semaphore = network_semaphore
+
+        if file_semaphore is None:
+            self.file_semaphore = _file_semaphore
+        else:
+            self.file_semaphore = file_semaphore
 
 
 def valid_filename(filename: str) -> str:
