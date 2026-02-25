@@ -88,7 +88,7 @@ class Constant:
             return False
 
 
-class Story_reader:
+class Story_reader(util.Base_fetcher):
     def __init__(
         self,
         lang: str = 'cn',
@@ -98,14 +98,9 @@ class Story_reader:
         missing_download: bool = True,
         debug_parse: bool = False,
     ) -> None:
+        super().__init__(assets_save_dir, online, save_assets, missing_download)
 
         self.lang = lang
-        self.assets_save_dir = assets_save_dir
-
-        self.online = online
-        self.save_assets = save_assets
-        self.missing_download = missing_download
-
         self.debug_parse = debug_parse
 
         if lang == 'cn':
@@ -123,9 +118,7 @@ class Story_reader:
         network_semaphore: Semaphore | None = None,
         file_semaphore: Semaphore | None = None,
     ) -> None:
-        self.session = session
-        self.network_semaphore = network_semaphore
-        self.file_semaphore = file_semaphore
+        await super().init(session, network_semaphore, file_semaphore)
 
         self.character2ds: list[dict[str, Any]] = await util.fetch_url_json_simple(
             self.character2ds_url, self

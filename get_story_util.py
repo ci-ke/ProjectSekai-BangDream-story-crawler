@@ -71,25 +71,17 @@ _net_semaphore = asyncio.Semaphore(20)
 _file_semaphore = asyncio.Semaphore(20)
 
 
-class Base_getter:
-    network_semaphore: Semaphore
-    file_semaphore: Semaphore
-
+class Base_fetcher:
     def __init__(
         self,
-        save_dir: str,
         assets_save_dir: str,
         online: bool,
         save_assets: bool,
-        parse: bool,
         missing_download: bool,
     ):
-        self.save_dir = save_dir
         self.assets_save_dir = assets_save_dir
-
         self.online = online
         self.save_assets = save_assets
-        self.parse = parse
         self.missing_download = missing_download
 
     async def init(
@@ -109,6 +101,22 @@ class Base_getter:
             self.file_semaphore = _file_semaphore
         else:
             self.file_semaphore = file_semaphore
+
+
+class Base_getter(Base_fetcher):
+    def __init__(
+        self,
+        save_dir: str,
+        assets_save_dir: str,
+        online: bool,
+        save_assets: bool,
+        parse: bool,
+        missing_download: bool,
+    ):
+        super().__init__(assets_save_dir, online, save_assets, missing_download)
+
+        self.save_dir = save_dir
+        self.parse = parse
 
 
 def valid_filename(filename: str) -> str:
@@ -264,7 +272,7 @@ async def fetch_url_json(
 
 
 async def fetch_url_json_simple(
-    url: str, self: Any, extra_record_msg: str = '', print_done: bool = False
+    url: str, self: Base_fetcher, extra_record_msg: str = '', print_done: bool = False
 ) -> Any:
     return await fetch_url_json(
         url,
