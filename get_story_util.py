@@ -171,12 +171,23 @@ async def read_json_from_url(
             return '未能读取json文件'
 
 
+_file_locks = {}
+
+
+def _get_lock(file_path: str) -> asyncio.Lock:
+    if file_path not in _file_locks:
+        _file_locks[file_path] = asyncio.Lock()
+    return _file_locks[file_path]
+
+
 async def write_to_file(
     file_path: str, content: str, file_semaphore: Semaphore
 ) -> None:
     async with file_semaphore:
-        async with aiofiles.open(file_path, 'a', encoding='utf-8') as f:
-            await f.write(f"{content}\n")
+        lock = _get_lock(file_path)
+        async with lock:
+            async with aiofiles.open(file_path, 'a', encoding='utf-8') as f:
+                await f.write(f"{content}\n")
 
 
 async def fetch_url_json(
