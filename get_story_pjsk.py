@@ -4,7 +4,7 @@ import bisect, os, math, asyncio, json
 from asyncio import Semaphore
 from typing import Any
 
-import aiofiles # type: ignore
+import aiofiles  # type: ignore
 from aiohttp import ClientSession, TCPConnector  # type: ignore
 
 import get_story_util as util
@@ -1072,6 +1072,119 @@ class Area_talk_getter((util.Base_getter)):
                     await f.write(text + '\n')
 
         print(f'get talk {talk_id} done.')
+
+
+class Self_intro_getter(util.Base_getter):
+    def __init__(
+        self,
+        reader: Story_reader,
+        save_dir: str = './self_intro',
+        assets_save_dir: str = './assets',
+        online: bool = True,
+        save_assets: bool = True,
+        parse: bool = True,
+        missing_download: bool = True,
+    ):
+        super().__init__(
+            save_dir, assets_save_dir, online, save_assets, parse, missing_download
+        )
+
+        self.reader = reader
+
+        if reader.lang == 'cn':
+            self.characterProfiles_url = URLS['cn']['sekai.best']['characterProfiles']
+            self.self_asset_url = URLS['cn']['sekai.best']['self_asset']
+        elif reader.lang == 'jp':
+            self.characterProfiles_url = URLS['jp']['sekai.best']['characterProfiles']
+            self.self_asset_url = URLS['jp']['sekai.best']['self_asset']
+        elif reader.lang == 'tw':
+            self.characterProfiles_url = URLS['tw']['sekai.best']['characterProfiles']
+            self.self_asset_url = URLS['tw']['sekai.best']['self_asset']
+        else:
+            raise NotImplementedError
+
+    async def init(
+        self,
+        session: ClientSession | None = None,
+        network_semaphore: Semaphore | None = None,
+        file_semaphore: Semaphore | None = None,
+    ) -> None:
+        await super().init(session, network_semaphore, file_semaphore)
+
+        self.characterProfiles_json: list[dict[str, Any]] = await util.fetch_url_json(
+            self.characterProfiles_url,
+            self.online,
+            self.save_assets,
+            self.assets_save_dir,
+            self.missing_download,
+            session=self.session,
+            network_semaphore=self.network_semaphore,
+            file_semaphore=self.file_semaphore,
+        )
+
+        self.characterProfiles_lookup = DictLookup(
+            self.characterProfiles_json, 'characterId'
+        )
+
+    async def get(self, chara_id: int) -> None:
+        profile_index = self.characterProfiles_lookup.find_index(chara_id)
+        if profile_index == -1:
+            print(f'character {chara_id} does not exist.')
+            return
+
+        chara_unit_name = Constant.chara_id_unit_and_name[chara_id]
+        if self.reader.lang != 'cn':
+            filename = self.reader.lang + '-' + chara_unit_name
+        else:
+            filename = chara_unit_name
+
+        profile = self.characterProfiles_json[profile_index]
+        scenarioId: str = profile['scenarioId']
+
+        scenarioId_common = scenarioId[: scenarioId.rindex('_')]
+
+        grade1_json, grade2_json = await asyncio.gather(
+            util.fetch_url_json(
+                self.self_asset_url.format(scenarioId=scenarioId_common),
+                self.online,
+                self.save_assets,
+                self.assets_save_dir,
+                self.missing_download,
+                session=self.session,
+                network_semaphore=self.network_semaphore,
+                file_semaphore=self.file_semaphore,
+            ),
+            util.fetch_url_json(
+                self.self_asset_url.format(scenarioId=scenarioId),
+                self.online,
+                self.save_assets,
+                self.assets_save_dir,
+                self.missing_download,
+                session=self.session,
+                network_semaphore=self.network_semaphore,
+                file_semaphore=self.file_semaphore,
+            ),
+        )
+
+        if self.parse:
+            os.makedirs(self.save_dir, exist_ok=True)
+
+            text_1 = self.reader.read_story_in_json(grade1_json)
+            text_2 = self.reader.read_story_in_json(grade2_json)
+
+            async with self.file_semaphore:
+                async with aiofiles.open(
+                    os.path.join(self.save_dir, filename) + '.txt',
+                    'w',
+                    encoding='utf8',
+                ) as f:
+                    await f.write(f'自我介绍：{chara_unit_name.split('_')[1]}\n\n\n')
+                    await f.write('YEAR 1' + '\n\n')
+                    await f.write(text_1 + '\n\n\n')
+                    await f.write('YEAR 2' + '\n\n')
+                    await f.write(text_2 + '\n')
+
+        print(f'get self intro {filename} done.')
 
 
 class DictLookup:

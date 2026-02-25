@@ -14,7 +14,9 @@
             "card_asset": "https://storage.sekai.best/sekai-cn-assets/character/member/{assetbundleName}/{scenarioId}.asset",
             "areas": "https://sekai-world.github.io/sekai-master-db-cn-diff/areas.json",
             "actionSets": "https://sekai-world.github.io/sekai-master-db-cn-diff/actionSets.json",
-            "talk_asset": "https://storage.sekai.best/sekai-cn-assets/scenario/actionset/group{group}/{scenarioId}.asset"
+            "talk_asset": "https://storage.sekai.best/sekai-cn-assets/scenario/actionset/group{group}/{scenarioId}.asset",
+            "characterProfiles": "https://sekai-world.github.io/sekai-master-db-cn-diff/characterProfiles.json",
+            "self_asset": "https://storage.sekai.best/sekai-cn-assets/scenario/profile/{scenarioId}.asset"
         }
     },
     "jp": {
@@ -32,7 +34,9 @@
             "card_asset": "https://storage.sekai.best/sekai-jp-assets/character/member/{assetbundleName}/{scenarioId}.asset",
             "areas": "https://sekai-world.github.io/sekai-master-db-diff/areas.json",
             "actionSets": "https://sekai-world.github.io/sekai-master-db-diff/actionSets.json",
-            "talk_asset": "https://storage.sekai.best/sekai-jp-assets/scenario/actionset/group{group}/{scenarioId}.asset"
+            "talk_asset": "https://storage.sekai.best/sekai-jp-assets/scenario/actionset/group{group}/{scenarioId}.asset",
+            "characterProfiles": "https://sekai-world.github.io/sekai-master-db-diff/characterProfiles.json",
+            "self_asset": "https://storage.sekai.best/sekai-jp-assets/scenario/profile/{scenarioId}.asset"
         },
         "pjsk.moe": {
             "events": "https://sekaimaster.exmeaning.com/master/events.json",
@@ -55,7 +59,9 @@
             "card_asset": "https://storage.sekai.best/sekai-tc-assets/character/member/{assetbundleName}/{scenarioId}.asset",
             "areas": "https://sekai-world.github.io/sekai-master-db-tc-diff/areas.json",
             "actionSets": "https://sekai-world.github.io/sekai-master-db-tc-diff/actionSets.json",
-            "talk_asset": "https://storage.sekai.best/sekai-tc-assets/scenario/actionset/group{group}/{scenarioId}.asset"
+            "talk_asset": "https://storage.sekai.best/sekai-tc-assets/scenario/actionset/group{group}/{scenarioId}.asset",
+            "characterProfiles": "https://sekai-world.github.io/sekai-master-db-tc-diff/characterProfiles.json",
+            "self_asset": "https://storage.sekai.best/sekai-tc-assets/scenario/profile/{scenarioId}.asset"
         }
     }
 }
