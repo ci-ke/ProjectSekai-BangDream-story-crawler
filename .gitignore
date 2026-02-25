@@ -2,8 +2,7 @@
 test*
 
 # content
-*_story/
-*_talk/
+story_*
 assets/
 html_pages/
 txt_output/

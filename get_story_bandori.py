@@ -4,7 +4,7 @@ import os, asyncio, json
 from typing import Any
 from asyncio import Semaphore
 
-import aiofiles # type: ignore
+import aiofiles  # type: ignore
 from aiohttp import ClientSession, TCPConnector  # type: ignore
 
 import get_story_util as util
@@ -159,7 +159,7 @@ class Event_story_getter(util.Base_getter):
 
     def __init__(
         self,
-        save_dir: str = './event_story',
+        save_dir: str = './story_event',
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
@@ -179,15 +179,8 @@ class Event_story_getter(util.Base_getter):
 
     async def get(self, event_id: int, lang: str = 'cn') -> None:
 
-        info_json: dict[str, Any] = await util.fetch_url_json(
-            self.events_id_url.format(event_id=event_id),
-            self.online,
-            self.save_assets,
-            self.assets_save_dir,
-            self.missing_download,
-            session=self.session,
-            network_semaphore=self.network_semaphore,
-            file_semaphore=self.file_semaphore,
+        info_json: dict[str, Any] = await util.fetch_url_json_simple(
+            self.events_id_url.format(event_id=event_id), self
         )
 
         event_name = info_json['eventName'][Constant.lang_index[lang]]
@@ -243,16 +236,10 @@ class Event_story_getter(util.Base_getter):
         if ('bandStoryId' not in story) and (
             event_id not in Event_story_getter.event_is_main
         ):
-            story_json: dict[str, dict[str, Any]] = await util.fetch_url_json(
+            story_json: dict[str, dict[str, Any]] = await util.fetch_url_json_simple(
                 self.event_asset_url.format(lang=lang, event_id=event_id, id=id),
-                self.online,
-                self.save_assets,
-                self.assets_save_dir,
-                self.missing_download,
+                self,
                 filename,
-                session=self.session,
-                network_semaphore=self.network_semaphore,
-                file_semaphore=self.file_semaphore,
             )
 
             if self.parse:
@@ -281,7 +268,7 @@ class Event_story_getter(util.Base_getter):
 class Band_story_getter(util.Base_getter):
     def __init__(
         self,
-        save_dir: str = './band_story',
+        save_dir: str = './story_band',
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
@@ -308,15 +295,8 @@ class Band_story_getter(util.Base_getter):
         if want_band_id is not None:
             assert want_band_id in Constant.band_id_name
 
-        info_json: dict[str, dict[str, Any]] = await util.fetch_url_json(
-            self.bandstories_5_url,
-            self.online,
-            self.save_assets,
-            self.assets_save_dir,
-            self.missing_download,
-            session=self.session,
-            network_semaphore=self.network_semaphore,
-            file_semaphore=self.file_semaphore,
+        info_json: dict[str, dict[str, Any]] = await util.fetch_url_json_simple(
+            self.bandstories_5_url, self
         )
 
         tasks = []
@@ -375,16 +355,10 @@ class Band_story_getter(util.Base_getter):
 
         filename = util.valid_filename(name)
 
-        story_json: dict[str, dict[str, Any]] = await util.fetch_url_json(
+        story_json: dict[str, dict[str, Any]] = await util.fetch_url_json_simple(
             self.band_asset_url.format(lang=lang, band_id=band_id, id=id),
-            self.online,
-            self.save_assets,
-            self.assets_save_dir,
-            self.missing_download,
+            self,
             filename,
-            session=self.session,
-            network_semaphore=self.network_semaphore,
-            file_semaphore=self.file_semaphore,
         )
 
         if self.parse:
@@ -408,7 +382,7 @@ class Band_story_getter(util.Base_getter):
 class Main_story_getter(util.Base_getter):
     def __init__(
         self,
-        save_dir: str = './main_story',
+        save_dir: str = './story_main',
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
@@ -427,15 +401,8 @@ class Main_story_getter(util.Base_getter):
         self.main_asset_url = URLS['bestdori.com']['main_asset']
 
     async def get(self, id_range: list[int] | None = None, lang: str = 'cn') -> None:
-        info_json: dict[str, dict[str, Any]] = await util.fetch_url_json(
-            self.mainstories_5_url,
-            self.online,
-            self.save_assets,
-            self.assets_save_dir,
-            self.missing_download,
-            session=self.session,
-            network_semaphore=self.network_semaphore,
-            file_semaphore=self.file_semaphore,
+        info_json: dict[str, dict[str, Any]] = await util.fetch_url_json_simple(
+            self.mainstories_5_url, self
         )
 
         if self.parse:
@@ -470,16 +437,8 @@ class Main_story_getter(util.Base_getter):
     async def __get_story(
         self, lang: str, id: str, filename: str, name: str, synopsis: str
     ) -> None:
-        story_json: dict[str, dict[str, Any]] = await util.fetch_url_json(
-            self.main_asset_url.format(lang=lang, id=id),
-            self.online,
-            self.save_assets,
-            self.assets_save_dir,
-            self.missing_download,
-            filename,
-            session=self.session,
-            network_semaphore=self.network_semaphore,
-            file_semaphore=self.file_semaphore,
+        story_json: dict[str, dict[str, Any]] = await util.fetch_url_json_simple(
+            self.main_asset_url.format(lang=lang, id=id), self, filename
         )
 
         if self.parse:
@@ -499,7 +458,7 @@ class Main_story_getter(util.Base_getter):
 class Card_story_getter(util.Base_getter):
     def __init__(
         self,
-        save_dir: str = './card_story',
+        save_dir: str = './story_card',
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
@@ -526,15 +485,8 @@ class Card_story_getter(util.Base_getter):
     ) -> None:
         await super().init(session, network_semaphore, file_semaphore)
 
-        all_cards_list: dict[int, Any] = await util.fetch_url_json(
-            self.cards_all_0_url,
-            self.online,
-            self.save_assets,
-            self.assets_save_dir,
-            self.missing_download,
-            session=self.session,
-            network_semaphore=self.network_semaphore,
-            file_semaphore=self.file_semaphore,
+        all_cards_list: dict[int, Any] = await util.fetch_url_json_simple(
+            self.cards_all_0_url, self
         )
 
         self.cards_ids: list[int] = [int(id) for id in all_cards_list.keys()]
@@ -544,15 +496,8 @@ class Card_story_getter(util.Base_getter):
             print(f'card {card_id} does not exist.')
             return
 
-        card = await util.fetch_url_json(
-            self.cards_id_url.format(id=card_id),
-            self.online,
-            self.save_assets,
-            self.assets_save_dir,
-            self.missing_download,
-            session=self.session,
-            network_semaphore=self.network_semaphore,
-            file_semaphore=self.file_semaphore,
+        card = await util.fetch_url_json_simple(
+            self.cards_id_url.format(id=card_id), self
         )
 
         chara_band_and_name = Constant.chara_id_band_and_name[card['characterId']]
@@ -592,18 +537,12 @@ class Card_story_getter(util.Base_getter):
 
             if story_1_type != 'animation':
                 scenarioId_1 = card['episodes']['entries'][0]['scenarioId']
-                story_1_json_task = util.fetch_url_json(
+                story_1_json_task = util.fetch_url_json_simple(
                     self.card_asset_url.format(
                         lang=lang, res_id=resourceSetName, scenarioId=scenarioId_1
                     ),
-                    self.online,
-                    self.save_assets,
-                    self.assets_save_dir,
-                    self.missing_download,
+                    self,
                     card_story_filename,
-                    session=self.session,
-                    network_semaphore=self.network_semaphore,
-                    file_semaphore=self.file_semaphore,
                 )
             else:
 
@@ -614,18 +553,12 @@ class Card_story_getter(util.Base_getter):
 
             scenarioId_2 = card['episodes']['entries'][1]['scenarioId']
 
-            story_2_json_task = util.fetch_url_json(
+            story_2_json_task = util.fetch_url_json_simple(
                 self.card_asset_url.format(
                     lang=lang, res_id=resourceSetName, scenarioId=scenarioId_2
                 ),
-                self.online,
-                self.save_assets,
-                self.assets_save_dir,
-                self.missing_download,
+                self,
                 card_story_filename,
-                session=self.session,
-                network_semaphore=self.network_semaphore,
-                file_semaphore=self.file_semaphore,
             )
 
             story_1_json, story_2_json = await asyncio.gather(
@@ -686,6 +619,7 @@ if __name__ == '__main__':
             )
 
             tasks = []
+
             tasks.append(main_getter.get(list(range(1, 4)), 'cn'))
             for i in [1, 2]:
                 for j in [1]:

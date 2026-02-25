@@ -67,8 +67,8 @@ class SpecialEffectType(int, Enum):
     Blur = 44
 
 
-_net_semaphore = asyncio.Semaphore(50)
-_file_semaphore = asyncio.Semaphore(50)
+_net_semaphore = asyncio.Semaphore(20)
+_file_semaphore = asyncio.Semaphore(20)
 
 
 class Base_getter:
@@ -208,8 +208,8 @@ async def fetch_url_json(
     save_dir: str,
     missing_download: bool,
     extra_record_msg: str = '',
-    error_assets_file: str | None = 'assets_error.txt',
-    missing_assets_file: str | None = 'assets_missing.txt',
+    error_assets_file: str | None = 'assets_error.log',
+    missing_assets_file: str | None = 'assets_missing.log',
     session: aiohttp.ClientSession | None = None,
     network_semaphore: Semaphore | None = None,
     file_semaphore: Semaphore | None = None,
@@ -261,3 +261,20 @@ async def fetch_url_json(
         print('get ' + url + ' done.')
 
     return json_content
+
+
+async def fetch_url_json_simple(
+    url: str, self: Any, extra_record_msg: str = '', print_done: bool = False
+) -> Any:
+    return await fetch_url_json(
+        url,
+        self.online,
+        self.save_assets,
+        self.assets_save_dir,
+        self.missing_download,
+        extra_record_msg=extra_record_msg,
+        session=self.session,
+        network_semaphore=self.network_semaphore,
+        file_semaphore=self.file_semaphore,
+        print_done=print_done,
+    )
