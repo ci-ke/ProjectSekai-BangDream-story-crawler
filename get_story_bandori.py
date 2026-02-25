@@ -629,7 +629,6 @@ class Card_story_getter:
             story_1_type = card['episodes']['entries'][0]['episodeType']
             story_2_type = card['episodes']['entries'][1]['episodeType']
 
-            tasks = []  # str | dict[str, dict[str, Any]]
             if story_1_type != 'animation':
                 scenarioId_1 = card['episodes']['entries'][0]['scenarioId']
                 story_1_json_task = util.fetch_url_json(
