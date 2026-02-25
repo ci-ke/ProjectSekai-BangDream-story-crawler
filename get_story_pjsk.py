@@ -281,13 +281,13 @@ class Story_reader:
         return ret[:-1]
 
 
-class Event_story_getter:
+class Event_story_getter(util.Base_getter):
     def __init__(
         self,
         reader: Story_reader,
+        src: str = 'sekai.best',
         save_dir: str = './event_story',
         assets_save_dir: str = './assets',
-        src: str = 'sekai.best',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
@@ -297,14 +297,11 @@ class Event_story_getter:
         src: sekai.best or pjsk.moe
         '''
 
-        self.reader = reader
-        self.save_dir = save_dir
-        self.assets_save_dir = assets_save_dir
+        super().__init__(
+            save_dir, assets_save_dir, online, save_assets, parse, missing_download
+        )
 
-        self.online = online
-        self.save_assets = save_assets
-        self.parse = parse
-        self.missing_download = missing_download
+        self.reader = reader
 
         if reader.lang == 'cn':
             self.events_url = (
@@ -342,9 +339,7 @@ class Event_story_getter:
         network_semaphore: Semaphore | None = None,
         file_semaphore: Semaphore | None = None,
     ) -> None:
-        self.session = session
-        self.network_semaphore = network_semaphore
-        self.file_semaphore = file_semaphore
+        await super().init(session, network_semaphore, file_semaphore)
 
         self.events_json, self.eventStories_json = await asyncio.gather(
             util.fetch_url_json(
@@ -483,7 +478,7 @@ class Event_story_getter:
         print(f'get event {event_id} {event_name} {episode_name} done.')
 
 
-class Unit_story_getter:
+class Unit_story_getter(util.Base_getter):
     def __init__(
         self,
         reader: Story_reader,
@@ -495,14 +490,11 @@ class Unit_story_getter:
         missing_download: bool = True,
     ) -> None:
 
-        self.reader = reader
-        self.save_dir = save_dir
-        self.assets_save_dir = assets_save_dir
+        super().__init__(
+            save_dir, assets_save_dir, online, save_assets, parse, missing_download
+        )
 
-        self.online = online
-        self.save_assets = save_assets
-        self.parse = parse
-        self.missing_download = missing_download
+        self.reader = reader
 
         if reader.lang == 'cn':
             self.unitProfiles_url = 'https://sekai-world.github.io/sekai-master-db-cn-diff/unitProfiles.json'
@@ -533,9 +525,7 @@ class Unit_story_getter:
         network_semaphore: Semaphore | None = None,
         file_semaphore: Semaphore | None = None,
     ) -> None:
-        self.session = session
-        self.network_semaphore = network_semaphore
-        self.file_semaphore = file_semaphore
+        await super().init(session, network_semaphore, file_semaphore)
 
         self.unitProfiles_json, self.unitStories_json = await asyncio.gather(
             util.fetch_url_json(
@@ -646,7 +636,7 @@ class Unit_story_getter:
         print(f'get unit {unit_id} {unitName} {episode_name} done.')
 
 
-class Card_story_getter:
+class Card_story_getter(util.Base_getter):
     def __init__(
         self,
         reader: Story_reader,
@@ -658,14 +648,11 @@ class Card_story_getter:
         missing_download: bool = True,
     ) -> None:
 
-        self.reader = reader
-        self.save_dir = save_dir
-        self.assets_save_dir = assets_save_dir
+        super().__init__(
+            save_dir, assets_save_dir, online, save_assets, parse, missing_download
+        )
 
-        self.online = online
-        self.save_assets = save_assets
-        self.parse = parse
-        self.missing_download = missing_download
+        self.reader = reader
 
         if reader.lang == 'cn':
             self.cards_url = (
@@ -705,9 +692,7 @@ class Card_story_getter:
         network_semaphore: Semaphore | None = None,
         file_semaphore: Semaphore | None = None,
     ) -> None:
-        self.session = session
-        self.network_semaphore = network_semaphore
-        self.file_semaphore = file_semaphore
+        await super().init(session, network_semaphore, file_semaphore)
 
         self.cards_json, self.cardEpisodes_json, ori_eventCards_json = (
             await asyncio.gather(
@@ -851,7 +836,7 @@ class Card_story_getter:
         print(f'get card {card_story_filename} done.')
 
 
-class Area_talk_getter:
+class Area_talk_getter((util.Base_getter)):
     def __init__(
         self,
         reader: Story_reader,
@@ -863,14 +848,11 @@ class Area_talk_getter:
         missing_download: bool = True,
     ) -> None:
 
-        self.reader = reader
-        self.save_dir = save_dir
-        self.assets_save_dir = assets_save_dir
+        super().__init__(
+            save_dir, assets_save_dir, online, save_assets, parse, missing_download
+        )
 
-        self.online = online
-        self.save_assets = save_assets
-        self.parse = parse
-        self.missing_download = missing_download
+        self.reader = reader
 
         if reader.lang == 'cn':
             self.area_name_url = (
@@ -905,9 +887,7 @@ class Area_talk_getter:
         network_semaphore: Semaphore | None = None,
         file_semaphore: Semaphore | None = None,
     ) -> None:
-        self.session = session
-        self.network_semaphore = network_semaphore
-        self.file_semaphore = file_semaphore
+        await super().init(session, network_semaphore, file_semaphore)
 
         self.area_name_json, self.info_json = await asyncio.gather(
             util.fetch_url_json(

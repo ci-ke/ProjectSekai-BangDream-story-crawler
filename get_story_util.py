@@ -71,6 +71,35 @@ _net_semaphore = asyncio.Semaphore(100)
 _file_semaphore = asyncio.Semaphore(100)
 
 
+class Base_getter:
+    def __init__(
+        self,
+        save_dir: str,
+        assets_save_dir: str,
+        online: bool,
+        save_assets: bool,
+        parse: bool,
+        missing_download: bool,
+    ):
+        self.save_dir = save_dir
+        self.assets_save_dir = assets_save_dir
+
+        self.online = online
+        self.save_assets = save_assets
+        self.parse = parse
+        self.missing_download = missing_download
+
+    async def init(
+        self,
+        session: aiohttp.ClientSession | None = None,
+        network_semaphore: Semaphore | None = None,
+        file_semaphore: Semaphore | None = None,
+    ) -> None:
+        self.session = session
+        self.network_semaphore = network_semaphore
+        self.file_semaphore = file_semaphore
+
+
 def valid_filename(filename: str) -> str:
     return (
         filename.strip()

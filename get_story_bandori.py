@@ -149,7 +149,7 @@ def read_story_in_json(
     return ret[:-1]
 
 
-class Event_story_getter:
+class Event_story_getter(util.Base_getter):
 
     event_is_main = [217]
     event_no_story = [248]
@@ -165,27 +165,14 @@ class Event_story_getter:
         debug_parse: bool = False,
     ) -> None:
 
-        self.save_dir = save_dir
-        self.assets_save_dir = assets_save_dir
         self.debug_parse = debug_parse
 
-        self.online = online
-        self.save_assets = save_assets
-        self.parse = parse
-        self.missing_download = missing_download
+        super().__init__(
+            save_dir, assets_save_dir, online, save_assets, parse, missing_download
+        )
 
         self.info_url = 'https://bestdori.com/api/events/{event_id}.json'
         self.story_url = 'https://bestdori.com/assets/{lang}/scenario/eventstory/event{event_id}_rip/Scenario{id}.asset'
-
-    def init(
-        self,
-        session: ClientSession | None = None,
-        network_semaphore: Semaphore | None = None,
-        file_semaphore: Semaphore | None = None,
-    ) -> None:
-        self.session = session
-        self.network_semaphore = network_semaphore
-        self.file_semaphore = file_semaphore
 
     async def get(self, event_id: int, lang: str = 'cn') -> None:
 
@@ -286,7 +273,7 @@ class Event_story_getter:
         print(f'get event {event_id} {event_name} {name} done.')
 
 
-class Band_story_getter:
+class Band_story_getter(util.Base_getter):
     def __init__(
         self,
         save_dir: str = './band_story',
@@ -298,27 +285,14 @@ class Band_story_getter:
         debug_parse: bool = False,
     ) -> None:
 
-        self.save_dir = save_dir
-        self.assets_save_dir = assets_save_dir
         self.debug_parse = debug_parse
 
-        self.online = online
-        self.save_assets = save_assets
-        self.parse = parse
-        self.missing_download = missing_download
+        super().__init__(
+            save_dir, assets_save_dir, online, save_assets, parse, missing_download
+        )
 
         self.info_url = 'https://bestdori.com/api/misc/bandstories.5.json'
         self.story_url = 'https://bestdori.com/assets/{lang}/scenario/band/{band_id:03}_rip/Scenario{id}.asset'
-
-    def init(
-        self,
-        session: ClientSession | None = None,
-        network_semaphore: Semaphore | None = None,
-        file_semaphore: Semaphore | None = None,
-    ) -> None:
-        self.session = session
-        self.network_semaphore = network_semaphore
-        self.file_semaphore = file_semaphore
 
     async def get(
         self,
@@ -425,7 +399,7 @@ class Band_story_getter:
         )
 
 
-class Main_story_getter:
+class Main_story_getter(util.Base_getter):
     def __init__(
         self,
         save_dir: str = './main_story',
@@ -437,29 +411,16 @@ class Main_story_getter:
         debug_parse: bool = False,
     ) -> None:
 
-        self.save_dir = save_dir
-        self.assets_save_dir = assets_save_dir
         self.debug_parse = debug_parse
 
-        self.online = online
-        self.save_assets = save_assets
-        self.parse = parse
-        self.missing_download = missing_download
+        super().__init__(
+            save_dir, assets_save_dir, online, save_assets, parse, missing_download
+        )
 
         self.info_url = 'https://bestdori.com/api/misc/mainstories.5.json'
         self.story_url = (
             'https://bestdori.com/assets/{lang}/scenario/main_rip/Scenario{id}.asset'
         )
-
-    def init(
-        self,
-        session: ClientSession | None = None,
-        network_semaphore: Semaphore | None = None,
-        file_semaphore: Semaphore | None = None,
-    ) -> None:
-        self.session = session
-        self.network_semaphore = network_semaphore
-        self.file_semaphore = file_semaphore
 
     async def get(self, id_range: list[int] | None = None, lang: str = 'cn') -> None:
         info_json: dict[str, dict[str, Any]] = await util.fetch_url_json(
@@ -530,7 +491,7 @@ class Main_story_getter:
         print(f'get main story {name} done.')
 
 
-class Card_story_getter:
+class Card_story_getter(util.Base_getter):
     def __init__(
         self,
         save_dir: str = './card_story',
@@ -542,14 +503,11 @@ class Card_story_getter:
         debug_parse: bool = False,
     ) -> None:
 
-        self.save_dir = save_dir
-        self.assets_save_dir = assets_save_dir
         self.debug_parse = debug_parse
 
-        self.online = online
-        self.save_assets = save_assets
-        self.parse = parse
-        self.missing_download = missing_download
+        super().__init__(
+            save_dir, assets_save_dir, online, save_assets, parse, missing_download
+        )
 
         self.all_cards_list_url = 'https://bestdori.com/api/cards/all.0.json'
         self.info_url = 'https://bestdori.com/api/cards/{id}.json'
@@ -561,9 +519,7 @@ class Card_story_getter:
         network_semaphore: Semaphore | None = None,
         file_semaphore: Semaphore | None = None,
     ) -> None:
-        self.session = session
-        self.network_semaphore = network_semaphore
-        self.file_semaphore = file_semaphore
+        await super().init(session, network_semaphore, file_semaphore)
 
         all_cards_list: dict[int, Any] = await util.fetch_url_json(
             self.all_cards_list_url,
@@ -716,10 +672,12 @@ if __name__ == '__main__':
             trust_env=True, connector=TCPConnector(limit=net_connect_limit)
         ) as session:
 
-            main_getter.init(session)
-            band_getter.init(session)
-            event_getter.init(session)
-            await card_getter.init(session)
+            await asyncio.gather(
+                main_getter.init(session),
+                band_getter.init(session),
+                event_getter.init(session),
+                card_getter.init(session),
+            )
 
             tasks = []
             tasks.append(main_getter.get(list(range(1, 4)), 'cn'))
