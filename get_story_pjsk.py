@@ -879,6 +879,7 @@ class Area_talk_getter((util.Base_getter)):
         '''
         target: int: event_id; str: grade1, grade2, theater, limited-{area_id}, aprilfool2022-
         '''
+
         if isinstance(target, int):  # event id
             talk_infos = [
                 talk
@@ -891,7 +892,7 @@ class Area_talk_getter((util.Base_getter)):
             if target == 145:
                 talk_info_index = self.info_json_lookup.find_index(
                     2373
-                )  # special for mzk5
+                )  # special case for mzk5
                 talk_infos.append(self.info_json[talk_info_index])
         elif target == 'grade1':
             talk_infos = [
@@ -993,7 +994,23 @@ class Area_talk_getter((util.Base_getter)):
                     sub_name = self.area_name_json[area_name_index].get('subName')
                     if sub_name is not None:
                         area_name += ' - ' + sub_name
-                    f.write(f"{index+1}: {talk_info['id']} 【{area_name}】\n\n")
+
+                    talk_type = ''
+                    if isinstance(target, int):
+                        if '_ev_' in talk_info['scenarioId']:
+                            talk_type = ' event'
+                        elif '_wl_' in talk_info['scenarioId']:
+                            talk_type = ' wl'
+                        elif '_monthly' in talk_info['scenarioId']:
+                            talk_type = ' monthly'
+                        elif '_add_' in talk_info['scenarioId']:
+                            talk_type = ' add'
+                        else:
+                            assert talk_info['id'] == 618  # special case
+
+                    f.write(
+                        f"{index+1}: {talk_info['id']}{talk_type} 【{area_name}】\n\n"
+                    )
                     f.write(text + '\n\n\n')
 
         print(f'get talk {filename} done.')
@@ -1069,7 +1086,7 @@ if __name__ == '__main__':
 
     online = False
 
-    reader = Story_reader('tw', online=online)
+    reader = Story_reader('cn', online=online)
     unit_getter = Unit_story_getter(reader, online=online)
     event_getter = Event_story_getter(reader, online=online)
     card_getter = Card_story_getter(reader, online=online)
