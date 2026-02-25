@@ -1,6 +1,7 @@
 import os, json, asyncio, traceback
 from enum import Enum
 from typing import Any
+from asyncio import Semaphore
 
 import aiohttp, aiofiles  # type: ignore
 
@@ -66,15 +67,8 @@ class SpecialEffectType(int, Enum):
     Blur = 44
 
 
-class AsyncNullContext:
-    async def __aenter__(self):
-        pass
-
-    async def __aexit__(self, *args):
-        pass
-
-
-NO_LIMIT = AsyncNullContext()
+_net_semaphore = asyncio.Semaphore(100)
+_file_semaphore = asyncio.Semaphore(100)
 
 
 def valid_filename(filename: str) -> str:
@@ -96,10 +90,7 @@ def url_to_path(url: str, save_dir: str) -> str:
 
 
 async def save_json_to_url(
-    url: str,
-    content: Any,
-    save_dir: str,
-    file_semaphore: asyncio.Semaphore | AsyncNullContext = NO_LIMIT,
+    url: str, content: Any, save_dir: str, file_semaphore: Semaphore
 ) -> None:
     path = url_to_path(url, save_dir)
     os.makedirs(os.path.split(path)[0], exist_ok=True)
@@ -117,8 +108,8 @@ async def read_json_from_url(
     error_assets_file: str | None,
     missing_assets_file: str | None,
     session: aiohttp.ClientSession | None,
-    network_semaphore: asyncio.Semaphore | AsyncNullContext = NO_LIMIT,
-    file_semaphore: asyncio.Semaphore | AsyncNullContext = NO_LIMIT,
+    network_semaphore: Semaphore,
+    file_semaphore: Semaphore,
 ) -> Any:
     path = url_to_path(url, save_dir)
     if os.path.exists(path):
@@ -145,24 +136,18 @@ async def read_json_from_url(
             if missing_assets_file:
                 await write_to_file(
                     missing_assets_file,
-                    f'{extra_record_msg}{'：' if extra_record_msg else ''}{url}',
+                    f"{extra_record_msg}{'：' if extra_record_msg else ''}{url}",
                     file_semaphore,
                 )
             return '未能读取json文件'
 
 
-file_lock = asyncio.Lock()
-
-
 async def write_to_file(
-    file_path: str,
-    content: str,
-    file_semaphore: asyncio.Semaphore | AsyncNullContext = NO_LIMIT,
+    file_path: str, content: str, file_semaphore: Semaphore
 ) -> None:
     async with file_semaphore:
-        async with aiofiles.open(file_path, 'a', encoding='utf-8', newline='') as f:
+        async with aiofiles.open(file_path, 'a', encoding='utf-8') as f:
             await f.write(f"{content}\n")
-            await f.flush()
 
 
 async def fetch_url_json(
@@ -175,10 +160,16 @@ async def fetch_url_json(
     error_assets_file: str | None = 'assets_error.txt',
     missing_assets_file: str | None = 'assets_missing.txt',
     session: aiohttp.ClientSession | None = None,
-    network_semaphore: asyncio.Semaphore | AsyncNullContext = NO_LIMIT,
-    file_semaphore: asyncio.Semaphore | AsyncNullContext = NO_LIMIT,
+    network_semaphore: Semaphore | None = None,
+    file_semaphore: Semaphore | None = None,
     print_done: bool = False,
 ) -> Any:
+
+    if network_semaphore is None:
+        network_semaphore = _net_semaphore
+    if file_semaphore is None:
+        file_semaphore = _file_semaphore
+
     if online:
         assert session is not None
 
@@ -193,11 +184,13 @@ async def fetch_url_json(
                         )
 
                 except Exception:
+                    # if encounter "Can not decode content-encoding: br", pip install -U brotli
                     json_content = f'读取json出错：{traceback.format_exc()}'
+                    print(json_content)
                     if error_assets_file:
                         await write_to_file(
                             error_assets_file,
-                            f'{extra_record_msg}{'：' if extra_record_msg else ''}{url}',
+                            f"{extra_record_msg}{'：' if extra_record_msg else ''}{url}",
                             file_semaphore,
                         )
     else:

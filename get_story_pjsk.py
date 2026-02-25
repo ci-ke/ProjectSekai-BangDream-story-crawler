@@ -117,8 +117,8 @@ class Story_reader:
     async def init(
         self,
         session: ClientSession | None = None,
-        network_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
-        file_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+        network_semaphore: Semaphore | None = None,
+        file_semaphore: Semaphore | None = None,
     ) -> None:
         self.session = session
         self.network_semaphore = network_semaphore
@@ -339,8 +339,8 @@ class Event_story_getter:
     async def init(
         self,
         session: ClientSession | None = None,
-        network_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
-        file_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+        network_semaphore: Semaphore | None = None,
+        file_semaphore: Semaphore | None = None,
     ) -> None:
         self.session = session
         self.network_semaphore = network_semaphore
@@ -530,8 +530,8 @@ class Unit_story_getter:
     async def init(
         self,
         session: ClientSession | None = None,
-        network_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
-        file_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+        network_semaphore: Semaphore | None = None,
+        file_semaphore: Semaphore | None = None,
     ) -> None:
         self.session = session
         self.network_semaphore = network_semaphore
@@ -702,8 +702,8 @@ class Card_story_getter:
     async def init(
         self,
         session: ClientSession | None = None,
-        network_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
-        file_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+        network_semaphore: Semaphore | None = None,
+        file_semaphore: Semaphore | None = None,
     ) -> None:
         self.session = session
         self.network_semaphore = network_semaphore
@@ -902,8 +902,8 @@ class Area_talk_getter:
     async def init(
         self,
         session: ClientSession | None = None,
-        network_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
-        file_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+        network_semaphore: Semaphore | None = None,
+        file_semaphore: Semaphore | None = None,
     ) -> None:
         self.session = session
         self.network_semaphore = network_semaphore
@@ -1126,8 +1126,6 @@ class DictLookup:
 if __name__ == '__main__':
 
     net_connect_limit = 20
-    net_semaphore = asyncio.Semaphore(100)
-    file_semaphore = asyncio.Semaphore(100)
 
     online = False
 
@@ -1142,11 +1140,11 @@ if __name__ == '__main__':
             trust_env=True, connector=TCPConnector(limit=net_connect_limit)
         ) as session:
             await asyncio.gather(
-                reader.init(session, net_semaphore, file_semaphore),
-                unit_getter.init(session, net_semaphore, file_semaphore),
-                event_getter.init(session, net_semaphore, file_semaphore),
-                card_getter.init(session, net_semaphore, file_semaphore),
-                area_getter.init(session, net_semaphore, file_semaphore),
+                reader.init(session),
+                unit_getter.init(session),
+                event_getter.init(session),
+                card_getter.init(session),
+                area_getter.init(session),
             )
 
             tasks = []

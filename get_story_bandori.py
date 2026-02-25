@@ -4,7 +4,7 @@ import os, asyncio
 from typing import Any
 from asyncio import Semaphore
 
-from aiohttp import ClientSession, TCPConnector
+from aiohttp import ClientSession, TCPConnector  # type: ignore
 
 import get_story_util as util
 
@@ -180,8 +180,8 @@ class Event_story_getter:
     def init(
         self,
         session: ClientSession | None = None,
-        network_semaphore: asyncio.Semaphore | util.AsyncNullContext = util.NO_LIMIT,
-        file_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+        network_semaphore: Semaphore | None = None,
+        file_semaphore: Semaphore | None = None,
     ) -> None:
         self.session = session
         self.network_semaphore = network_semaphore
@@ -313,8 +313,8 @@ class Band_story_getter:
     def init(
         self,
         session: ClientSession | None = None,
-        network_semaphore: asyncio.Semaphore | util.AsyncNullContext = util.NO_LIMIT,
-        file_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+        network_semaphore: Semaphore | None = None,
+        file_semaphore: Semaphore | None = None,
     ) -> None:
         self.session = session
         self.network_semaphore = network_semaphore
@@ -454,8 +454,8 @@ class Main_story_getter:
     def init(
         self,
         session: ClientSession | None = None,
-        network_semaphore: asyncio.Semaphore | util.AsyncNullContext = util.NO_LIMIT,
-        file_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+        network_semaphore: Semaphore | None = None,
+        file_semaphore: Semaphore | None = None,
     ) -> None:
         self.session = session
         self.network_semaphore = network_semaphore
@@ -558,8 +558,8 @@ class Card_story_getter:
     async def init(
         self,
         session: ClientSession | None = None,
-        network_semaphore: asyncio.Semaphore | util.AsyncNullContext = util.NO_LIMIT,
-        file_semaphore: Semaphore | util.AsyncNullContext = util.NO_LIMIT,
+        network_semaphore: Semaphore | None = None,
+        file_semaphore: Semaphore | None = None,
     ) -> None:
         self.session = session
         self.network_semaphore = network_semaphore
@@ -704,8 +704,6 @@ class Card_story_getter:
 if __name__ == '__main__':
 
     net_connect_limit = 10
-    net_semaphore = asyncio.Semaphore(100)
-    file_semaphore = asyncio.Semaphore(100)
 
     online = False
 
@@ -719,10 +717,10 @@ if __name__ == '__main__':
             trust_env=True, connector=TCPConnector(limit=net_connect_limit)
         ) as session:
 
-            main_getter.init(session, net_semaphore, file_semaphore)
-            band_getter.init(session, net_semaphore, file_semaphore)
-            event_getter.init(session, net_semaphore, file_semaphore)
-            await card_getter.init(session, net_semaphore, file_semaphore)
+            main_getter.init(session)
+            band_getter.init(session)
+            event_getter.init(session)
+            await card_getter.init(session)
 
             tasks = []
             tasks.append(main_getter.get(list(range(1, 4)), 'cn'))
