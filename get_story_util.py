@@ -128,7 +128,7 @@ async def read_json_from_url(
                 return json.loads(content)
     else:
         if missing_download:
-            return await get_url_json(
+            return await fetch_url_json(
                 url,
                 True,
                 True,
@@ -165,7 +165,7 @@ async def write_to_file(
             await f.flush()
 
 
-async def get_url_json(
+async def fetch_url_json(
     url: str,
     online: bool,
     save: bool,

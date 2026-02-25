@@ -6,7 +6,7 @@ from asyncio import Semaphore
 
 from aiohttp import ClientSession, TCPConnector
 
-import request_story_util as util
+import get_story_util as util
 
 
 class Constant:
@@ -189,7 +189,7 @@ class Event_story_getter:
 
     async def get(self, event_id: int, lang: str = 'cn') -> None:
 
-        info_json: dict[str, Any] = await util.get_url_json(
+        info_json: dict[str, Any] = await util.fetch_url_json(
             self.info_url.format(event_id=event_id),
             self.online,
             self.save_assets,
@@ -252,7 +252,7 @@ class Event_story_getter:
         if ('bandStoryId' not in story) and (
             event_id not in Event_story_getter.event_is_main
         ):
-            story_json: dict[str, dict[str, Any]] = await util.get_url_json(
+            story_json: dict[str, dict[str, Any]] = await util.fetch_url_json(
                 self.story_url.format(lang=lang, event_id=event_id, id=id),
                 self.online,
                 self.save_assets,
@@ -329,7 +329,7 @@ class Band_story_getter:
         if want_band_id is not None:
             assert want_band_id in Constant.band_id_name
 
-        info_json: dict[str, dict[str, Any]] = await util.get_url_json(
+        info_json: dict[str, dict[str, Any]] = await util.fetch_url_json(
             self.info_url,
             self.online,
             self.save_assets,
@@ -396,7 +396,7 @@ class Band_story_getter:
 
         filename = util.valid_filename(name)
 
-        story_json: dict[str, dict[str, Any]] = await util.get_url_json(
+        story_json: dict[str, dict[str, Any]] = await util.fetch_url_json(
             self.story_url.format(lang=lang, band_id=band_id, id=id),
             self.online,
             self.save_assets,
@@ -462,7 +462,7 @@ class Main_story_getter:
         self.file_semaphore = file_semaphore
 
     async def get(self, id_range: list[int] | None = None, lang: str = 'cn') -> None:
-        info_json: dict[str, dict[str, Any]] = await util.get_url_json(
+        info_json: dict[str, dict[str, Any]] = await util.fetch_url_json(
             self.info_url,
             self.online,
             self.save_assets,
@@ -505,7 +505,7 @@ class Main_story_getter:
     async def __get_story(
         self, lang: str, id: str, filename: str, name: str, synopsis: str
     ) -> None:
-        story_json: dict[str, dict[str, Any]] = await util.get_url_json(
+        story_json: dict[str, dict[str, Any]] = await util.fetch_url_json(
             self.story_url.format(lang=lang, id=id),
             self.online,
             self.save_assets,
@@ -565,7 +565,7 @@ class Card_story_getter:
         self.network_semaphore = network_semaphore
         self.file_semaphore = file_semaphore
 
-        all_cards_list: dict[int, Any] = await util.get_url_json(
+        all_cards_list: dict[int, Any] = await util.fetch_url_json(
             self.all_cards_list_url,
             self.online,
             self.save_assets,
@@ -583,7 +583,7 @@ class Card_story_getter:
             print(f'card {card_id} does not exist.')
             return
 
-        card = await util.get_url_json(
+        card = await util.fetch_url_json(
             self.info_url.format(id=card_id),
             self.online,
             self.save_assets,
@@ -632,7 +632,7 @@ class Card_story_getter:
             tasks = []  # str | dict[str, dict[str, Any]]
             if story_1_type != 'animation':
                 scenarioId_1 = card['episodes']['entries'][0]['scenarioId']
-                story_1_json_task = util.get_url_json(
+                story_1_json_task = util.fetch_url_json(
                     self.story_url.format(
                         lang=lang, res_id=resourceSetName, scenarioId=scenarioId_1
                     ),
@@ -654,7 +654,7 @@ class Card_story_getter:
 
             scenarioId_2 = card['episodes']['entries'][1]['scenarioId']
 
-            story_2_json_task = util.get_url_json(
+            story_2_json_task = util.fetch_url_json(
                 self.story_url.format(
                     lang=lang, res_id=resourceSetName, scenarioId=scenarioId_2
                 ),
@@ -703,6 +703,10 @@ class Card_story_getter:
 
 if __name__ == '__main__':
 
+    net_connect_limit = 10
+    net_semaphore = asyncio.Semaphore(100)
+    file_semaphore = asyncio.Semaphore(100)
+
     online = False
 
     main_getter = Main_story_getter(online=online)
@@ -712,13 +716,13 @@ if __name__ == '__main__':
 
     async def main():
         async with ClientSession(
-            trust_env=True, connector=TCPConnector(limit=10)
+            trust_env=True, connector=TCPConnector(limit=net_connect_limit)
         ) as session:
 
-            main_getter.init(session)
-            band_getter.init(session)
-            event_getter.init(session)
-            await card_getter.init(session)
+            main_getter.init(session, net_semaphore, file_semaphore)
+            band_getter.init(session, net_semaphore, file_semaphore)
+            event_getter.init(session, net_semaphore, file_semaphore)
+            await card_getter.init(session, net_semaphore, file_semaphore)
 
             tasks = []
             tasks.append(main_getter.get(list(range(1, 4)), 'cn'))
