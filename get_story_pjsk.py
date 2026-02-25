@@ -1,12 +1,16 @@
 # https://github.com/ci-ke/ProjectSekai-BangDream-story-crawler
 
-import bisect, os, math, asyncio
+import bisect, os, math, asyncio, json
 from asyncio import Semaphore
 from typing import Any
 
 from aiohttp import ClientSession, TCPConnector  # type: ignore
 
 import get_story_util as util
+
+URLS: dict[str, dict[str, dict[str, str]]] = json.load(
+    open('urls_pjsk.json', encoding='utf8')
+)
 
 
 class Constant:
@@ -104,13 +108,11 @@ class Story_reader:
         self.debug_parse = debug_parse
 
         if lang == 'cn':
-            self.character2ds_url = 'https://sekai-world.github.io/sekai-master-db-cn-diff/character2ds.json'
+            self.character2ds_url = URLS['cn']['sekai.best']['character2ds']
         elif lang == 'jp':
-            self.character2ds_url = (
-                'https://sekai-world.github.io/sekai-master-db-diff/character2ds.json'
-            )
+            self.character2ds_url = URLS['jp']['sekai.best']['character2ds']
         elif lang == 'tw':
-            self.character2ds_url = 'https://sekai-world.github.io/sekai-master-db-tc-diff/character2ds.json'
+            self.character2ds_url = URLS['tw']['sekai.best']['character2ds']
         else:
             raise NotImplementedError
 
@@ -304,32 +306,24 @@ class Event_story_getter(util.Base_getter):
         self.reader = reader
 
         if reader.lang == 'cn':
-            self.events_url = (
-                'https://sekai-world.github.io/sekai-master-db-cn-diff/events.json'
-            )
-            self.eventStories_url = 'https://sekai-world.github.io/sekai-master-db-cn-diff/eventStories.json'
-            self.asset_url = 'https://storage.sekai.best/sekai-cn-assets/event_story/{assetbundleName}/scenario/{scenarioId}.asset'
+            self.events_url = URLS['cn']['sekai.best']['events']
+            self.eventStories_url = URLS['cn']['sekai.best']['eventStories']
+            self.event_asset_url = URLS['cn']['sekai.best']['event_asset']
         elif reader.lang == 'jp':
             if src == 'sekai.best':
-                self.events_url = (
-                    'https://sekai-world.github.io/sekai-master-db-diff/events.json'
-                )
-                self.eventStories_url = 'https://sekai-world.github.io/sekai-master-db-diff/eventStories.json'
-                self.asset_url = 'https://storage.sekai.best/sekai-jp-assets/event_story/{assetbundleName}/scenario/{scenarioId}.asset'
+                self.events_url = URLS['jp']['sekai.best']['events']
+                self.eventStories_url = URLS['jp']['sekai.best']['eventStories']
+                self.event_asset_url = URLS['jp']['sekai.best']['event_asset']
             elif src == 'pjsk.moe':
-                self.events_url = 'https://sekaimaster.exmeaning.com/master/events.json'
-                self.eventStories_url = (
-                    'https://sekaimaster.exmeaning.com/master/eventStories.json'
-                )
-                self.asset_url = 'https://snowyassets.exmeaning.com/ondemand/event_story/{assetbundleName}/scenario/{scenarioId}.json'
+                self.events_url = URLS['jp']['pjsk.moe']['events']
+                self.eventStories_url = URLS['jp']['pjsk.moe']['eventStories']
+                self.event_asset_url = URLS['jp']['pjsk.moe']['event_asset']
             else:
                 raise NotImplementedError
         elif reader.lang == 'tw':
-            self.events_url = (
-                'https://sekai-world.github.io/sekai-master-db-tc-diff/events.json'
-            )
-            self.eventStories_url = 'https://sekai-world.github.io/sekai-master-db-tc-diff/eventStories.json'
-            self.asset_url = 'https://storage.sekai.best/sekai-tc-assets/event_story/{assetbundleName}/scenario/{scenarioId}.asset'
+            self.events_url = URLS['tw']['sekai.best']['events']
+            self.eventStories_url = URLS['tw']['sekai.best']['eventStories']
+            self.event_asset_url = URLS['tw']['sekai.best']['event_asset']
         else:
             raise NotImplementedError
 
@@ -449,7 +443,7 @@ class Event_story_getter(util.Base_getter):
         filename = util.valid_filename(episode_name)
 
         story_json: dict[str, Any] = await util.fetch_url_json(
-            self.asset_url.format(
+            self.event_asset_url.format(
                 assetbundleName=assetbundleName, scenarioId=scenarioId
             ),
             self.online,
@@ -497,25 +491,17 @@ class Unit_story_getter(util.Base_getter):
         self.reader = reader
 
         if reader.lang == 'cn':
-            self.unitProfiles_url = 'https://sekai-world.github.io/sekai-master-db-cn-diff/unitProfiles.json'
-            self.unitStories_url = (
-                'https://sekai-world.github.io/sekai-master-db-cn-diff/unitStories.json'
-            )
-            self.asset_url = 'https://storage.sekai.best/sekai-cn-assets/scenario/unitstory/{assetbundleName}/{scenarioId}.asset'
+            self.unitProfiles_url = URLS['cn']['sekai.best']['unitProfiles']
+            self.unitStories_url = URLS['cn']['sekai.best']['unitStories']
+            self.unit_asset_url = URLS['cn']['sekai.best']['unit_asset']
         elif reader.lang == 'jp':
-            self.unitProfiles_url = (
-                'https://sekai-world.github.io/sekai-master-db-diff/unitProfiles.json'
-            )
-            self.unitStories_url = (
-                'https://sekai-world.github.io/sekai-master-db-diff/unitStories.json'
-            )
-            self.asset_url = 'https://storage.sekai.best/sekai-jp-assets/scenario/unitstory/{assetbundleName}/{scenarioId}.asset'
+            self.unitProfiles_url = URLS['jp']['sekai.best']['unitProfiles']
+            self.unitStories_url = URLS['jp']['sekai.best']['unitStories']
+            self.unit_asset_url = URLS['jp']['sekai.best']['unit_asset']
         elif reader.lang == 'tw':
-            self.unitProfiles_url = 'https://sekai-world.github.io/sekai-master-db-tc-diff/unitProfiles.json'
-            self.unitStories_url = (
-                'https://sekai-world.github.io/sekai-master-db-tc-diff/unitStories.json'
-            )
-            self.asset_url = 'https://storage.sekai.best/sekai-tc-assets/scenario/unitstory/{assetbundleName}/{scenarioId}.asset'
+            self.unitProfiles_url = URLS['tw']['sekai.best']['unitProfiles']
+            self.unitStories_url = URLS['tw']['sekai.best']['unitStories']
+            self.unit_asset_url = URLS['tw']['sekai.best']['unit_asset']
         else:
             raise NotImplementedError
 
@@ -609,7 +595,7 @@ class Unit_story_getter(util.Base_getter):
         filename = util.valid_filename(episode_name)
 
         story_json: dict[str, Any] = await util.fetch_url_json(
-            self.asset_url.format(
+            self.unit_asset_url.format(
                 assetbundleName=assetbundleName, scenarioId=scenarioId
             ),
             self.online,
@@ -655,34 +641,20 @@ class Card_story_getter(util.Base_getter):
         self.reader = reader
 
         if reader.lang == 'cn':
-            self.cards_url = (
-                'https://sekai-world.github.io/sekai-master-db-cn-diff/cards.json'
-            )
-            self.cardEpisodes_url = 'https://sekai-world.github.io/sekai-master-db-cn-diff/cardEpisodes.json'
-            self.eventCards_url = (
-                'https://sekai-world.github.io/sekai-master-db-cn-diff/eventCards.json'
-            )
-            self.asset_url = 'https://storage.sekai.best/sekai-cn-assets/character/member/{assetbundleName}/{scenarioId}.asset'
+            self.cards_url = URLS['cn']['sekai.best']['cards']
+            self.cardEpisodes_url = URLS['cn']['sekai.best']['cardEpisodes']
+            self.eventCards_url = URLS['cn']['sekai.best']['eventCards']
+            self.card_asset_url = URLS['cn']['sekai.best']['card_asset']
         elif reader.lang == 'jp':
-            self.cards_url = (
-                'https://sekai-world.github.io/sekai-master-db-diff/cards.json'
-            )
-            self.cardEpisodes_url = (
-                'https://sekai-world.github.io/sekai-master-db-diff/cardEpisodes.json'
-            )
-            self.eventCards_url = (
-                'https://sekai-world.github.io/sekai-master-db-diff/eventCards.json'
-            )
-            self.asset_url = 'https://storage.sekai.best/sekai-jp-assets/character/member/{assetbundleName}/{scenarioId}.asset'
+            self.cards_url = URLS['jp']['sekai.best']['cards']
+            self.cardEpisodes_url = URLS['jp']['sekai.best']['cardEpisodes']
+            self.eventCards_url = URLS['jp']['sekai.best']['eventCards']
+            self.card_asset_url = URLS['jp']['sekai.best']['card_asset']
         elif reader.lang == 'tw':
-            self.cards_url = (
-                'https://sekai-world.github.io/sekai-master-db-tc-diff/cards.json'
-            )
-            self.cardEpisodes_url = 'https://sekai-world.github.io/sekai-master-db-tc-diff/cardEpisodes.json'
-            self.eventCards_url = (
-                'https://sekai-world.github.io/sekai-master-db-tc-diff/eventCards.json'
-            )
-            self.asset_url = 'https://storage.sekai.best/sekai-tc-assets/character/member/{assetbundleName}/{scenarioId}.asset'
+            self.cards_url = URLS['tw']['sekai.best']['cards']
+            self.cardEpisodes_url = URLS['tw']['sekai.best']['cardEpisodes']
+            self.eventCards_url = URLS['tw']['sekai.best']['eventCards']
+            self.card_asset_url = URLS['tw']['sekai.best']['card_asset']
         else:
             raise NotImplementedError
 
@@ -789,7 +761,7 @@ class Card_story_getter(util.Base_getter):
 
         story_1_json, story_2_json = await asyncio.gather(
             util.fetch_url_json(
-                self.asset_url.format(
+                self.card_asset_url.format(
                     assetbundleName=assetbundleName, scenarioId=story_1_scenarioId
                 ),
                 self.online,
@@ -802,7 +774,7 @@ class Card_story_getter(util.Base_getter):
                 file_semaphore=self.file_semaphore,
             ),
             util.fetch_url_json(
-                self.asset_url.format(
+                self.card_asset_url.format(
                     assetbundleName=assetbundleName, scenarioId=story_2_scenarioId
                 ),
                 self.online,
@@ -855,29 +827,17 @@ class Area_talk_getter((util.Base_getter)):
         self.reader = reader
 
         if reader.lang == 'cn':
-            self.area_name_url = (
-                'https://sekai-world.github.io/sekai-master-db-cn-diff/areas.json'
-            )
-            self.info_url = (
-                'https://sekai-world.github.io/sekai-master-db-cn-diff/actionSets.json'
-            )
-            self.asset_url = 'https://storage.sekai.best/sekai-cn-assets/scenario/actionset/group{group}/{scenarioId}.asset'
+            self.areas_url = URLS['cn']['sekai.best']['areas']
+            self.actionSets_url = URLS['cn']['sekai.best']['actionSets']
+            self.talk_asset_url = URLS['cn']['sekai.best']['talk_asset']
         elif reader.lang == 'jp':
-            self.area_name_url = (
-                'https://sekai-world.github.io/sekai-master-db-diff/areas.json'
-            )
-            self.info_url = (
-                'https://sekai-world.github.io/sekai-master-db-diff/actionSets.json'
-            )
-            self.asset_url = 'https://storage.sekai.best/sekai-jp-assets/scenario/actionset/group{group}/{scenarioId}.asset'
+            self.areas_url = URLS['jp']['sekai.best']['areas']
+            self.actionSets_url = URLS['jp']['sekai.best']['actionSets']
+            self.talk_asset_url = URLS['jp']['sekai.best']['talk_asset']
         elif reader.lang == 'tw':
-            self.area_name_url = (
-                'https://sekai-world.github.io/sekai-master-db-tc-diff/areas.json'
-            )
-            self.info_url = (
-                'https://sekai-world.github.io/sekai-master-db-tc-diff/actionSets.json'
-            )
-            self.asset_url = 'https://storage.sekai.best/sekai-tc-assets/scenario/actionset/group{group}/{scenarioId}.asset'
+            self.areas_url = URLS['tw']['sekai.best']['areas']
+            self.actionSets_url = URLS['tw']['sekai.best']['actionSets']
+            self.talk_asset_url = URLS['tw']['sekai.best']['talk_asset']
         else:
             raise NotImplementedError
 
@@ -891,7 +851,7 @@ class Area_talk_getter((util.Base_getter)):
 
         self.area_name_json, self.info_json = await asyncio.gather(
             util.fetch_url_json(
-                self.area_name_url,
+                self.areas_url,
                 self.online,
                 self.save_assets,
                 self.assets_save_dir,
@@ -901,7 +861,7 @@ class Area_talk_getter((util.Base_getter)):
                 file_semaphore=self.file_semaphore,
             ),
             util.fetch_url_json(
-                self.info_url,
+                self.actionSets_url,
                 self.online,
                 self.save_assets,
                 self.assets_save_dir,
@@ -990,7 +950,7 @@ class Area_talk_getter((util.Base_getter)):
         for talk_info in talk_infos:
             tasks.append(
                 util.fetch_url_json(
-                    self.asset_url.format(
+                    self.talk_asset_url.format(
                         group=math.floor(talk_info['id'] / 100),
                         scenarioId=talk_info['scenarioId'],
                     ),
@@ -1055,7 +1015,7 @@ class Area_talk_getter((util.Base_getter)):
             os.makedirs(self.save_dir, exist_ok=True)
 
         talk_json = await util.fetch_url_json(
-            self.asset_url.format(
+            self.talk_asset_url.format(
                 group=math.floor(talk_id / 100), scenarioId=talk_info['scenarioId']
             ),
             self.online,
@@ -1109,7 +1069,7 @@ if __name__ == '__main__':
 
     online = False
 
-    reader = Story_reader('cn', online=online)
+    reader = Story_reader('tw', online=online)
     unit_getter = Unit_story_getter(reader, online=online)
     event_getter = Event_story_getter(reader, online=online)
     card_getter = Card_story_getter(reader, online=online)

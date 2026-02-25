@@ -1,0 +1,61 @@
+{
+    "cn": {
+        "sekai.best": {
+            "character2ds": "https://sekai-world.github.io/sekai-master-db-cn-diff/character2ds.json",
+            "unitProfiles": "https://sekai-world.github.io/sekai-master-db-cn-diff/unitProfiles.json",
+            "unitStories": "https://sekai-world.github.io/sekai-master-db-cn-diff/unitStories.json",
+            "unit_asset": "https://storage.sekai.best/sekai-cn-assets/scenario/unitstory/{assetbundleName}/{scenarioId}.asset",
+            "events": "https://sekai-world.github.io/sekai-master-db-cn-diff/events.json",
+            "eventStories": "https://sekai-world.github.io/sekai-master-db-cn-diff/eventStories.json",
+            "event_asset": "https://storage.sekai.best/sekai-cn-assets/event_story/{assetbundleName}/scenario/{scenarioId}.asset",
+            "cards": "https://sekai-world.github.io/sekai-master-db-cn-diff/cards.json",
+            "cardEpisodes": "https://sekai-world.github.io/sekai-master-db-cn-diff/cardEpisodes.json",
+            "eventCards": "https://sekai-world.github.io/sekai-master-db-cn-diff/eventCards.json",
+            "card_asset": "https://storage.sekai.best/sekai-cn-assets/character/member/{assetbundleName}/{scenarioId}.asset",
+            "areas": "https://sekai-world.github.io/sekai-master-db-cn-diff/areas.json",
+            "actionSets": "https://sekai-world.github.io/sekai-master-db-cn-diff/actionSets.json",
+            "talk_asset": "https://storage.sekai.best/sekai-cn-assets/scenario/actionset/group{group}/{scenarioId}.asset"
+        }
+    },
+    "jp": {
+        "sekai.best": {
+            "character2ds": "https://sekai-world.github.io/sekai-master-db-diff/character2ds.json",
+            "unitProfiles": "https://sekai-world.github.io/sekai-master-db-diff/unitProfiles.json",
+            "unitStories": "https://sekai-world.github.io/sekai-master-db-diff/unitStories.json",
+            "unit_asset": "https://storage.sekai.best/sekai-jp-assets/scenario/unitstory/{assetbundleName}/{scenarioId}.asset",
+            "events": "https://sekai-world.github.io/sekai-master-db-diff/events.json",
+            "eventStories": "https://sekai-world.github.io/sekai-master-db-diff/eventStories.json",
+            "event_asset": "https://storage.sekai.best/sekai-jp-assets/event_story/{assetbundleName}/scenario/{scenarioId}.asset",
+            "cards": "https://sekai-world.github.io/sekai-master-db-diff/cards.json",
+            "cardEpisodes": "https://sekai-world.github.io/sekai-master-db-diff/cardEpisodes.json",
+            "eventCards": "https://sekai-world.github.io/sekai-master-db-diff/eventCards.json",
+            "card_asset": "https://storage.sekai.best/sekai-jp-assets/character/member/{assetbundleName}/{scenarioId}.asset",
+            "areas": "https://sekai-world.github.io/sekai-master-db-diff/areas.json",
+            "actionSets": "https://sekai-world.github.io/sekai-master-db-diff/actionSets.json",
+            "talk_asset": "https://storage.sekai.best/sekai-jp-assets/scenario/actionset/group{group}/{scenarioId}.asset"
+        },
+        "pjsk.moe": {
+            "events": "https://sekaimaster.exmeaning.com/master/events.json",
+            "eventStories": "https://sekaimaster.exmeaning.com/master/eventStories.json",
+            "event_asset": "https://snowyassets.exmeaning.com/ondemand/event_story/{assetbundleName}/scenario/{scenarioId}.json"
+        }
+    },
+    "tw": {
+        "sekai.best": {
+            "character2ds": "https://sekai-world.github.io/sekai-master-db-tc-diff/character2ds.json",
+            "unitProfiles": "https://sekai-world.github.io/sekai-master-db-tc-diff/unitProfiles.json",
+            "unitStories": "https://sekai-world.github.io/sekai-master-db-tc-diff/unitStories.json",
+            "unit_asset": "https://storage.sekai.best/sekai-tc-assets/scenario/unitstory/{assetbundleName}/{scenarioId}.asset",
+            "events": "https://sekai-world.github.io/sekai-master-db-tc-diff/events.json",
+            "eventStories": "https://sekai-world.github.io/sekai-master-db-tc-diff/eventStories.json",
+            "event_asset": "https://storage.sekai.best/sekai-tc-assets/event_story/{assetbundleName}/scenario/{scenarioId}.asset",
+            "cards": "https://sekai-world.github.io/sekai-master-db-tc-diff/cards.json",
+            "cardEpisodes": "https://sekai-world.github.io/sekai-master-db-tc-diff/cardEpisodes.json",
+            "eventCards": "https://sekai-world.github.io/sekai-master-db-tc-diff/eventCards.json",
+            "card_asset": "https://storage.sekai.best/sekai-tc-assets/character/member/{assetbundleName}/{scenarioId}.asset",
+            "areas": "https://sekai-world.github.io/sekai-master-db-tc-diff/areas.json",
+            "actionSets": "https://sekai-world.github.io/sekai-master-db-tc-diff/actionSets.json",
+            "talk_asset": "https://storage.sekai.best/sekai-tc-assets/scenario/actionset/group{group}/{scenarioId}.asset"
+        }
+    }
+}

@@ -1,12 +1,14 @@
 # https://github.com/ci-ke/ProjectSekai-BangDream-story-crawler
 
-import os, asyncio
+import os, asyncio, json
 from typing import Any
 from asyncio import Semaphore
 
 from aiohttp import ClientSession, TCPConnector  # type: ignore
 
 import get_story_util as util
+
+URLS: dict[str, dict[str, str]] = json.load(open('urls_bandori.json', encoding='utf8'))
 
 
 class Constant:
@@ -171,13 +173,13 @@ class Event_story_getter(util.Base_getter):
             save_dir, assets_save_dir, online, save_assets, parse, missing_download
         )
 
-        self.info_url = 'https://bestdori.com/api/events/{event_id}.json'
-        self.story_url = 'https://bestdori.com/assets/{lang}/scenario/eventstory/event{event_id}_rip/Scenario{id}.asset'
+        self.events_id_url = URLS['bestdori.com']['events_id']
+        self.event_asset_url = URLS['bestdori.com']['event_asset']
 
     async def get(self, event_id: int, lang: str = 'cn') -> None:
 
         info_json: dict[str, Any] = await util.fetch_url_json(
-            self.info_url.format(event_id=event_id),
+            self.events_id_url.format(event_id=event_id),
             self.online,
             self.save_assets,
             self.assets_save_dir,
@@ -240,7 +242,7 @@ class Event_story_getter(util.Base_getter):
             event_id not in Event_story_getter.event_is_main
         ):
             story_json: dict[str, dict[str, Any]] = await util.fetch_url_json(
-                self.story_url.format(lang=lang, event_id=event_id, id=id),
+                self.event_asset_url.format(lang=lang, event_id=event_id, id=id),
                 self.online,
                 self.save_assets,
                 self.assets_save_dir,
@@ -291,8 +293,8 @@ class Band_story_getter(util.Base_getter):
             save_dir, assets_save_dir, online, save_assets, parse, missing_download
         )
 
-        self.info_url = 'https://bestdori.com/api/misc/bandstories.5.json'
-        self.story_url = 'https://bestdori.com/assets/{lang}/scenario/band/{band_id:03}_rip/Scenario{id}.asset'
+        self.bandstories_5_url = URLS['bestdori.com']['bandstories_5']
+        self.band_asset_url = URLS['bestdori.com']['band_asset']
 
     async def get(
         self,
@@ -304,7 +306,7 @@ class Band_story_getter(util.Base_getter):
             assert want_band_id in Constant.band_id_name
 
         info_json: dict[str, dict[str, Any]] = await util.fetch_url_json(
-            self.info_url,
+            self.bandstories_5_url,
             self.online,
             self.save_assets,
             self.assets_save_dir,
@@ -371,7 +373,7 @@ class Band_story_getter(util.Base_getter):
         filename = util.valid_filename(name)
 
         story_json: dict[str, dict[str, Any]] = await util.fetch_url_json(
-            self.story_url.format(lang=lang, band_id=band_id, id=id),
+            self.band_asset_url.format(lang=lang, band_id=band_id, id=id),
             self.online,
             self.save_assets,
             self.assets_save_dir,
@@ -417,14 +419,12 @@ class Main_story_getter(util.Base_getter):
             save_dir, assets_save_dir, online, save_assets, parse, missing_download
         )
 
-        self.info_url = 'https://bestdori.com/api/misc/mainstories.5.json'
-        self.story_url = (
-            'https://bestdori.com/assets/{lang}/scenario/main_rip/Scenario{id}.asset'
-        )
+        self.mainstories_5_url = URLS['bestdori.com']['mainstories_5']
+        self.main_asset_url = URLS['bestdori.com']['main_asset']
 
     async def get(self, id_range: list[int] | None = None, lang: str = 'cn') -> None:
         info_json: dict[str, dict[str, Any]] = await util.fetch_url_json(
-            self.info_url,
+            self.mainstories_5_url,
             self.online,
             self.save_assets,
             self.assets_save_dir,
@@ -467,7 +467,7 @@ class Main_story_getter(util.Base_getter):
         self, lang: str, id: str, filename: str, name: str, synopsis: str
     ) -> None:
         story_json: dict[str, dict[str, Any]] = await util.fetch_url_json(
-            self.story_url.format(lang=lang, id=id),
+            self.main_asset_url.format(lang=lang, id=id),
             self.online,
             self.save_assets,
             self.assets_save_dir,
@@ -509,9 +509,9 @@ class Card_story_getter(util.Base_getter):
             save_dir, assets_save_dir, online, save_assets, parse, missing_download
         )
 
-        self.all_cards_list_url = 'https://bestdori.com/api/cards/all.0.json'
-        self.info_url = 'https://bestdori.com/api/cards/{id}.json'
-        self.story_url = 'https://bestdori.com/assets/{lang}/characters/resourceset/{res_id}_rip/Scenario{scenarioId}.asset'
+        self.cards_all_0_url = URLS['bestdori.com']['cards_all_0']
+        self.cards_id_url = URLS['bestdori.com']['cards_id']
+        self.card_asset_url = URLS['bestdori.com']['card_asset']
 
     async def init(
         self,
@@ -522,7 +522,7 @@ class Card_story_getter(util.Base_getter):
         await super().init(session, network_semaphore, file_semaphore)
 
         all_cards_list: dict[int, Any] = await util.fetch_url_json(
-            self.all_cards_list_url,
+            self.cards_all_0_url,
             self.online,
             self.save_assets,
             self.assets_save_dir,
@@ -540,7 +540,7 @@ class Card_story_getter(util.Base_getter):
             return
 
         card = await util.fetch_url_json(
-            self.info_url.format(id=card_id),
+            self.cards_id_url.format(id=card_id),
             self.online,
             self.save_assets,
             self.assets_save_dir,
@@ -588,7 +588,7 @@ class Card_story_getter(util.Base_getter):
             if story_1_type != 'animation':
                 scenarioId_1 = card['episodes']['entries'][0]['scenarioId']
                 story_1_json_task = util.fetch_url_json(
-                    self.story_url.format(
+                    self.card_asset_url.format(
                         lang=lang, res_id=resourceSetName, scenarioId=scenarioId_1
                     ),
                     self.online,
@@ -610,7 +610,7 @@ class Card_story_getter(util.Base_getter):
             scenarioId_2 = card['episodes']['entries'][1]['scenarioId']
 
             story_2_json_task = util.fetch_url_json(
-                self.story_url.format(
+                self.card_asset_url.format(
                     lang=lang, res_id=resourceSetName, scenarioId=scenarioId_2
                 ),
                 self.online,
