@@ -4,7 +4,7 @@ import os
 from concurrent.futures import Future, ThreadPoolExecutor, wait
 from typing import Any
 
-import request_story_util as util
+import get_story_util as util
 
 
 class Constant:
