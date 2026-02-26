@@ -350,8 +350,7 @@ class Event_story_getter(util.Base_getter):
             f'{event_id} {event_name}（{banner_name}）'
         )
 
-        if self.reader.lang != 'cn':
-            save_folder_name = self.reader.lang + '-' + save_folder_name
+        save_folder_name = self.reader.lang + '-' + save_folder_name
 
         event_save_dir = os.path.join(self.save_dir, save_folder_name)
         if self.parse:
@@ -488,8 +487,7 @@ class Unit_story_getter(util.Base_getter):
         unit_filename = util.valid_filename(unitName)
         save_folder_name = f'{unit_id} {unit_filename}'
 
-        if self.reader.lang != 'cn':
-            save_folder_name = self.reader.lang + '-' + save_folder_name
+        save_folder_name = self.reader.lang + '-' + save_folder_name
 
         unit_save_dir = os.path.join(self.save_dir, save_folder_name)
         if self.parse:
@@ -633,8 +631,7 @@ class Card_story_getter(util.Base_getter):
         story_1_scenarioId = cardEpisode_1['scenarioId']
         story_2_scenarioId = cardEpisode_2['scenarioId']
 
-        if self.reader.lang != 'cn':
-            chara_unit_and_name = self.reader.lang + '-' + chara_unit_and_name
+        chara_unit_and_name = self.reader.lang + '-' + chara_unit_and_name
 
         card_save_dir = os.path.join(
             self.save_dir, util.valid_filename(chara_unit_and_name)
@@ -660,7 +657,6 @@ class Card_story_getter(util.Base_getter):
             f'{card_id}_{chara_name}{sub_unit_name}_{card_id_for_chara}_{cardRarityType} {card_name}{belong_event}'
         )
 
-        # if self.reader.lang != 'cn':
         # card_story_filename = self.reader.lang + '-' + card_story_filename
 
         story_1_json, story_2_json = await asyncio.gather(
@@ -847,8 +843,7 @@ class Area_talk_getter((util.Base_getter)):
             else:
                 filename = f'talk_{target}'
 
-            if self.reader.lang != 'cn':
-                filename = self.reader.lang + '-' + filename
+            filename = self.reader.lang + '-' + filename
 
             filename = util.valid_filename(filename)
 
@@ -914,8 +909,7 @@ class Area_talk_getter((util.Base_getter)):
             text = self.reader.read_story_in_json(talk_json)
 
             filename = f'talk_{talk_id}'
-            if self.reader.lang != 'cn':
-                filename = self.reader.lang + '-' + filename
+            filename = self.reader.lang + '-' + filename
 
             area_name_index = self.area_name_lookup.find_index(talk_info['areaId'])
             area_name = self.area_name_json[area_name_index]['name']
@@ -987,10 +981,8 @@ class Self_intro_getter(util.Base_getter):
             return
 
         chara_unit_name = '_'.join(self.reader.get_chara_unitAbbr_name(chara_id))
-        if self.reader.lang != 'cn':
-            filename = self.reader.lang + '-' + chara_unit_name
-        else:
-            filename = chara_unit_name
+        filename = self.reader.lang + '-' + chara_unit_name
+
         filename = util.valid_filename(filename)
 
         profile = self.characterProfiles_json[profile_index]
@@ -1085,8 +1077,7 @@ class Special_story_getter(util.Base_getter):
             title = episodes[0]['title']
 
         filename = f'sp{id}_{title}'
-        if self.reader.lang != 'cn':
-            filename = self.reader.lang + '-' + filename
+        filename = self.reader.lang + '-' + filename
         filename = util.valid_filename(filename)
 
         episode_tasks = []

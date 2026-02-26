@@ -192,8 +192,7 @@ class Event_story_getter(util.Base_getter):
 
         save_folder_name = f'{event_id} {event_filename}'
 
-        if lang != 'cn':
-            save_folder_name = lang + '-' + save_folder_name
+        save_folder_name = lang + '-' + save_folder_name
 
         event_save_dir = os.path.join(self.save_dir, save_folder_name)
 
@@ -325,8 +324,7 @@ class Band_story_getter(util.Base_getter):
             save_folder_name = util.valid_filename(
                 f'{band_story["mainTitle"][Constant.lang_index[lang]]} {band_story["subTitle"][Constant.lang_index[lang]]}'
             )
-            if lang != 'cn':
-                save_folder_name = lang + '-' + save_folder_name
+            save_folder_name = lang + '-' + save_folder_name
 
             band_save_dir = os.path.join(self.save_dir, band_name, save_folder_name)
             if self.parse:
@@ -421,8 +419,7 @@ class Main_story_getter(util.Base_getter):
 
             name = f"{main_story['scenarioId']} {main_story['caption'][Constant.lang_index[lang]]} {main_story['title'][Constant.lang_index[lang]]}"
 
-            if lang != 'cn':
-                name = lang + '-' + name
+            name = lang + '-' + name
 
             filename = util.valid_filename(name)
 
@@ -515,8 +512,7 @@ class Card_story_getter(util.Base_getter):
             f'{card_id}_{chara_name}_{cardRarityType}星 {card_name}'
         )
 
-        if lang != 'cn':
-            card_story_filename = lang + '-' + card_story_filename
+        card_story_filename = lang + '-' + card_story_filename
 
         if 'episodes' not in card:
             card_has_story = False
