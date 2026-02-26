@@ -1,6 +1,8 @@
 {
     "cn": {
         "sekai.best": {
+            "gameCharacters": "https://sekai-world.github.io/sekai-master-db-cn-diff/gameCharacters.json",
+            "gameCharacterUnits": "https://sekai-world.github.io/sekai-master-db-cn-diff/gameCharacterUnits.json",
             "character2ds": "https://sekai-world.github.io/sekai-master-db-cn-diff/character2ds.json",
             "unitProfiles": "https://sekai-world.github.io/sekai-master-db-cn-diff/unitProfiles.json",
             "unitStories": "https://sekai-world.github.io/sekai-master-db-cn-diff/unitStories.json",
@@ -23,6 +25,8 @@
     },
     "jp": {
         "sekai.best": {
+            "gameCharacters": "https://sekai-world.github.io/sekai-master-db-diff/gameCharacters.json",
+            "gameCharacterUnits": "https://sekai-world.github.io/sekai-master-db-diff/gameCharacterUnits.json",
             "character2ds": "https://sekai-world.github.io/sekai-master-db-diff/character2ds.json",
             "unitProfiles": "https://sekai-world.github.io/sekai-master-db-diff/unitProfiles.json",
             "unitStories": "https://sekai-world.github.io/sekai-master-db-diff/unitStories.json",
@@ -43,6 +47,7 @@
             "special_asset": "https://storage.sekai.best/sekai-jp-assets/scenario/special/{assetbundleName}/{scenarioId}.asset"
         },
         "pjsk.moe": {
+            "gameCharacterUnits": "https://sekaimaster.exmeaning.com/master/gameCharacterUnits.json",
             "events": "https://sekaimaster.exmeaning.com/master/events.json",
             "eventStories": "https://sekaimaster.exmeaning.com/master/eventStories.json",
             "event_asset": "https://snowyassets.exmeaning.com/ondemand/event_story/{assetbundleName}/scenario/{scenarioId}.json"
@@ -50,6 +55,8 @@
     },
     "tw": {
         "sekai.best": {
+            "gameCharacters": "https://sekai-world.github.io/sekai-master-db-tc-diff/gameCharacters.json",
+            "gameCharacterUnits": "https://sekai-world.github.io/sekai-master-db-tc-diff/gameCharacterUnits.json",
             "character2ds": "https://sekai-world.github.io/sekai-master-db-tc-diff/character2ds.json",
             "unitProfiles": "https://sekai-world.github.io/sekai-master-db-tc-diff/unitProfiles.json",
             "unitStories": "https://sekai-world.github.io/sekai-master-db-tc-diff/unitStories.json",

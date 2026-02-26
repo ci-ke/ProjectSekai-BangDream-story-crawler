@@ -15,67 +15,21 @@ URLS: dict[str, dict[str, dict[str, str]]] = json.load(
 
 
 class Constant:
-    unit_id_name = {
-        1: '虚拟歌手',
-        2: 'Leo/need',
-        3: 'MORE MORE JUMP！',
-        4: 'Vivid BAD SQUAD',
-        5: 'Wonderlands×Showtime',
-        6: '25点，Nightcord见。',
-    }
-
-    unit_code_name = {
-        'light_sound': 'LN',
+    unit_code_abbr = {
+        'light_sound': 'L/n',
         'idol': 'MMJ',
         'street': 'VBS',
-        'theme_park': 'WS',
-        'school_refusal': '25时',
-        'piapro': '虚拟歌手',
-    }
-
-    chara_id_unit_and_name = {
-        1: 'LN_星乃一歌',
-        2: 'LN_天马咲希',
-        3: 'LN_望月穗波',
-        4: 'LN_日野森志步',
-        5: 'MMJ_花里实乃理',
-        6: 'MMJ_桐谷遥',
-        7: 'MMJ_桃井爱莉',
-        8: 'MMJ_日野森雫',
-        9: 'VBS_小豆泽心羽',
-        10: 'VBS_白石杏',
-        11: 'VBS_东云彰人',
-        12: 'VBS_青柳冬弥',
-        13: 'WS_天马司',
-        14: 'WS_凤笑梦',
-        15: 'WS_草薙宁宁',
-        16: 'WS_神代类',
-        17: '25时_宵崎奏',
-        18: '25时_朝比奈真冬',
-        19: '25时_东云绘名',
-        20: '25时_晓山瑞希',
-        21: '虚拟歌手_初音未来',
-        22: '虚拟歌手_镜音铃',
-        23: '虚拟歌手_镜音连',
-        24: '虚拟歌手_巡音流歌',
-        25: '虚拟歌手_MEIKO',
-        26: '虚拟歌手_KAITO',
-    }
-
-    extra_chara_id_unit_and_name_for_banner = {
-        27: '虚拟歌手_初音未来（LN）',
-        28: '虚拟歌手_初音未来（MMJ）',
-        29: '虚拟歌手_初音未来（VBS）',
-        30: '虚拟歌手_初音未来（WS）',
-        31: '虚拟歌手_初音未来（25时）',
+        'theme_park': 'WxS',
+        'school_refusal': 'N25',
+        'piapro': 'VS',
     }
 
     rarity_name = {
-        'rarity_1': '一星',
-        'rarity_2': '二星',
-        'rarity_3': '三星',
-        'rarity_4': '四星',
-        'rarity_birthday': '生日',
+        'rarity_1': 'R1',
+        'rarity_2': 'R2',
+        'rarity_3': 'R3',
+        'rarity_4': 'R4',
+        'rarity_birthday': 'RB',
     }
 
     @staticmethod
@@ -104,10 +58,13 @@ class Story_reader(util.Base_fetcher):
         self.debug_parse = debug_parse
 
         if lang == 'cn':
+            self.gameCharacters_url = URLS['cn']['sekai.best']['gameCharacters']
             self.character2ds_url = URLS['cn']['sekai.best']['character2ds']
         elif lang == 'jp':
+            self.gameCharacters_url = URLS['jp']['sekai.best']['gameCharacters']
             self.character2ds_url = URLS['jp']['sekai.best']['character2ds']
         elif lang == 'tw':
+            self.gameCharacters_url = URLS['tw']['sekai.best']['gameCharacters']
             self.character2ds_url = URLS['tw']['sekai.best']['character2ds']
         else:
             raise NotImplementedError
@@ -120,10 +77,12 @@ class Story_reader(util.Base_fetcher):
     ) -> None:
         await super().init(session, network_semaphore, file_semaphore)
 
-        self.character2ds: list[dict[str, Any]] = await util.fetch_url_json_simple(
-            self.character2ds_url, self
+        self.gameCharacters, self.character2ds = await asyncio.gather(
+            util.fetch_url_json_simple(self.gameCharacters_url, self),
+            util.fetch_url_json_simple(self.character2ds_url, self),
         )
 
+        self.gameCharacters_lookup = DictLookup(self.gameCharacters, 'id')
         self.character2ds_lookup = DictLookup(self.character2ds, 'id')
 
     def read_story_in_json(self, json_data: str | dict[str, Any]) -> str:
@@ -142,7 +101,7 @@ class Story_reader(util.Base_fetcher):
         for chara in appearCharacters:
             chara2dId = chara['Character2dId']
             chara2d = self.character2ds[self.character2ds_lookup.find_index(chara2dId)]
-            if chara2d['characterId'] in Constant.chara_id_unit_and_name:
+            if chara2d['characterId'] in self.gameCharacters_lookup.ids:
                 chara_id.add(chara2d['characterId'])
             else:
                 have_mob = True
@@ -152,10 +111,7 @@ class Story_reader(util.Base_fetcher):
             ret += (
                 '（登场角色：'
                 + '、'.join(
-                    [
-                        Constant.chara_id_unit_and_name[id].split('_')[1]
-                        for id in chara_id_list
-                    ]
+                    [self.get_chara_unitAbbr_name(id)[1] for id in chara_id_list]
                 )
                 # + ('、配角' if have_mob else '')
                 + '）\n\n'
@@ -269,6 +225,17 @@ class Story_reader(util.Base_fetcher):
 
         return ret[:-1]
 
+    def get_chara_unitAbbr_name(self, chara_id: int) -> tuple[str, str]:
+        profile_index = self.gameCharacters_lookup.find_index(chara_id)
+        assert profile_index != -1
+        profile: dict[str, Any] = self.gameCharacters[profile_index]
+        first_name = profile.get('firstName')
+        givenName = profile['givenName']
+        full_name = first_name + givenName if first_name is not None else givenName
+
+        unit_abbr = Constant.unit_code_abbr[profile['unit']]
+        return (unit_abbr, full_name)
+
 
 class Event_story_getter(util.Base_getter):
     def __init__(
@@ -295,21 +262,29 @@ class Event_story_getter(util.Base_getter):
         if reader.lang == 'cn':
             self.events_url = URLS['cn']['sekai.best']['events']
             self.eventStories_url = URLS['cn']['sekai.best']['eventStories']
+            self.gameCharacterUnits_url = URLS['cn']['sekai.best']['gameCharacterUnits']
             self.event_asset_url = URLS['cn']['sekai.best']['event_asset']
         elif reader.lang == 'jp':
             if src == 'sekai.best':
                 self.events_url = URLS['jp']['sekai.best']['events']
                 self.eventStories_url = URLS['jp']['sekai.best']['eventStories']
+                self.gameCharacterUnits_url = URLS['jp']['sekai.best'][
+                    'gameCharacterUnits'
+                ]
                 self.event_asset_url = URLS['jp']['sekai.best']['event_asset']
             elif src == 'pjsk.moe':
                 self.events_url = URLS['jp']['pjsk.moe']['events']
                 self.eventStories_url = URLS['jp']['pjsk.moe']['eventStories']
+                self.gameCharacterUnits_url = URLS['jp']['pjsk.moe'][
+                    'gameCharacterUnits'
+                ]
                 self.event_asset_url = URLS['jp']['pjsk.moe']['event_asset']
             else:
                 raise NotImplementedError
         elif reader.lang == 'tw':
             self.events_url = URLS['tw']['sekai.best']['events']
             self.eventStories_url = URLS['tw']['sekai.best']['eventStories']
+            self.gameCharacterUnits_url = URLS['tw']['sekai.best']['gameCharacterUnits']
             self.event_asset_url = URLS['tw']['sekai.best']['event_asset']
         else:
             raise NotImplementedError
@@ -322,13 +297,17 @@ class Event_story_getter(util.Base_getter):
     ) -> None:
         await super().init(session, network_semaphore, file_semaphore)
 
-        self.events_json, self.eventStories_json = await asyncio.gather(
-            util.fetch_url_json_simple(self.events_url, self),
-            util.fetch_url_json_simple(self.eventStories_url, self),
+        self.events_json, self.eventStories_json, self.gameCharacterUnits = (
+            await asyncio.gather(
+                util.fetch_url_json_simple(self.events_url, self),
+                util.fetch_url_json_simple(self.eventStories_url, self),
+                util.fetch_url_json_simple(self.gameCharacterUnits_url, self),
+            )
         )
 
         self.events_lookup = DictLookup(self.events_json, 'id')
         self.eventStories_lookup = DictLookup(self.eventStories_json, 'eventId')
+        self.gameCharacterUnits_lookup = DictLookup(self.gameCharacterUnits, 'id')
 
     async def get(self, event_id: int) -> None:
 
@@ -340,29 +319,36 @@ class Event_story_getter(util.Base_getter):
             return
 
         event = self.events_json[event_index]
-        eventStory = self.eventStories_json[eventStory_index]
+        eventStory: dict[str, Any] = self.eventStories_json[eventStory_index]
 
         event_name = event['name']
         event_type = event['eventType']
         event_unit = event['unit']
         assetbundleName = event['assetbundleName']
-        banner_chara_id = eventStory.get('bannerGameCharacterUnitId', None)
+        banner_chara_unit_id = eventStory.get('bannerGameCharacterUnitId')
         event_outline = eventStory['outline'].replace('\n', ' ')
 
         if event_type == 'world_bloom':
             if event_unit != 'none':
-                banner_name = f'{Constant.unit_code_name[event_unit]}_WL'
+                banner_name = f'{Constant.unit_code_abbr[event_unit]}_WL'
             else:
                 banner_name = 'WL'
         else:
-            assert banner_chara_id is not None
-            banner_name = (
-                Constant.chara_id_unit_and_name
-                | Constant.extra_chara_id_unit_and_name_for_banner
-            )[banner_chara_id]
+            assert banner_chara_unit_id is not None
+            banner_chara_unit_index = self.gameCharacterUnits_lookup.find_index(
+                banner_chara_unit_id
+            )
+            assert banner_chara_unit_index != -1
+            banner_chara_unit = self.gameCharacterUnits[banner_chara_unit_index]['unit']
+            unit_abbr = Constant.unit_code_abbr[banner_chara_unit]
+            banner_chara_name = self.reader.get_chara_unitAbbr_name(
+                self.gameCharacterUnits[banner_chara_unit_index]['gameCharacterId']
+            )[1]
+            banner_name = f'{unit_abbr}_{banner_chara_name}'
 
-        event_filename = util.valid_filename(event_name)
-        save_folder_name = f'{event_id} {event_filename}（{banner_name}）'
+        save_folder_name = util.valid_filename(
+            f'{event_id} {event_name}（{banner_name}）'
+        )
 
         if self.reader.lang != 'cn':
             save_folder_name = self.reader.lang + '-' + save_folder_name
@@ -402,9 +388,7 @@ class Event_story_getter(util.Base_getter):
         if event_type == 'world_bloom':
             gameCharacterId = episode.get('gameCharacterId', -1)
             if gameCharacterId != -1:
-                chara_name = Constant.chara_id_unit_and_name[gameCharacterId].split(
-                    '_'
-                )[1]
+                chara_name = self.reader.get_chara_unitAbbr_name(gameCharacterId)[1]
                 episode_name += f"（{chara_name}）"
 
         scenarioId = episode['scenarioId']
@@ -634,8 +618,10 @@ class Card_story_getter(util.Base_getter):
         cardEpisode_1 = self.cardEpisodes_json[cardEpisode_index]
         cardEpisode_2 = self.cardEpisodes_json[cardEpisode_index + 1]
 
-        chara_unit_and_name = Constant.chara_id_unit_and_name[card['characterId']]
-        chara_name = chara_unit_and_name.split('_')[1]
+        chara_unit_and_name = '_'.join(
+            self.reader.get_chara_unitAbbr_name(card['characterId'])
+        )
+        chara_name = self.reader.get_chara_unitAbbr_name(card['characterId'])[1]
         cardRarityType = Constant.rarity_name[card['cardRarityType']]
         card_name = card['prefix']
         sub_unit = card['supportUnit']
@@ -647,12 +633,18 @@ class Card_story_getter(util.Base_getter):
         story_1_scenarioId = cardEpisode_1['scenarioId']
         story_2_scenarioId = cardEpisode_2['scenarioId']
 
-        card_save_dir = os.path.join(self.save_dir, chara_unit_and_name)
+        if self.reader.lang != 'cn':
+            chara_unit_and_name = self.reader.lang + '-' + chara_unit_and_name
+
+        card_save_dir = os.path.join(
+            self.save_dir, util.valid_filename(chara_unit_and_name)
+        )
+
         if self.parse:
             os.makedirs(card_save_dir, exist_ok=True)
 
         if sub_unit != 'none':
-            sub_unit_name = f'（{Constant.unit_code_name[sub_unit]}）'
+            sub_unit_name = f'（{Constant.unit_code_abbr[sub_unit]}）'
         else:
             sub_unit_name = ''
 
@@ -668,8 +660,8 @@ class Card_story_getter(util.Base_getter):
             f'{card_id}_{chara_name}{sub_unit_name}_{card_id_for_chara}_{cardRarityType} {card_name}{belong_event}'
         )
 
-        if self.reader.lang != 'cn':
-            card_story_filename = self.reader.lang + '-' + card_story_filename
+        # if self.reader.lang != 'cn':
+        # card_story_filename = self.reader.lang + '-' + card_story_filename
 
         story_1_json, story_2_json = await asyncio.gather(
             util.fetch_url_json_simple(
@@ -994,7 +986,7 @@ class Self_intro_getter(util.Base_getter):
             print(f'character {chara_id} does not exist.')
             return
 
-        chara_unit_name = Constant.chara_id_unit_and_name[chara_id]
+        chara_unit_name = '_'.join(self.reader.get_chara_unitAbbr_name(chara_id))
         if self.reader.lang != 'cn':
             filename = self.reader.lang + '-' + chara_unit_name
         else:
