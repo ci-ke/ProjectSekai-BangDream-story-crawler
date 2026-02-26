@@ -46,6 +46,7 @@ class Story_reader(util.Base_fetcher):
     def __init__(
         self,
         lang: str = 'cn',
+        src: str = 'sekai.best',
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
@@ -57,17 +58,8 @@ class Story_reader(util.Base_fetcher):
         self.lang = lang
         self.debug_parse = debug_parse
 
-        if lang == 'cn':
-            self.gameCharacters_url = URLS['cn']['sekai.best']['gameCharacters']
-            self.character2ds_url = URLS['cn']['sekai.best']['character2ds']
-        elif lang == 'jp':
-            self.gameCharacters_url = URLS['jp']['sekai.best']['gameCharacters']
-            self.character2ds_url = URLS['jp']['sekai.best']['character2ds']
-        elif lang == 'tw':
-            self.gameCharacters_url = URLS['tw']['sekai.best']['gameCharacters']
-            self.character2ds_url = URLS['tw']['sekai.best']['character2ds']
-        else:
-            raise NotImplementedError
+        self.gameCharacters_url = URLS[lang][src]['gameCharacters']
+        self.character2ds_url = URLS[lang][src]['character2ds']
 
     async def init(
         self,
@@ -271,35 +263,10 @@ class Event_story_getter(util.Base_getter):
 
         self.reader = reader
 
-        if reader.lang == 'cn':
-            self.events_url = URLS['cn']['sekai.best']['events']
-            self.eventStories_url = URLS['cn']['sekai.best']['eventStories']
-            self.gameCharacterUnits_url = URLS['cn']['sekai.best']['gameCharacterUnits']
-            self.event_asset_url = URLS['cn']['sekai.best']['event_asset']
-        elif reader.lang == 'jp':
-            if src == 'sekai.best':
-                self.events_url = URLS['jp']['sekai.best']['events']
-                self.eventStories_url = URLS['jp']['sekai.best']['eventStories']
-                self.gameCharacterUnits_url = URLS['jp']['sekai.best'][
-                    'gameCharacterUnits'
-                ]
-                self.event_asset_url = URLS['jp']['sekai.best']['event_asset']
-            elif src == 'pjsk.moe':
-                self.events_url = URLS['jp']['pjsk.moe']['events']
-                self.eventStories_url = URLS['jp']['pjsk.moe']['eventStories']
-                self.gameCharacterUnits_url = URLS['jp']['pjsk.moe'][
-                    'gameCharacterUnits'
-                ]
-                self.event_asset_url = URLS['jp']['pjsk.moe']['event_asset']
-            else:
-                raise NotImplementedError
-        elif reader.lang == 'tw':
-            self.events_url = URLS['tw']['sekai.best']['events']
-            self.eventStories_url = URLS['tw']['sekai.best']['eventStories']
-            self.gameCharacterUnits_url = URLS['tw']['sekai.best']['gameCharacterUnits']
-            self.event_asset_url = URLS['tw']['sekai.best']['event_asset']
-        else:
-            raise NotImplementedError
+        self.events_url = URLS[self.reader.lang][src]['events']
+        self.eventStories_url = URLS[self.reader.lang][src]['eventStories']
+        self.gameCharacterUnits_url = URLS[self.reader.lang][src]['gameCharacterUnits']
+        self.event_asset_url = URLS[self.reader.lang][src]['event_asset']
 
     async def init(
         self,
@@ -434,6 +401,7 @@ class Unit_story_getter(util.Base_getter):
     def __init__(
         self,
         reader: Story_reader,
+        src: str = 'sekai.best',
         save_dir: str = './story_unit',
         assets_save_dir: str = './assets',
         online: bool = True,
@@ -448,20 +416,9 @@ class Unit_story_getter(util.Base_getter):
 
         self.reader = reader
 
-        if reader.lang == 'cn':
-            self.unitProfiles_url = URLS['cn']['sekai.best']['unitProfiles']
-            self.unitStories_url = URLS['cn']['sekai.best']['unitStories']
-            self.unit_asset_url = URLS['cn']['sekai.best']['unit_asset']
-        elif reader.lang == 'jp':
-            self.unitProfiles_url = URLS['jp']['sekai.best']['unitProfiles']
-            self.unitStories_url = URLS['jp']['sekai.best']['unitStories']
-            self.unit_asset_url = URLS['jp']['sekai.best']['unit_asset']
-        elif reader.lang == 'tw':
-            self.unitProfiles_url = URLS['tw']['sekai.best']['unitProfiles']
-            self.unitStories_url = URLS['tw']['sekai.best']['unitStories']
-            self.unit_asset_url = URLS['tw']['sekai.best']['unit_asset']
-        else:
-            raise NotImplementedError
+        self.unitProfiles_url = URLS[self.reader.lang][src]['unitProfiles']
+        self.unitStories_url = URLS[self.reader.lang][src]['unitStories']
+        self.unit_asset_url = URLS[self.reader.lang][src]['unit_asset']
 
     async def init(
         self,
@@ -559,6 +516,7 @@ class Card_story_getter(util.Base_getter):
     def __init__(
         self,
         reader: Story_reader,
+        src: str = 'sekai.best',
         save_dir: str = './story_card',
         assets_save_dir: str = './assets',
         online: bool = True,
@@ -573,23 +531,10 @@ class Card_story_getter(util.Base_getter):
 
         self.reader = reader
 
-        if reader.lang == 'cn':
-            self.cards_url = URLS['cn']['sekai.best']['cards']
-            self.cardEpisodes_url = URLS['cn']['sekai.best']['cardEpisodes']
-            self.eventCards_url = URLS['cn']['sekai.best']['eventCards']
-            self.card_asset_url = URLS['cn']['sekai.best']['card_asset']
-        elif reader.lang == 'jp':
-            self.cards_url = URLS['jp']['sekai.best']['cards']
-            self.cardEpisodes_url = URLS['jp']['sekai.best']['cardEpisodes']
-            self.eventCards_url = URLS['jp']['sekai.best']['eventCards']
-            self.card_asset_url = URLS['jp']['sekai.best']['card_asset']
-        elif reader.lang == 'tw':
-            self.cards_url = URLS['tw']['sekai.best']['cards']
-            self.cardEpisodes_url = URLS['tw']['sekai.best']['cardEpisodes']
-            self.eventCards_url = URLS['tw']['sekai.best']['eventCards']
-            self.card_asset_url = URLS['tw']['sekai.best']['card_asset']
-        else:
-            raise NotImplementedError
+        self.cards_url = URLS[self.reader.lang][src]['cards']
+        self.cardEpisodes_url = URLS[self.reader.lang][src]['cardEpisodes']
+        self.eventCards_url = URLS[self.reader.lang][src]['eventCards']
+        self.card_asset_url = URLS[self.reader.lang][src]['card_asset']
 
     async def init(
         self,
@@ -713,6 +658,7 @@ class Area_talk_getter((util.Base_getter)):
     def __init__(
         self,
         reader: Story_reader,
+        src: str = 'sekai.best',
         save_dir: str = './story_area',
         assets_save_dir: str = './assets',
         online: bool = True,
@@ -727,20 +673,9 @@ class Area_talk_getter((util.Base_getter)):
 
         self.reader = reader
 
-        if reader.lang == 'cn':
-            self.areas_url = URLS['cn']['sekai.best']['areas']
-            self.actionSets_url = URLS['cn']['sekai.best']['actionSets']
-            self.talk_asset_url = URLS['cn']['sekai.best']['talk_asset']
-        elif reader.lang == 'jp':
-            self.areas_url = URLS['jp']['sekai.best']['areas']
-            self.actionSets_url = URLS['jp']['sekai.best']['actionSets']
-            self.talk_asset_url = URLS['jp']['sekai.best']['talk_asset']
-        elif reader.lang == 'tw':
-            self.areas_url = URLS['tw']['sekai.best']['areas']
-            self.actionSets_url = URLS['tw']['sekai.best']['actionSets']
-            self.talk_asset_url = URLS['tw']['sekai.best']['talk_asset']
-        else:
-            raise NotImplementedError
+        self.areas_url = URLS[self.reader.lang][src]['areas']
+        self.actionSets_url = URLS[self.reader.lang][src]['actionSets']
+        self.talk_asset_url = URLS[self.reader.lang][src]['talk_asset']
 
     async def init(
         self,
@@ -945,6 +880,7 @@ class Self_intro_getter(util.Base_getter):
     def __init__(
         self,
         reader: Story_reader,
+        src: str = 'sekai.best',
         save_dir: str = './story_self',
         assets_save_dir: str = './assets',
         online: bool = True,
@@ -958,17 +894,8 @@ class Self_intro_getter(util.Base_getter):
 
         self.reader = reader
 
-        if reader.lang == 'cn':
-            self.characterProfiles_url = URLS['cn']['sekai.best']['characterProfiles']
-            self.self_asset_url = URLS['cn']['sekai.best']['self_asset']
-        elif reader.lang == 'jp':
-            self.characterProfiles_url = URLS['jp']['sekai.best']['characterProfiles']
-            self.self_asset_url = URLS['jp']['sekai.best']['self_asset']
-        elif reader.lang == 'tw':
-            self.characterProfiles_url = URLS['tw']['sekai.best']['characterProfiles']
-            self.self_asset_url = URLS['tw']['sekai.best']['self_asset']
-        else:
-            raise NotImplementedError
+        self.characterProfiles_url = URLS[self.reader.lang][src]['characterProfiles']
+        self.self_asset_url = URLS[self.reader.lang][src]['self_asset']
 
     async def init(
         self,
@@ -1036,6 +963,7 @@ class Special_story_getter(util.Base_getter):
     def __init__(
         self,
         reader: Story_reader,
+        src: str = 'sekai.best',
         save_dir: str = './story_special',
         assets_save_dir: str = './assets',
         online: bool = True,
@@ -1049,17 +977,8 @@ class Special_story_getter(util.Base_getter):
 
         self.reader = reader
 
-        if reader.lang == 'cn':
-            self.specialStories_url = URLS['cn']['sekai.best']['specialStories']
-            self.special_asset_url = URLS['cn']['sekai.best']['special_asset']
-        elif reader.lang == 'jp':
-            self.specialStories_url = URLS['jp']['sekai.best']['specialStories']
-            self.special_asset_url = URLS['jp']['sekai.best']['special_asset']
-        elif reader.lang == 'tw':
-            self.specialStories_url = URLS['tw']['sekai.best']['specialStories']
-            self.special_asset_url = URLS['tw']['sekai.best']['special_asset']
-        else:
-            raise NotImplementedError
+        self.specialStories_url = URLS[self.reader.lang][src]['specialStories']
+        self.special_asset_url = URLS[self.reader.lang][src]['special_asset']
 
     async def init(
         self,
