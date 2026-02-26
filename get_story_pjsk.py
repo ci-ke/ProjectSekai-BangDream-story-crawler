@@ -236,6 +236,18 @@ class Story_reader(util.Base_fetcher):
         unit_abbr = Constant.unit_code_abbr[profile['unit']]
         return (unit_abbr, full_name)
 
+    def _get_chara2d_unitAbbr_name_isVS(self, chara2dId: int) -> tuple[str, str, bool]:
+        chara2d = self.character2ds[self.character2ds_lookup.find_index(chara2dId)]
+        if chara2d['characterType'] != 'game_character':
+            return '', '', False
+        actual_unit = chara2d['unit']
+        chara_id = chara2d['characterId']
+        chara_unit, name = self.get_chara_unitAbbr_name(chara_id)
+        if chara_unit != 'VS':
+            return chara_unit, name, False
+        else:
+            return Constant.unit_code_abbr[actual_unit], name, True
+
 
 class Event_story_getter(util.Base_getter):
     def __init__(
