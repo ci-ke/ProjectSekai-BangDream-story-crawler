@@ -15,141 +15,139 @@ URLS: dict[str, dict[str, str]] = json.load(open('urls_bandori.json', encoding='
 class Constant:
     lang_index = {'jp': 0, 'en': 1, 'tw': 2, 'cn': 3, 'kr': 4}
 
-    band_id_name = {
-        1: 'Poppin\'Party',
-        2: 'Afterglow',
-        3: 'Hello, Happy World!',
-        4: 'Pastel＊Palettes',
-        5: 'Roselia',
-        18: 'RAISE A SUILEN',
-        21: 'Morfonica',
-        45: 'MyGO!!!!!',
-    }
-
-    chara_id_band_and_name = {
-        1: 'PPP_户山香澄',
-        2: 'PPP_花园多惠',
-        3: 'PPP_牛込里美',
-        4: 'PPP_山吹沙绫',
-        5: 'PPP_市谷有咲',
-        6: 'AG_美竹兰',
-        7: 'AG_青叶摩卡',
-        8: 'AG_上原绯玛丽',
-        9: 'AG_宇田川巴',
-        10: 'AG_羽泽鸫',
-        11: 'HHW_弦卷心',
-        12: 'HHW_濑田薰',
-        13: 'HHW_北泽育美',
-        14: 'HHW_松原花音',
-        15: 'HHW_奥泽美咲-米歇尔',
-        16: 'PP_丸山彩',
-        17: 'PP_冰川日菜',
-        18: 'PP_白鹭千圣',
-        19: 'PP_大和麻弥',
-        20: 'PP_若宫伊芙',
-        21: 'Ro_凑友希那',
-        22: 'Ro_冰川纱夜',
-        23: 'Ro_今井莉莎',
-        24: 'Ro_宇田川亚子',
-        25: 'Ro_白金燐子',
-        26: 'Mor_仓田真白',
-        27: 'Mor_桐谷透子',
-        28: 'Mor_广町七深',
-        29: 'Mor_二叶筑紫',
-        30: 'Mor_八潮瑠唯',
-        31: 'RAS_和奏瑞依-LAYER',
-        32: 'RAS_朝日六花-LOCK',
-        33: 'RAS_佐藤益木-MASKING',
-        34: 'RAS_鳰原令王那-PAREO',
-        35: 'RAS_珠手知由-CHU²',
-        36: 'Mygo_高松灯',
-        37: 'Mygo_千早爱音',
-        38: 'Mygo_要乐奈',
-        39: 'Mygo_长崎爽世',
-        40: 'Mygo_椎名立希',
+    band_id_abbr = {
+        1: 'PPP',
+        2: 'Ag',
+        3: 'HHW',
+        4: 'P＊P',
+        5: 'Ro',
+        18: 'RAS',
+        21: 'Mor',
+        45: 'MyGO',
     }
 
 
-def read_story_in_json(
-    json_data: str | dict[str, dict[str, Any]], debug_parse: bool = False
-) -> str:
-    if isinstance(json_data, str):
-        return json_data
+class Story_reader(util.Base_fetcher):
+    def __init__(
+        self,
+        assets_save_dir: str = './assets',
+        online: bool = True,
+        save_assets: bool = True,
+        missing_download: bool = True,
+        debug_parse: bool = False,
+    ) -> None:
+        super().__init__(assets_save_dir, online, save_assets, missing_download)
 
-    ret = ''
+        self.debug_parse = debug_parse
 
-    talks = json_data['Base']['talkData']
-    specialEffects = json_data['Base']['specialEffectData']
+        self.characters_main_url = URLS['bestdori.com']['characters_main_3']
+        self.bands_main_url = URLS['bestdori.com']['bands_main_1']
 
-    snippets = json_data['Base']['snippets']
-    next_talk_need_newline = True
+    async def init(
+        self,
+        session: ClientSession | None = None,
+        network_semaphore: Semaphore | None = None,
+        file_semaphore: Semaphore | None = None,
+    ) -> None:
+        await super().init(session, network_semaphore, file_semaphore)
 
-    index = -1
-    for snippet in snippets:
-        index += 1
-        if snippet['actionType'] == util.SnippetAction.SpecialEffect:
-            specialEffect = specialEffects[snippet['referenceIndex']]
-            if specialEffect['effectType'] == util.SpecialEffectType.Telop:
-                ret += '\n【' + specialEffect['stringVal'] + '】\n'
-                next_talk_need_newline = True
-            elif specialEffect['effectType'] == util.SpecialEffectType.ChangeBackground:
+        self.characters_json, self.bands_json = await asyncio.gather(
+            util.fetch_url_json_simple(self.characters_main_url, self),
+            util.fetch_url_json_simple(self.bands_main_url, self),
+        )
+
+    def get_band_name(self, band_id: int, lang: str) -> str:
+        return self.bands_json[str(band_id)]['bandName'][Constant.lang_index[lang]]
+
+    def get_chara_bandAbbr_and_name(self, chara_id: int, lang: str) -> tuple[str, str]:
+        name = self.characters_json[str(chara_id)]['characterName'][
+            Constant.lang_index[lang]
+        ]
+        band_id = self.characters_json[str(chara_id)]['bandId']
+        band_abbr = Constant.band_id_abbr[band_id]
+        return band_abbr, name
+
+    def read_story_in_json(self, json_data: str | dict[str, dict[str, Any]]) -> str:
+        if isinstance(json_data, str):
+            return json_data
+
+        ret = ''
+
+        talks = json_data['Base']['talkData']
+        specialEffects = json_data['Base']['specialEffectData']
+
+        snippets = json_data['Base']['snippets']
+        next_talk_need_newline = True
+
+        index = -1
+        for snippet in snippets:
+            index += 1
+            if snippet['actionType'] == util.SnippetAction.SpecialEffect:
+                specialEffect = specialEffects[snippet['referenceIndex']]
+                if specialEffect['effectType'] == util.SpecialEffectType.Telop:
+                    ret += '\n【' + specialEffect['stringVal'] + '】\n'
+                    next_talk_need_newline = True
+                elif (
+                    specialEffect['effectType']
+                    == util.SpecialEffectType.ChangeBackground
+                ):
+                    if next_talk_need_newline:
+                        ret += '\n'
+                    ret += (
+                        '（背景切换）'
+                        + (
+                            f"：{specialEffect['stringVal']}, {specialEffect['stringValSub']}"
+                            if self.debug_parse
+                            else ''
+                        )
+                        + '\n'
+                    )
+                    next_talk_need_newline = False
+                elif specialEffect['effectType'] == util.SpecialEffectType.FlashbackIn:
+                    ret += '\n（回忆切入 ↓）\n'
+                    next_talk_need_newline = True
+                elif specialEffect['effectType'] == util.SpecialEffectType.FlashbackOut:
+                    ret += '\n（回忆切出 ↑）\n'
+                    next_talk_need_newline = True
+                elif specialEffect['effectType'] == util.SpecialEffectType.BlackOut:
+                    if next_talk_need_newline:
+                        ret += '\n'
+                    ret += '（黑屏转场）\n'
+                    next_talk_need_newline = False
+                elif specialEffect['effectType'] == util.SpecialEffectType.WhiteOut:
+                    if next_talk_need_newline:
+                        ret += '\n'
+                    ret += '（白屏转场）\n'
+                    next_talk_need_newline = False
+                else:
+                    if self.debug_parse:
+                        try:
+                            effect_name = util.SpecialEffectType(
+                                specialEffect['effectType']
+                            ).name
+                        except ValueError:
+                            effect_name = specialEffect['effectType']
+                        ret += f"SpecialEffectType: {effect_name}, {index}, {specialEffect['stringVal']}\n"
+            elif snippet['actionType'] == util.SnippetAction.Talk:
+                talk = talks[snippet['referenceIndex']]
                 if next_talk_need_newline:
                     ret += '\n'
                 ret += (
-                    '（背景切换）'
-                    + (
-                        f"：{specialEffect['stringVal']}, {specialEffect['stringValSub']}"
-                        if debug_parse
-                        else ''
-                    )
+                    talk['windowDisplayName']
+                    + '：'
+                    + talk['body'].replace('\n', ' ')
                     + '\n'
                 )
                 next_talk_need_newline = False
-            elif specialEffect['effectType'] == util.SpecialEffectType.FlashbackIn:
-                ret += '\n（回忆切入 ↓）\n'
-                next_talk_need_newline = True
-            elif specialEffect['effectType'] == util.SpecialEffectType.FlashbackOut:
-                ret += '\n（回忆切出 ↑）\n'
-                next_talk_need_newline = True
-            elif specialEffect['effectType'] == util.SpecialEffectType.BlackOut:
-                if next_talk_need_newline:
-                    ret += '\n'
-                ret += '（黑屏转场）\n'
-                next_talk_need_newline = False
-            elif specialEffect['effectType'] == util.SpecialEffectType.WhiteOut:
-                if next_talk_need_newline:
-                    ret += '\n'
-                ret += '（白屏转场）\n'
-                next_talk_need_newline = False
             else:
-                if debug_parse:
+                if self.debug_parse:
                     try:
-                        effect_name = util.SpecialEffectType(
-                            specialEffect['effectType']
-                        ).name
+                        snippet_name = util.SnippetAction(snippet['actionType']).name
                     except ValueError:
-                        effect_name = specialEffect['effectType']
-                    ret += f"SpecialEffectType: {effect_name}, {index}, {specialEffect['stringVal']}\n"
-        elif snippet['actionType'] == util.SnippetAction.Talk:
-            talk = talks[snippet['referenceIndex']]
-            if next_talk_need_newline:
-                ret += '\n'
-            ret += (
-                talk['windowDisplayName']
-                + '：'
-                + talk['body'].replace('\n', ' ')
-                + '\n'
-            )
-            next_talk_need_newline = False
-        else:
-            if debug_parse:
-                try:
-                    snippet_name = util.SnippetAction(snippet['actionType']).name
-                except ValueError:
-                    snippet_name = snippet['actionType']
-                ret += f'SnippetAction: {snippet_name}, {index}\n'
+                        snippet_name = snippet['actionType']
+                    ret += f'SnippetAction: {snippet_name}, {index}\n'
 
-    return ret[:-1]
+        return ret[:-1]
 
 
 class Event_story_getter(util.Base_getter):
@@ -159,20 +157,19 @@ class Event_story_getter(util.Base_getter):
 
     def __init__(
         self,
+        reader: Story_reader,
         save_dir: str = './story_event',
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
-        debug_parse: bool = False,
     ) -> None:
-
-        self.debug_parse = debug_parse
-
         super().__init__(
             save_dir, assets_save_dir, online, save_assets, parse, missing_download
         )
+
+        self.reader = reader
 
         self.events_id_url = URLS['bestdori.com']['events_id']
         self.event_asset_url = URLS['bestdori.com']['event_asset']
@@ -242,7 +239,7 @@ class Event_story_getter(util.Base_getter):
             )
 
             if self.parse:
-                text = read_story_in_json(story_json, self.debug_parse)
+                text = self.reader.read_story_in_json(story_json)
             else:
                 text = ''
         elif event_id in Event_story_getter.event_is_main:
@@ -267,20 +264,19 @@ class Event_story_getter(util.Base_getter):
 class Band_story_getter(util.Base_getter):
     def __init__(
         self,
+        reader: Story_reader,
         save_dir: str = './story_band',
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
-        debug_parse: bool = False,
     ) -> None:
-
-        self.debug_parse = debug_parse
-
         super().__init__(
             save_dir, assets_save_dir, online, save_assets, parse, missing_download
         )
+
+        self.reader = reader
 
         self.bandstories_5_url = URLS['bestdori.com']['bandstories_5']
         self.band_asset_url = URLS['bestdori.com']['band_asset']
@@ -292,7 +288,7 @@ class Band_story_getter(util.Base_getter):
         lang: str = 'cn',
     ) -> None:
         if want_band_id is not None:
-            assert want_band_id in Constant.band_id_name
+            assert str(want_band_id) in self.reader.bands_json
 
         info_json: dict[str, dict[str, Any]] = await util.fetch_url_json_simple(
             self.bandstories_5_url, self
@@ -313,7 +309,7 @@ class Band_story_getter(util.Base_getter):
                 if want_chapter_number != chapterNumber:
                     continue
 
-            band_name = Constant.band_id_name[band_id]
+            band_name = self.reader.get_band_name(band_id, lang)
 
             if band_story['mainTitle'][Constant.lang_index[lang]] == None:
                 print(
@@ -324,9 +320,10 @@ class Band_story_getter(util.Base_getter):
             save_folder_name = util.valid_filename(
                 f'{band_story["mainTitle"][Constant.lang_index[lang]]} {band_story["subTitle"][Constant.lang_index[lang]]}'
             )
-            save_folder_name = lang + '-' + save_folder_name
 
-            band_save_dir = os.path.join(self.save_dir, band_name, save_folder_name)
+            band_save_dir = os.path.join(
+                self.save_dir, lang + '-' + band_name, save_folder_name
+            )
             if self.parse:
                 os.makedirs(band_save_dir, exist_ok=True)
 
@@ -360,7 +357,7 @@ class Band_story_getter(util.Base_getter):
         )
 
         if self.parse:
-            text = read_story_in_json(story_json, self.debug_parse)
+            text = self.reader.read_story_in_json(story_json)
 
             async with self.file_semaphore:
                 async with aiofiles.open(
@@ -380,20 +377,19 @@ class Band_story_getter(util.Base_getter):
 class Main_story_getter(util.Base_getter):
     def __init__(
         self,
+        reader: Story_reader,
         save_dir: str = './story_main',
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
-        debug_parse: bool = False,
     ) -> None:
-
-        self.debug_parse = debug_parse
-
         super().__init__(
             save_dir, assets_save_dir, online, save_assets, parse, missing_download
         )
+
+        self.reader = reader
 
         self.mainstories_5_url = URLS['bestdori.com']['mainstories_5']
         self.main_asset_url = URLS['bestdori.com']['main_asset']
@@ -439,7 +435,7 @@ class Main_story_getter(util.Base_getter):
         )
 
         if self.parse:
-            text = read_story_in_json(story_json, self.debug_parse)
+            text = self.reader.read_story_in_json(story_json)
 
             async with self.file_semaphore:
                 async with aiofiles.open(
@@ -455,20 +451,19 @@ class Main_story_getter(util.Base_getter):
 class Card_story_getter(util.Base_getter):
     def __init__(
         self,
+        reader: Story_reader,
         save_dir: str = './story_card',
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
-        debug_parse: bool = False,
     ) -> None:
-
-        self.debug_parse = debug_parse
-
         super().__init__(
             save_dir, assets_save_dir, online, save_assets, parse, missing_download
         )
+
+        self.reader = reader
 
         self.cards_all_0_url = URLS['bestdori.com']['cards_all_0']
         self.cards_id_url = URLS['bestdori.com']['cards_id']
@@ -497,8 +492,10 @@ class Card_story_getter(util.Base_getter):
             self.cards_id_url.format(id=card_id), self
         )
 
-        chara_band_and_name = Constant.chara_id_band_and_name[card['characterId']]
-        chara_name = chara_band_and_name.split('_')[1]
+        chara_bandAbbr, chara_name = self.reader.get_chara_bandAbbr_and_name(
+            card['characterId'], lang
+        )
+        chara_band_and_name = lang + '-' + '_'.join((chara_bandAbbr, chara_name))
         cardRarityType = card['rarity']
         card_name = card['prefix'][Constant.lang_index[lang]]
 
@@ -511,8 +508,6 @@ class Card_story_getter(util.Base_getter):
         card_story_filename = util.valid_filename(
             f'{card_id}_{chara_name}_R{cardRarityType} {card_name}'
         )
-
-        card_story_filename = lang + '-' + card_story_filename
 
         if 'episodes' not in card:
             card_has_story = False
@@ -562,8 +557,8 @@ class Card_story_getter(util.Base_getter):
             )
 
             if self.parse:
-                text_1 = read_story_in_json(story_1_json, self.debug_parse)
-                text_2 = read_story_in_json(story_2_json, self.debug_parse)
+                text_1 = self.reader.read_story_in_json(story_1_json)
+                text_2 = self.reader.read_story_in_json(story_2_json)
             else:
                 text_1 = ''
                 text_2 = ''
@@ -597,10 +592,11 @@ if __name__ == '__main__':
 
     online = False
 
-    main_getter = Main_story_getter(online=online)
-    band_getter = Band_story_getter(online=online)
-    event_getter = Event_story_getter(online=online)
-    card_getter = Card_story_getter(online=online)
+    reader = Story_reader(online=online)
+    main_getter = Main_story_getter(reader, online=online)
+    band_getter = Band_story_getter(reader, online=online)
+    event_getter = Event_story_getter(reader, online=online)
+    card_getter = Card_story_getter(reader, online=online)
 
     async def main():
         async with ClientSession(
@@ -608,6 +604,7 @@ if __name__ == '__main__':
         ) as session:
 
             await asyncio.gather(
+                reader.init(session),
                 main_getter.init(session),
                 band_getter.init(session),
                 event_getter.init(session),
@@ -616,14 +613,16 @@ if __name__ == '__main__':
 
             tasks = []
 
-            tasks.append(main_getter.get(list(range(1, 4)), 'cn'))
+            lang = 'cn'
+
+            tasks.append(main_getter.get(list(range(1, 4)), lang))
             for i in [1, 2]:
                 for j in [1]:
-                    tasks.append(band_getter.get(i, j, 'cn'))
+                    tasks.append(band_getter.get(i, j, lang))
             for i in range(1, 11):
-                tasks.append(event_getter.get(i))
+                tasks.append(event_getter.get(i, lang))
             for i in range(1, 11):
-                tasks.append(card_getter.get(i))
+                tasks.append(card_getter.get(i, lang))
 
             await asyncio.gather(*tasks)
 

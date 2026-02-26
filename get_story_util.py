@@ -1,3 +1,4 @@
+import bisect
 import os, json, asyncio, traceback
 from enum import Enum
 from typing import Any
@@ -117,6 +118,18 @@ class Base_getter(Base_fetcher):
 
         self.save_dir = save_dir
         self.parse = parse
+
+
+class DictLookup:
+    def __init__(self, data: list[dict[str, Any]], attr_name: str):
+        self.data = data
+        self.ids = [int(d[attr_name]) for d in data]
+
+    def find_index(self, target_id: int) -> int:
+        left_index = bisect.bisect_left(self.ids, target_id)
+        if left_index < len(self.ids) and self.ids[left_index] == target_id:
+            return left_index
+        return -1
 
 
 def valid_filename(filename: str) -> str:

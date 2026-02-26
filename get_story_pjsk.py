@@ -1,6 +1,6 @@
 # https://github.com/ci-ke/ProjectSekai-BangDream-story-crawler
 
-import bisect, os, math, asyncio, json
+import os, math, asyncio, json
 from asyncio import Semaphore
 from typing import Any
 
@@ -82,8 +82,8 @@ class Story_reader(util.Base_fetcher):
             util.fetch_url_json_simple(self.character2ds_url, self),
         )
 
-        self.gameCharacters_lookup = DictLookup(self.gameCharacters, 'id')
-        self.character2ds_lookup = DictLookup(self.character2ds, 'id')
+        self.gameCharacters_lookup = util.DictLookup(self.gameCharacters, 'id')
+        self.character2ds_lookup = util.DictLookup(self.character2ds, 'id')
 
     def read_story_in_json(self, json_data: str | dict[str, Any]) -> str:
         if isinstance(json_data, str):
@@ -317,9 +317,9 @@ class Event_story_getter(util.Base_getter):
             )
         )
 
-        self.events_lookup = DictLookup(self.events_json, 'id')
-        self.eventStories_lookup = DictLookup(self.eventStories_json, 'eventId')
-        self.gameCharacterUnits_lookup = DictLookup(self.gameCharacterUnits, 'id')
+        self.events_lookup = util.DictLookup(self.events_json, 'id')
+        self.eventStories_lookup = util.DictLookup(self.eventStories_json, 'eventId')
+        self.gameCharacterUnits_lookup = util.DictLookup(self.gameCharacterUnits, 'id')
 
     async def get(self, event_id: int) -> None:
 
@@ -612,9 +612,9 @@ class Card_story_getter(util.Base_getter):
             if item['isDisplayCardStory']:
                 self.eventCards_json.append(item)
 
-        self.cards_lookup = DictLookup(self.cards_json, 'id')
-        self.cardEpisodes_lookup = DictLookup(self.cardEpisodes_json, 'cardId')
-        self.eventCards_lookup = DictLookup(self.eventCards_json, 'cardId')
+        self.cards_lookup = util.DictLookup(self.cards_json, 'id')
+        self.cardEpisodes_lookup = util.DictLookup(self.cardEpisodes_json, 'cardId')
+        self.eventCards_lookup = util.DictLookup(self.eventCards_json, 'cardId')
 
     async def get(self, card_id: int) -> None:
         card_index = self.cards_lookup.find_index(card_id)
@@ -755,8 +755,8 @@ class Area_talk_getter((util.Base_getter)):
             util.fetch_url_json_simple(self.actionSets_url, self),
         )
 
-        self.area_name_lookup = DictLookup(self.area_name_json, 'id')
-        self.info_json_lookup = DictLookup(self.info_json, 'id')
+        self.area_name_lookup = util.DictLookup(self.area_name_json, 'id')
+        self.info_json_lookup = util.DictLookup(self.info_json, 'id')
 
     async def get(self, target: int | str) -> None:
         '''
@@ -982,7 +982,7 @@ class Self_intro_getter(util.Base_getter):
             await util.fetch_url_json_simple(self.characterProfiles_url, self)
         )
 
-        self.characterProfiles_lookup = DictLookup(
+        self.characterProfiles_lookup = util.DictLookup(
             self.characterProfiles_json, 'characterId'
         )
 
@@ -1073,7 +1073,7 @@ class Special_story_getter(util.Base_getter):
             await util.fetch_url_json_simple(self.specialStories_url, self)
         )
 
-        self.specialStories_lookup = DictLookup(self.specialStories_json, 'id')
+        self.specialStories_lookup = util.DictLookup(self.specialStories_json, 'id')
 
     async def get(self, id: int) -> None:
         story_index = self.specialStories_lookup.find_index(id)
@@ -1133,18 +1133,6 @@ class Special_story_getter(util.Base_getter):
                         await f.write(text + '\n\n\n')
 
         print(f'get special {filename} done.')
-
-
-class DictLookup:
-    def __init__(self, data: list[dict[str, Any]], attr_name: str):
-        self.data = data
-        self.ids = [int(d[attr_name]) for d in data]
-
-    def find_index(self, target_id: int) -> int:
-        left_index = bisect.bisect_left(self.ids, target_id)
-        if left_index < len(self.ids) and self.ids[left_index] == target_id:
-            return left_index
-        return -1
 
 
 if __name__ == '__main__':
