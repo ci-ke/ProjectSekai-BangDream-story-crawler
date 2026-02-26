@@ -509,7 +509,7 @@ class Card_story_getter(util.Base_getter):
         resourceSetName: str = card['resourceSetName']
 
         card_story_filename = util.valid_filename(
-            f'{card_id}_{chara_name}_{cardRarityType}星 {card_name}'
+            f'{card_id}_{chara_name}_R{cardRarityType} {card_name}'
         )
 
         card_story_filename = lang + '-' + card_story_filename

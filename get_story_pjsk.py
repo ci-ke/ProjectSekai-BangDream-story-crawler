@@ -347,7 +347,7 @@ class Event_story_getter(util.Base_getter):
             banner_name = f'{unit_abbr}_{banner_chara_name}'
 
         save_folder_name = util.valid_filename(
-            f'{event_id} {event_name}（{banner_name}）'
+            f'{event_id} {event_name} ({banner_name})'
         )
 
         save_folder_name = self.reader.lang + '-' + save_folder_name
@@ -388,7 +388,7 @@ class Event_story_getter(util.Base_getter):
             gameCharacterId = episode.get('gameCharacterId', -1)
             if gameCharacterId != -1:
                 chara_name = self.reader.get_chara_unitAbbr_name(gameCharacterId)[1]
-                episode_name += f"（{chara_name}）"
+                episode_name += f" ({chara_name})"
 
         scenarioId = episode['scenarioId']
 
@@ -641,7 +641,7 @@ class Card_story_getter(util.Base_getter):
             os.makedirs(card_save_dir, exist_ok=True)
 
         if sub_unit != 'none':
-            sub_unit_name = f'（{Constant.unit_code_abbr[sub_unit]}）'
+            sub_unit_name = f' ({Constant.unit_code_abbr[sub_unit]})'
         else:
             sub_unit_name = ''
 
@@ -650,7 +650,7 @@ class Card_story_getter(util.Base_getter):
             belong_event = ''
         else:
             belong_event = (
-                f"（event-{self.eventCards_json[card_event_index]['eventId']}）"
+                f" (event_{self.eventCards_json[card_event_index]['eventId']})"
             )
 
         card_story_filename = util.valid_filename(
@@ -687,7 +687,7 @@ class Card_story_getter(util.Base_getter):
                     encoding='utf8',
                 ) as f:
                     await f.write(
-                        f'{chara_name}{sub_unit_name}-{card_id_for_chara} {card_name}{belong_event}\n\n\n'
+                        f'{chara_name}{sub_unit_name}_{card_id_for_chara} {card_name}{belong_event}\n\n\n'
                     )
                     await f.write(story_1_name + '\n\n')
                     await f.write(text_1 + '\n\n\n')
@@ -748,7 +748,7 @@ class Area_talk_getter((util.Base_getter)):
 
     async def get(self, target: int | str) -> None:
         '''
-        target: int: event_id; str: grade1, grade2, theater, limited-{area_id}, aprilfool2022-
+        target: int: event_id; str: grade1, grade2, theater, limited_{area_id}, aprilfool2022+
         '''
 
         if isinstance(target, int):  # event id
@@ -789,8 +789,8 @@ class Area_talk_getter((util.Base_getter)):
                 for talk in self.info_json
                 if ('scenarioId' in talk) and (talk["releaseConditionId"] >= 2000000)
             ]
-        elif target.startswith('limited-'):
-            area_id = int(target.split('-')[1])
+        elif target.startswith('limited_'):
+            area_id = int(target.split('_')[1])
             talk_infos = [
                 talk
                 for talk in self.info_json
