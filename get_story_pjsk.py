@@ -95,6 +95,17 @@ class Story_reader(util.Base_fetcher):
         self.gameCharacters_lookup = util.DictLookup(self.gameCharacters, 'id')
         self.character2ds_lookup = util.DictLookup(self.character2ds, 'id')
 
+    def get_chara_unitAbbr_name(self, chara_id: int) -> tuple[str, str]:
+        profile_index = self.gameCharacters_lookup.find_index(chara_id)
+        assert profile_index != -1
+        profile: dict[str, Any] = self.gameCharacters[profile_index]
+        first_name = profile.get('firstName')
+        givenName = profile['givenName']
+        full_name = first_name + givenName if first_name is not None else givenName
+
+        unit_abbr = Constant.unit_code_abbr[profile['unit']]
+        return (unit_abbr, full_name)
+
     def read_story_in_json(self, json_data: str | dict[str, Any]) -> str:
         if isinstance(json_data, str):
             return json_data
@@ -234,29 +245,6 @@ class Story_reader(util.Base_fetcher):
                     ret += f"SnippetAction: {snippet_name}, {snippet_index}\n"
 
         return ret[:-1]
-
-    def get_chara_unitAbbr_name(self, chara_id: int) -> tuple[str, str]:
-        profile_index = self.gameCharacters_lookup.find_index(chara_id)
-        assert profile_index != -1
-        profile: dict[str, Any] = self.gameCharacters[profile_index]
-        first_name = profile.get('firstName')
-        givenName = profile['givenName']
-        full_name = first_name + givenName if first_name is not None else givenName
-
-        unit_abbr = Constant.unit_code_abbr[profile['unit']]
-        return (unit_abbr, full_name)
-
-    def _get_chara2d_unitAbbr_name_isVS(self, chara2dId: int) -> tuple[str, str, bool]:
-        chara2d = self.character2ds[self.character2ds_lookup.find_index(chara2dId)]
-        if chara2d['characterType'] != 'game_character':
-            return '', '', False
-        actual_unit = chara2d['unit']
-        chara_id = chara2d['characterId']
-        chara_unit, name = self.get_chara_unitAbbr_name(chara_id)
-        if chara_unit != 'VS':
-            return chara_unit, name, False
-        else:
-            return Constant.unit_code_abbr[actual_unit], name, True
 
 
 class Event_story_getter(util.Base_getter):
