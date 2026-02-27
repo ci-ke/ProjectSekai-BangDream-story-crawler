@@ -37,7 +37,7 @@ class Constant:
         else:
             return False
 
-    urls: dict[str, dict[str, str]] = json.load(open('urls_pjsk.json', encoding='utf8'))
+    urls: dict[str, dict[str, Any]] = json.load(open('urls_pjsk.json', encoding='utf8'))
 
     @staticmethod
     def get_src_url(lang: str, src: str, file_type: str, file: str) -> str:
@@ -46,29 +46,14 @@ class Constant:
 
         file_type: master or asset
         '''
-        match (src, lang, file_type):
-            case ('pjsk.moe', lang, file_type):
-                if lang != 'jp':
-                    raise NotImplementedError('pjsk.moe only has jp')
-                lang = ''
-            case ('haruki', 'cn', 'master'):
-                lang = 'sc'
-            case (src, 'jp', 'master'):
-                lang = ''
-            case (src, 'tw', file_type):
-                lang = 'tc'
-                if src == 'haruki' and file_type == 'asset':
-                    lang = 'tw'
-
-        if lang:
-            lang = lang + '-'
-
         if file_type == 'master':
-            base_url = Constant.urls[src]['master']
-            return base_url.format(lang=lang, file=file)
+            base_url: str = Constant.urls[src]['master']
+            return base_url.format(
+                lang=Constant.urls[src]['master_lang'][lang], file=file
+            )
         else:
             base_url = Constant.urls[src][f'{file}_asset']
-            return base_url.format(lang=lang)
+            return base_url.format(lang=Constant.urls[src]['asset_lang'][lang])
 
 
 class Story_reader(util.Base_fetcher):
