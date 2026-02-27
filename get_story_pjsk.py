@@ -2,7 +2,7 @@
 
 import os, math, asyncio, json
 from asyncio import Semaphore
-from typing import Any
+from typing import Any, cast
 
 import aiofiles  # type: ignore
 from aiohttp import ClientSession, TCPConnector  # type: ignore
@@ -718,80 +718,70 @@ class Area_talk_getter((util.Base_getter)):
     ) -> None:
         await super().init(session, network_semaphore, file_semaphore)
 
-        self.area_name_json, self.info_json = await asyncio.gather(
+        self.area_name_json, self.actionSets_json = await asyncio.gather(
             util.fetch_url_json_simple(self.areas_url, self),
             util.fetch_url_json_simple(self.actionSets_url, self),
         )
 
         self.area_name_lookup = util.DictLookup(self.area_name_json, 'id')
-        self.info_json_lookup = util.DictLookup(self.info_json, 'id')
+        self.actionSets_json_lookup = util.DictLookup(self.actionSets_json, 'id')
+
+    def __get_category(self, action: dict[str, Any]) -> int | str:
+        '''
+        category: int: event_id; str: grade1, grade2, theater, limited_{area_id}, aprilfool2022+
+        '''
+        if (
+            ('scenarioId' in action)
+            and (len(cond := str(action['releaseConditionId'])) == 6)
+            and (cond[0] == '1')
+        ):
+            return int(cond[1:4]) + 1
+        elif action['id'] == 2373:  # special case for mzk5
+            return 145
+        elif (
+            ('scenarioId' in action)
+            and (action.get("actionSetType") == "normal")
+            and (action["isNextGrade"] == False)
+            and (action["releaseConditionId"] == 1)
+        ):
+            return 'grade1'
+        elif (
+            ('scenarioId' in action)
+            and (action.get("actionSetType") == "normal")
+            and (action["isNextGrade"] == True)
+            and (action["releaseConditionId"] == 1)
+        ):
+            return 'grade2'
+        elif ('scenarioId' in action) and (
+            action["releaseConditionId"] >= 2000000
+        ):  # cn and jp have diff
+            return 'theater'
+        elif (
+            ('scenarioId' in action)
+            and (action.get("actionSetType") == "limited")
+            and ('aprilfool' not in action['scenarioId'])
+        ):
+            return f"limited_{action['areaId']}"
+        elif (
+            ('scenarioId' in action)
+            and (action.get("actionSetType") == "limited")
+            and (('aprilfool' in action['scenarioId']))
+        ):
+            talk_name: str = action['scenarioId']
+            return talk_name.split('_')[1]
+        else:
+            return ''
 
     async def get(self, target: int | str) -> None:
         '''
         target: int: event_id; str: grade1, grade2, theater, limited_{area_id}, aprilfool2022+
         '''
 
-        if isinstance(target, int):  # event id
-            talk_infos = [
-                talk
-                for talk in self.info_json
-                if ('scenarioId' in talk)
-                and (len(cond := str(talk['releaseConditionId'])) == 6)
-                and (cond[0] == '1')
-                and (int(cond[1:4]) == target - 1)
-            ]
-            if target == 145:
-                talk_info_index = self.info_json_lookup.find_index(
-                    2373
-                )  # special case for mzk5
-                talk_infos.append(self.info_json[talk_info_index])
-        elif target == 'grade1':
-            talk_infos = [
-                talk
-                for talk in self.info_json
-                if ('scenarioId' in talk)
-                and (talk.get("actionSetType") == "normal")
-                and (talk["isNextGrade"] == False)
-                and (talk["releaseConditionId"] == 1)
-            ]
-        elif target == 'grade2':
-            talk_infos = [
-                talk
-                for talk in self.info_json
-                if ('scenarioId' in talk)
-                and (talk.get("actionSetType") == "normal")
-                and (talk["isNextGrade"] == True)
-                and (talk["releaseConditionId"] == 1)
-            ]
-        elif target == 'theater':
-            talk_infos = [
-                talk
-                for talk in self.info_json
-                if ('scenarioId' in talk) and (talk["releaseConditionId"] >= 2000000)
-            ]
-        elif target.startswith('limited_'):
-            area_id = int(target.split('_')[1])
-            talk_infos = [
-                talk
-                for talk in self.info_json
-                if ('scenarioId' in talk)
-                and (talk.get("actionSetType") == "limited")
-                and (talk['areaId'] == area_id)
-                and ('aprilfool' not in talk['scenarioId'])
-            ]
-        elif target.startswith('aprilfool'):
-            assert len(target) == 9 + 4
-            talk_infos = [
-                talk
-                for talk in self.info_json
-                if ('scenarioId' in talk)
-                and (talk.get("actionSetType") == "limited")
-                and ((target in talk['scenarioId']))
-            ]
-        else:
-            raise NotImplementedError
+        actions = [
+            action for action in self.actionSets_json if self.__get_category(action) == target
+        ]
 
-        if len(talk_infos) == 0:
+        if len(actions) == 0:
             print(f'talk {target} does not exist.')
             return
 
@@ -799,12 +789,12 @@ class Area_talk_getter((util.Base_getter)):
             os.makedirs(self.save_dir, exist_ok=True)
 
         tasks = []
-        for talk_info in talk_infos:
+        for action in actions:
             tasks.append(
                 util.fetch_url_json_simple(
                     self.talk_asset_url.format(
-                        group=math.floor(talk_info['id'] / 100),
-                        scenarioId=talk_info['scenarioId'],
+                        group=math.floor(action['id'] / 100),
+                        scenarioId=action['scenarioId'],
                     ),
                     self,
                     print_done=True,
@@ -833,9 +823,9 @@ class Area_talk_getter((util.Base_getter)):
                     'w',
                     encoding='utf8',
                 ) as f:
-                    for index, (talk_info, text) in enumerate(zip(talk_infos, texts)):
+                    for index, (action, text) in enumerate(zip(actions, texts)):
                         area_name_index = self.area_name_lookup.find_index(
-                            talk_info['areaId']
+                            action['areaId']
                         )
                         area_name = self.area_name_json[area_name_index]['name']
                         sub_name = self.area_name_json[area_name_index].get('subName')
@@ -844,34 +834,51 @@ class Area_talk_getter((util.Base_getter)):
 
                         talk_type = ''
                         if isinstance(target, int):
-                            if '_ev_' in talk_info['scenarioId']:
+                            if '_ev_' in action['scenarioId']:
                                 talk_type = ' event'
-                            elif '_wl_' in talk_info['scenarioId']:
+                            elif '_wl_' in action['scenarioId']:
                                 talk_type = ' wl'
-                            elif '_monthly' in talk_info['scenarioId']:
+                            elif '_monthly' in action['scenarioId']:
                                 talk_type = ' monthly'
-                            elif '_add_' in talk_info['scenarioId']:
+                            elif '_add_' in action['scenarioId']:
                                 talk_type = ' add'
                             else:
-                                assert talk_info['id'] == 618  # special case
+                                assert action['id'] == 618  # special case
 
                         await f.write(
-                            f"{index+1}: {talk_info['id']}{talk_type} 【{area_name}】\n\n"
+                            f"{index+1}: {action['id']}{talk_type} 【{area_name}】\n\n"
                         )
                         await f.write(text + '\n\n\n')
 
         print(f'get talk {filename} done.')
 
+    # mainly for update new talk
+    async def get_id_range(
+        self, start: int | None = None, end: int | None = None
+    ) -> None:
+        if start is None:
+            start = 1
+        if end is None:
+            end = cast(int, self.actionSets_json[-1]['id'] + 1)
+        categories = set()
+        for i in range(start, end):
+            actionSets_index = self.actionSets_json_lookup.find_index(i)
+            categories.add(self.__get_category(self.actionSets_json[actionSets_index]))
+        tasks = []
+        for cate in categories:
+            tasks.append(self.get(cate))
+        await asyncio.gather(*tasks)
+
     # for debug
-    async def get_id(self, talk_id: int) -> None:
-        talk_info_index = self.info_json_lookup.find_index(talk_id)
-        if talk_info_index == -1:
+    async def get_id_to_single_file(self, talk_id: int) -> None:
+        actionSets_index = self.actionSets_json_lookup.find_index(talk_id)
+        if actionSets_index == -1:
             print(f'talk {talk_id} does not exist.')
             return
 
-        talk_info = self.info_json[talk_info_index]
+        actionSet = self.actionSets_json[actionSets_index]
 
-        if 'scenarioId' not in talk_info:
+        if 'scenarioId' not in actionSet:
             print(f'talk {talk_id} does have content.')
             return
 
@@ -880,7 +887,7 @@ class Area_talk_getter((util.Base_getter)):
 
         talk_json = await util.fetch_url_json_simple(
             self.talk_asset_url.format(
-                group=math.floor(talk_id / 100), scenarioId=talk_info['scenarioId']
+                group=math.floor(talk_id / 100), scenarioId=actionSet['scenarioId']
             ),
             self,
         )
@@ -891,7 +898,7 @@ class Area_talk_getter((util.Base_getter)):
             filename = f'talk_{talk_id}'
             filename = self.reader.lang + '-' + filename
 
-            area_name_index = self.area_name_lookup.find_index(talk_info['areaId'])
+            area_name_index = self.area_name_lookup.find_index(actionSet['areaId'])
             area_name = self.area_name_json[area_name_index]['name']
             sub_name = self.area_name_json[area_name_index].get('subName')
             if sub_name is not None:
@@ -903,7 +910,7 @@ class Area_talk_getter((util.Base_getter)):
                     'w',
                     encoding='utf8',
                 ) as f:
-                    await f.write(f"{talk_info['id']} 【{area_name}】\n\n")
+                    await f.write(f"{actionSet['id']} 【{area_name}】\n\n")
                     await f.write(text + '\n')
 
         print(f'get talk {talk_id} done.')
