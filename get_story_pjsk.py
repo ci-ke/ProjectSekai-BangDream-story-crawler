@@ -1131,7 +1131,7 @@ if __name__ == '__main__':
     lang = 'cn'
     src = 'sekai.best'
 
-    reader = Story_reader(lang, online=online)
+    reader = Story_reader(lang, src=src, online=online)
     unit_getter = Unit_story_getter(reader, src=src, online=online)
     event_getter = Event_story_getter(reader, src=src, online=online)
     card_getter = Card_story_getter(reader, src=src, online=online)
