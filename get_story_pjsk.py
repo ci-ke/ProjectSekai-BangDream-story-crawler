@@ -778,7 +778,9 @@ class Area_talk_getter((util.Base_getter)):
         '''
 
         actions = [
-            action for action in self.actionSets_json if self.__get_category(action) == target
+            action
+            for action in self.actionSets_json
+            if self.__get_category(action) == target
         ]
 
         if len(actions) == 0:
@@ -863,7 +865,9 @@ class Area_talk_getter((util.Base_getter)):
         categories = set()
         for i in range(start, end):
             actionSets_index = self.actionSets_json_lookup.find_index(i)
-            categories.add(self.__get_category(self.actionSets_json[actionSets_index]))
+            cate = self.__get_category(self.actionSets_json[actionSets_index])
+            if cate != '':
+                categories.add(cate)
         tasks = []
         for cate in categories:
             tasks.append(self.get(cate))
