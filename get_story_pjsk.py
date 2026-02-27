@@ -9,10 +9,6 @@ from aiohttp import ClientSession, TCPConnector  # type: ignore
 
 import get_story_util as util
 
-URLS: dict[str, dict[str, dict[str, str]]] = json.load(
-    open('urls_pjsk.json', encoding='utf8')
-)
-
 
 class Constant:
     unit_code_abbr = {
@@ -41,6 +37,35 @@ class Constant:
         else:
             return False
 
+    urls: dict[str, dict[str, str]] = json.load(open('urls_pjsk.json', encoding='utf8'))
+
+    @staticmethod
+    def get_src_url(lang: str, src: str, file_type: str, file: str) -> str:
+        '''
+        file_type: master or asset
+        '''
+        match (src, lang, file_type):
+            case ('pjsk.moe', lang, file_type):
+                lang = ''
+            case ('haruki', 'cn', 'master'):
+                lang = 'sc'
+            case (src, 'jp', 'master'):
+                lang = ''
+            case (src, 'tw', file_type):
+                lang = 'tc'
+                if src == 'haruki' and file_type == 'asset':
+                    lang = 'tw'
+
+        if lang:
+            lang = lang + '-'
+
+        if file_type == 'master':
+            base_url = Constant.urls[src]['master']
+            return base_url.format(lang=lang, file=file)
+        else:
+            base_url = Constant.urls[src][f'{file}_asset']
+            return base_url.format(lang=lang)
+
 
 class Story_reader(util.Base_fetcher):
     def __init__(
@@ -58,8 +83,12 @@ class Story_reader(util.Base_fetcher):
         self.lang = lang
         self.debug_parse = debug_parse
 
-        self.gameCharacters_url = URLS[lang][src]['gameCharacters']
-        self.character2ds_url = URLS[lang][src]['character2ds']
+        self.gameCharacters_url = Constant.get_src_url(
+            lang, src, 'master', 'gameCharacters'
+        )
+        self.character2ds_url = Constant.get_src_url(
+            lang, src, 'master', 'character2ds'
+        )
 
     async def init(
         self,
@@ -263,10 +292,21 @@ class Event_story_getter(util.Base_getter):
 
         self.reader = reader
 
-        self.events_url = URLS[self.reader.lang][src]['events']
-        self.eventStories_url = URLS[self.reader.lang][src]['eventStories']
-        self.gameCharacterUnits_url = URLS[self.reader.lang][src]['gameCharacterUnits']
-        self.event_asset_url = URLS[self.reader.lang][src]['event_asset']
+        self.events_url = Constant.get_src_url(
+            self.reader.lang, src, 'master', 'events'
+        )
+        self.eventStories_url = Constant.get_src_url(
+            self.reader.lang, src, 'master', 'eventStories'
+        )
+        self.gameCharacterUnits_url = Constant.get_src_url(
+            self.reader.lang,
+            src,
+            'master',
+            'gameCharacterUnits',
+        )
+        self.event_asset_url = Constant.get_src_url(
+            self.reader.lang, src, 'asset', 'event'
+        )
 
     async def init(
         self,
@@ -416,9 +456,15 @@ class Unit_story_getter(util.Base_getter):
 
         self.reader = reader
 
-        self.unitProfiles_url = URLS[self.reader.lang][src]['unitProfiles']
-        self.unitStories_url = URLS[self.reader.lang][src]['unitStories']
-        self.unit_asset_url = URLS[self.reader.lang][src]['unit_asset']
+        self.unitProfiles_url = Constant.get_src_url(
+            self.reader.lang, src, 'master', 'unitProfiles'
+        )
+        self.unitStories_url = Constant.get_src_url(
+            self.reader.lang, src, 'master', 'unitStories'
+        )
+        self.unit_asset_url = Constant.get_src_url(
+            self.reader.lang, src, 'asset', 'unit'
+        )
 
     async def init(
         self,
@@ -531,10 +577,16 @@ class Card_story_getter(util.Base_getter):
 
         self.reader = reader
 
-        self.cards_url = URLS[self.reader.lang][src]['cards']
-        self.cardEpisodes_url = URLS[self.reader.lang][src]['cardEpisodes']
-        self.eventCards_url = URLS[self.reader.lang][src]['eventCards']
-        self.card_asset_url = URLS[self.reader.lang][src]['card_asset']
+        self.cards_url = Constant.get_src_url(self.reader.lang, src, 'master', 'cards')
+        self.cardEpisodes_url = Constant.get_src_url(
+            self.reader.lang, src, 'master', 'cardEpisodes'
+        )
+        self.eventCards_url = Constant.get_src_url(
+            self.reader.lang, src, 'master', 'eventCards'
+        )
+        self.card_asset_url = Constant.get_src_url(
+            self.reader.lang, src, 'asset', 'card'
+        )
 
     async def init(
         self,
@@ -673,9 +725,13 @@ class Area_talk_getter((util.Base_getter)):
 
         self.reader = reader
 
-        self.areas_url = URLS[self.reader.lang][src]['areas']
-        self.actionSets_url = URLS[self.reader.lang][src]['actionSets']
-        self.talk_asset_url = URLS[self.reader.lang][src]['talk_asset']
+        self.areas_url = Constant.get_src_url(self.reader.lang, src, 'master', 'areas')
+        self.actionSets_url = Constant.get_src_url(
+            self.reader.lang, src, 'master', 'actionSets'
+        )
+        self.talk_asset_url = Constant.get_src_url(
+            self.reader.lang, src, 'asset', 'talk'
+        )
 
     async def init(
         self,
@@ -894,8 +950,12 @@ class Self_intro_getter(util.Base_getter):
 
         self.reader = reader
 
-        self.characterProfiles_url = URLS[self.reader.lang][src]['characterProfiles']
-        self.self_asset_url = URLS[self.reader.lang][src]['self_asset']
+        self.characterProfiles_url = Constant.get_src_url(
+            self.reader.lang, src, 'master', 'characterProfiles'
+        )
+        self.self_asset_url = Constant.get_src_url(
+            self.reader.lang, src, 'asset', 'self'
+        )
 
     async def init(
         self,
@@ -977,8 +1037,12 @@ class Special_story_getter(util.Base_getter):
 
         self.reader = reader
 
-        self.specialStories_url = URLS[self.reader.lang][src]['specialStories']
-        self.special_asset_url = URLS[self.reader.lang][src]['special_asset']
+        self.specialStories_url = Constant.get_src_url(
+            self.reader.lang, src, 'master', 'specialStories'
+        )
+        self.special_asset_url = Constant.get_src_url(
+            self.reader.lang, src, 'asset', 'special'
+        )
 
     async def init(
         self,
@@ -1058,15 +1122,18 @@ if __name__ == '__main__':
 
     net_connect_limit = 20
 
-    online = False
+    online = True
 
-    reader = Story_reader('cn', online=online)
-    unit_getter = Unit_story_getter(reader, online=online)
-    event_getter = Event_story_getter(reader, online=online)
-    card_getter = Card_story_getter(reader, online=online)
-    area_getter = Area_talk_getter(reader, online=online)
-    self_getter = Self_intro_getter(reader, online=online)
-    special_getter = Special_story_getter(reader, online=online)
+    lang = 'cn'
+    src = 'sekai.best'
+
+    reader = Story_reader(lang, online=online)
+    unit_getter = Unit_story_getter(reader, src=src, online=online)
+    event_getter = Event_story_getter(reader, src=src, online=online)
+    card_getter = Card_story_getter(reader, src=src, online=online)
+    area_getter = Area_talk_getter(reader, src=src, online=online)
+    self_getter = Self_intro_getter(reader, src=src, online=online)
+    special_getter = Special_story_getter(reader, src=src, online=online)
 
     async def main():
         async with ClientSession(
@@ -1086,11 +1153,11 @@ if __name__ == '__main__':
 
             for i in range(1, 3):
                 tasks.append(unit_getter.get(i))
-            for i in range(1, 11):
+            for i in range(1, 4):
                 tasks.append(event_getter.get(i))
-            for i in range(1, 11):
+            for i in range(1, 4):
                 tasks.append(card_getter.get(i))
-            for i in range(1, 11):
+            for i in range(1, 4):
                 tasks.append(area_getter.get(i))
             for i in range(1, 3):
                 tasks.append(self_getter.get(i))
