@@ -8,10 +8,6 @@
         "self_asset": "https://storage.sekai.best/sekai-{lang}assets/scenario/profile/{{scenarioId}}.asset",
         "special_asset": "https://storage.sekai.best/sekai-{lang}assets/scenario/special/{{assetbundleName}}/{{scenarioId}}.asset"
     },
-    "pjsk.moe": {
-        "master": "{lang}https://sekaimaster.exmeaning.com/master/{file}.json",
-        "event_asset": "{lang}https://snowyassets.exmeaning.com/ondemand/event_story/{{assetbundleName}}/scenario/{{scenarioId}}.json"
-    },
     "haruki": {
         "master": "https://raw.githubusercontent.com/Team-Haruki/haruki-sekai-{lang}master/refs/heads/main/master/{file}.json",
         "unit_asset": "https://sekai-assets-bdf29c81.seiunx.net/{lang}assets/startapp/scenario/unitstory/{{assetbundleName}}/{{scenarioId}}.asset",
@@ -20,5 +16,9 @@
         "talk_asset": "https://sekai-assets-bdf29c81.seiunx.net/{lang}assets/startapp/scenario/actionset/group{{group}}/{{scenarioId}}.asset",
         "self_asset": "https://sekai-assets-bdf29c81.seiunx.net/{lang}assets/startapp/scenario/profile/{{scenarioId}}.asset",
         "special_asset": "https://sekai-assets-bdf29c81.seiunx.net/{lang}assets/startapp/scenario/special/{{assetbundleName}}/{{scenarioId}}.asset"
+    },
+    "pjsk.moe": {
+        "master": "{lang}https://sekaimaster.exmeaning.com/master/{file}.json",
+        "event_asset": "{lang}https://snowyassets.exmeaning.com/ondemand/event_story/{{assetbundleName}}/scenario/{{scenarioId}}.json"
     }
 }

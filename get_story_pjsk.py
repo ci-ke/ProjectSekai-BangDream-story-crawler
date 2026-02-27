@@ -42,10 +42,14 @@ class Constant:
     @staticmethod
     def get_src_url(lang: str, src: str, file_type: str, file: str) -> str:
         '''
+        lang: cn jp tw
+
         file_type: master or asset
         '''
         match (src, lang, file_type):
             case ('pjsk.moe', lang, file_type):
+                if lang != 'jp':
+                    raise NotImplementedError('pjsk.moe only has jp')
                 lang = ''
             case ('haruki', 'cn', 'master'):
                 lang = 'sc'
@@ -1122,7 +1126,7 @@ if __name__ == '__main__':
 
     net_connect_limit = 20
 
-    online = True
+    online = False
 
     lang = 'cn'
     src = 'sekai.best'
