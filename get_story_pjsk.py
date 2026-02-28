@@ -643,7 +643,6 @@ class Card_story_getter(util.Base_getter):
         card_name = card['prefix']
         sub_unit = card['supportUnit']
         assetbundleName: str = card['assetbundleName']
-        card_id_for_chara = int(assetbundleName.split('_')[1][2:])
 
         story_1_name = cardEpisode_1['title']
         story_2_name = cardEpisode_2['title']
@@ -671,10 +670,10 @@ class Card_story_getter(util.Base_getter):
                 f" (event_{self.eventCards_json[card_event_index]['eventId']})"
             )
 
-        card_story_name = f'{card_id}_{chara_name}{sub_unit_name}_{card_id_for_chara}_{cardRarityType} {card_name}{belong_event}'
+        card_story_name = f'{card_id}_{chara_name}{sub_unit_name}_{cardRarityType} {card_name}{belong_event}'
 
         card_story_filename = util.valid_filename(
-            f'{card_id:0{self.maxlen_id}}_{chara_name}{sub_unit_name}_{card_id_for_chara}_{cardRarityType} {card_name}{belong_event}'
+            f'{card_id:0{self.maxlen_id}}_{chara_name}{sub_unit_name}_{cardRarityType} {card_name}{belong_event}'
         )
 
         story_1_json, story_2_json = await asyncio.gather(
