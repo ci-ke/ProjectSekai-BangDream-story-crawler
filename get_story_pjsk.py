@@ -110,37 +110,34 @@ class Story_reader(util.Base_fetcher):
         if isinstance(json_data, str):
             return json_data
 
-        ret = ''
-
         talks = json_data['TalkData']
         specialEffects = json_data['SpecialEffectData']
 
         appearCharacters = json_data['AppearCharacters']
         chara_id = set()
 
-        have_mob = False
         for chara in appearCharacters:
             chara2dId = chara['Character2dId']
             chara2d = self.character2ds[self.character2ds_lookup.find_index(chara2dId)]
             if chara2d['characterId'] in self.gameCharacters_lookup.ids:
                 chara_id.add(chara2d['characterId'])
-            else:
-                have_mob = True
         chara_id_list = sorted(chara_id)
 
         if len(chara_id_list) > 0:
-            ret += (
+            ret0 = (
                 '（登场角色：'
                 + '、'.join(
                     [self.get_chara_unitAbbr_name(id)[1] for id in chara_id_list]
                 )
-                # + ('、配角' if have_mob else '')
-                + '）\n\n'
+                + '）\n'
             )
+        else:
+            ret0 = ''
 
         snippets = json_data['Snippets']
         next_talk_need_newline = True
 
+        ret = ''
         for snippet in snippets:
             snippet_index = snippet['Index']
             if snippet['Action'] == util.SnippetAction.SpecialEffect:
@@ -244,7 +241,7 @@ class Story_reader(util.Base_fetcher):
                         snippet_name = snippet['Action']
                     ret += f"SnippetAction: {snippet_name}, {snippet_index}\n"
 
-        return ret[:-1]
+        return (ret0 + '\n' + ret.strip()).strip()
 
 
 class Event_story_getter(util.Base_getter):
@@ -380,7 +377,13 @@ class Event_story_getter(util.Base_getter):
         event_id: int,
         event_name: str,
     ) -> None:
-        episode_name = f"{episode['eventStoryId']:0{self.maxlen_eventId_episode[0]}}-{episode['episodeNo']:0{self.maxlen_eventId_episode[1]}} {episode['title']}"
+        episode_name = (
+            f"{episode['eventStoryId']}-{episode['episodeNo']} {episode['title']}"
+        )
+        episode_save_name = util.valid_filename(
+            f"{episode['eventStoryId']:0{self.maxlen_eventId_episode[0]}}-{episode['episodeNo']:0{self.maxlen_eventId_episode[1]}} {episode['title']}"
+        )
+
         if event_type == 'world_bloom':
             gameCharacterId = episode.get('gameCharacterId', -1)
             if gameCharacterId != -1:
@@ -388,8 +391,6 @@ class Event_story_getter(util.Base_getter):
                 episode_name += f" ({chara_name})"
 
         scenarioId = episode['scenarioId']
-
-        filename = util.valid_filename(episode_name)
 
         story_json: dict[str, Any] = await util.fetch_url_json_simple(
             self.event_asset_url.format(
@@ -403,7 +404,7 @@ class Event_story_getter(util.Base_getter):
 
             async with self.file_semaphore:
                 async with aiofiles.open(
-                    os.path.join(event_save_dir, filename) + '.txt',
+                    os.path.join(event_save_dir, episode_save_name) + '.txt',
                     'w',
                     encoding='utf8',
                 ) as f:
@@ -437,6 +438,11 @@ class Unit_story_getter(util.Base_getter):
         self.unitProfiles_url = Constant.get_src_url(
             self.reader.lang, src, 'master', 'unitProfiles'
         )
+
+        self.unitStoryEpisodeGroups_url = Constant.get_src_url(
+            self.reader.lang, src, 'master', 'unitStoryEpisodeGroups'
+        )
+
         self.unitStories_url = Constant.get_src_url(
             self.reader.lang, src, 'master', 'unitStories'
         )
@@ -452,8 +458,13 @@ class Unit_story_getter(util.Base_getter):
     ) -> None:
         await super().init(session, network_semaphore, file_semaphore)
 
-        self.unitProfiles_json, self.unitStories_json = await asyncio.gather(
+        (
+            self.unitProfiles_json,
+            self.unitStoryEpisodeGroups_json,
+            self.unitStories_json,
+        ) = await asyncio.gather(
             util.fetch_url_json_simple(self.unitProfiles_url, self),
+            util.fetch_url_json_simple(self.unitStoryEpisodeGroups_url, self),
             util.fetch_url_json_simple(self.unitStories_url, self),
         )
 
@@ -512,7 +523,7 @@ class Unit_story_getter(util.Base_getter):
         scenarioId = episode['scenarioId']
         episode_name = f"{scenarioId} {episode['title']}"
 
-        filename = util.valid_filename(episode_name)
+        episode_save_name = util.valid_filename(episode_name)
 
         story_json: dict[str, Any] = await util.fetch_url_json_simple(
             self.unit_asset_url.format(
@@ -526,7 +537,9 @@ class Unit_story_getter(util.Base_getter):
 
             async with self.file_semaphore:
                 async with aiofiles.open(
-                    os.path.join(unit_save_dir, filename) + '.txt', 'w', encoding='utf8'
+                    os.path.join(unit_save_dir, episode_save_name) + '.txt',
+                    'w',
+                    encoding='utf8',
                 ) as f:
                     if episode['episodeNo'] == 1:
                         await f.write(unit_outline + '\n\n')
@@ -642,11 +655,11 @@ class Card_story_getter(util.Base_getter):
                 f" (event_{self.eventCards_json[card_event_index]['eventId']})"
             )
 
+        card_story_name = f'{card_id}_{chara_name}{sub_unit_name}_{card_id_for_chara}_{cardRarityType} {card_name}{belong_event}'
+
         card_story_filename = util.valid_filename(
             f'{card_id:0{self.maxlen_id}}_{chara_name}{sub_unit_name}_{card_id_for_chara}_{cardRarityType} {card_name}{belong_event}'
         )
-
-        # card_story_filename = self.reader.lang + '-' + card_story_filename
 
         story_1_json, story_2_json = await asyncio.gather(
             util.fetch_url_json_simple(
@@ -654,14 +667,14 @@ class Card_story_getter(util.Base_getter):
                     assetbundleName=assetbundleName, scenarioId=story_1_scenarioId
                 ),
                 self,
-                card_story_filename + ' 上篇',
+                card_story_name + ' part1',
             ),
             util.fetch_url_json_simple(
                 self.card_asset_url.format(
                     assetbundleName=assetbundleName, scenarioId=story_2_scenarioId
                 ),
                 self,
-                card_story_filename + ' 下篇',
+                card_story_name + ' part2',
             ),
         )
 
@@ -675,15 +688,13 @@ class Card_story_getter(util.Base_getter):
                     'w',
                     encoding='utf8',
                 ) as f:
-                    await f.write(
-                        f'{chara_name}{sub_unit_name}_{card_id_for_chara} {card_name}{belong_event}\n\n\n'
-                    )
+                    await f.write(card_story_name + '\n\n')
                     await f.write(story_1_name + '\n\n')
                     await f.write(text_1 + '\n\n\n')
                     await f.write(story_2_name + '\n\n')
                     await f.write(text_2 + '\n')
 
-        print(f'get card {card_story_filename} done.')
+        print(f'get card {card_story_name} done.')
 
 
 class Area_talk_getter((util.Base_getter)):
@@ -1005,7 +1016,7 @@ class Self_intro_getter(util.Base_getter):
                     'w',
                     encoding='utf8',
                 ) as f:
-                    await f.write(f'自我介绍：{chara_unit_name.split('_')[1]}\n\n\n')
+                    await f.write(f'自我介绍：{chara_unit_name.split('_')[1]}\n\n')
                     await f.write('YEAR 1' + '\n\n')
                     await f.write(text_1 + '\n\n\n')
                     await f.write('YEAR 2' + '\n\n')
@@ -1068,9 +1079,11 @@ class Special_story_getter(util.Base_getter):
         if title is None:
             title = episodes[0]['title']
 
-        filename = f'sp{id:0{self.maxlen_sp}}_{title}'
-        filename = self.reader.lang + '-' + filename
-        filename = util.valid_filename(filename)
+        story_name = f'sp{id}_{title}'
+
+        filename = util.valid_filename(
+            self.reader.lang + '-' f'sp{id:0{self.maxlen_sp}}_{title}'
+        )
 
         episode_tasks = []
         for episode in episodes:
@@ -1105,7 +1118,7 @@ class Special_story_getter(util.Base_getter):
                     'w',
                     encoding='utf8',
                 ) as f:
-                    await f.write(f'SP{id} {title}\n\n\n')
+                    await f.write(story_name + '\n\n')
                     for episode, text in zip(episodes, texts):
                         if record_No:
                             await f.write(str(episode['episodeNo']) + ' ')

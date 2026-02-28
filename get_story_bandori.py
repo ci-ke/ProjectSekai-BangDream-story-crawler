@@ -71,14 +71,13 @@ class Story_reader(util.Base_fetcher):
         if isinstance(json_data, str):
             return json_data
 
-        ret = ''
-
         talks = json_data['Base']['talkData']
         specialEffects = json_data['Base']['specialEffectData']
 
         snippets = json_data['Base']['snippets']
         next_talk_need_newline = True
 
+        ret = ''
         index = -1
         for snippet in snippets:
             index += 1
@@ -147,7 +146,7 @@ class Story_reader(util.Base_fetcher):
                         snippet_name = snippet['actionType']
                     ret += f'SnippetAction: {snippet_name}, {index}\n'
 
-        return ret[:-1]
+        return ret.strip()
 
 
 class Event_story_getter(util.Base_getter):
@@ -417,9 +416,7 @@ class Main_story_getter(util.Base_getter):
 
             name = f"{main_story['scenarioId']} {main_story['caption'][Constant.lang_index[lang]]} {main_story['title'][Constant.lang_index[lang]]}"
 
-            name = lang + '-' + name
-
-            filename = util.valid_filename(name)
+            filename = util.valid_filename(lang + '-' + name)
 
             synopsis = main_story['synopsis'][Constant.lang_index[lang]].replace(
                 '\n', ' '
@@ -509,6 +506,8 @@ class Card_story_getter(util.Base_getter):
 
         resourceSetName: str = card['resourceSetName']
 
+        card_story_name = f'{card_id}_{chara_name}_R{cardRarityType} {card_name}'
+
         card_story_filename = util.valid_filename(
             f'{card_id:0{self.maxlen_id}}_{chara_name}_R{cardRarityType} {card_name}'
         )
@@ -579,7 +578,7 @@ class Card_story_getter(util.Base_getter):
                     encoding='utf8',
                 ) as f:
                     if card_has_story:
-                        await f.write(f'{chara_name} {card_name}\n\n\n')
+                        await f.write(card_story_name + '\n\n')
                         await f.write(f'《{story_1_name}》' + '\n\n')
                         await f.write(text_1 + '\n\n\n')
                         await f.write(f'《{story_2_name}》' + '\n\n')
