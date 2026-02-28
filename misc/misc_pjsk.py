@@ -1,4 +1,10 @@
+import sys, asyncio, pprint
 from typing import Any
+from pathlib import Path
+
+from aiohttp import ClientSession
+
+sys.path.insert(0, str(Path(__file__).parents[1]))
 
 import get_story_pjsk as pjsk
 
@@ -48,3 +54,17 @@ def get_event_type(actionSets: list[dict[str, Any]]) -> dict[int, str]:
                 else:
                     ret[event_id] = event_type
     return ret
+
+
+async def main():
+    reader = pjsk.Story_reader('jp', online=False)
+    area_getter = pjsk.Area_talk_getter(reader, online=False)
+
+    async with ClientSession(trust_env=True) as session:
+        await area_getter.init(session)
+
+    pprint.pprint(get_event_type(area_getter.actionSets_json))
+
+
+if __name__ == '__main__':
+    asyncio.run(main())
