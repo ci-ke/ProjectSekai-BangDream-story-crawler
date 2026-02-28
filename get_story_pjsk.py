@@ -468,12 +468,15 @@ class Unit_story_getter(util.Base_getter):
             util.fetch_url_json_simple(self.unitStories_url, self),
         )
 
+        self.unitStoryEpisodeGroups_lookup = util.DictLookup(
+            self.unitStoryEpisodeGroups_json, 'id'
+        )
+
     async def get(self, unit_id: int) -> None:
         for unitProfile in self.unitProfiles_json:
             if unitProfile['seq'] == unit_id:
                 unitName = unitProfile['unitName']
-                # unitCode = unitProfile['unit']
-                unit_outline = unitProfile['profileSentence']
+                unitCode = unitProfile['unit']
                 break
         else:
             print(f'unit {unit_id} does not exist.')
@@ -488,10 +491,9 @@ class Unit_story_getter(util.Base_getter):
             print(f'unit {unit_id} does not exist.')
             return
 
-        unit_filename = util.valid_filename(unitName)
-        save_folder_name = f'{unit_id} {unit_filename}'
-
-        save_folder_name = self.reader.lang + '-' + save_folder_name
+        save_folder_name = util.valid_filename(
+            self.reader.lang + '-' + f'{unit_id} {unitName}'
+        )
 
         unit_save_dir = os.path.join(self.save_dir, save_folder_name)
         if self.parse:
@@ -504,9 +506,9 @@ class Unit_story_getter(util.Base_getter):
                     episode,
                     assetbundleName,
                     unit_save_dir,
-                    unit_outline,
                     unit_id,
                     unitName,
+                    unitCode,
                 )
             )
         await asyncio.gather(*tasks)
@@ -516,12 +518,27 @@ class Unit_story_getter(util.Base_getter):
         episode: dict[str, Any],
         assetbundleName: str,
         unit_save_dir: str,
-        unit_outline: str,
         unit_id: int,
         unitName: str,
+        unitCode: str,
     ) -> None:
-        scenarioId = episode['scenarioId']
+        scenarioId: str = episode['scenarioId']
         episode_name = f"{scenarioId} {episode['title']}"
+
+        if unitCode != 'piapro' and episode['episodeNo'] == 1:
+            need_outline = True
+        elif unitCode == 'piapro' and int(scenarioId.split('_')[-1]) == 1:
+            need_outline = True
+        else:
+            need_outline = False
+
+        if need_outline:
+            unitStoryEpisodeGroupId = episode['unitStoryEpisodeGroupId']
+            unit_outline = self.unitStoryEpisodeGroups_json[
+                self.unitStoryEpisodeGroups_lookup.find_index(unitStoryEpisodeGroupId)
+            ]['outline'].replace('\n', ' ')
+        else:
+            unit_outline = None
 
         episode_save_name = util.valid_filename(episode_name)
 
@@ -541,7 +558,7 @@ class Unit_story_getter(util.Base_getter):
                     'w',
                     encoding='utf8',
                 ) as f:
-                    if episode['episodeNo'] == 1:
+                    if unit_outline is not None:
                         await f.write(unit_outline + '\n\n')
                     await f.write(episode_name + '\n\n')
                     await f.write(text + '\n')
@@ -633,10 +650,9 @@ class Card_story_getter(util.Base_getter):
         story_1_scenarioId = cardEpisode_1['scenarioId']
         story_2_scenarioId = cardEpisode_2['scenarioId']
 
-        chara_unit_and_name = self.reader.lang + '-' + chara_unit_and_name
-
         card_save_dir = os.path.join(
-            self.save_dir, util.valid_filename(chara_unit_and_name)
+            self.save_dir,
+            util.valid_filename(self.reader.lang + '-' + chara_unit_and_name),
         )
 
         if self.parse:
@@ -833,9 +849,7 @@ class Area_talk_getter((util.Base_getter)):
             else:
                 filename = f'talk_{target}'
 
-            filename = self.reader.lang + '-' + filename
-
-            filename = util.valid_filename(filename)
+            filename = util.valid_filename(self.reader.lang + '-' + filename)
 
             async with self.file_semaphore:
                 async with aiofiles.open(
@@ -986,9 +1000,8 @@ class Self_intro_getter(util.Base_getter):
             return
 
         chara_unit_name = '_'.join(self.reader.get_chara_unitAbbr_name(chara_id))
-        filename = self.reader.lang + '-' + chara_unit_name
 
-        filename = util.valid_filename(filename)
+        filename = util.valid_filename(self.reader.lang + '-' + chara_unit_name)
 
         profile = self.characterProfiles_json[profile_index]
         scenarioId: str = profile['scenarioId']
