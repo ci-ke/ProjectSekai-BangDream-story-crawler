@@ -62,17 +62,40 @@ class Story_reader(util.Base_fetcher):
     def get_chara_bandAbbr_and_name(self, chara_id: int, lang: str) -> tuple[str, str]:
         name = self.characters_json[str(chara_id)]['characterName'][
             Constant.lang_index[lang]
-        ]
+        ].replace(' ', '')
         band_id = self.characters_json[str(chara_id)]['bandId']
         band_abbr = Constant.band_id_abbr[band_id]
         return band_abbr, name
 
-    def read_story_in_json(self, json_data: str | dict[str, dict[str, Any]]) -> str:
+    def read_story_in_json(
+        self, json_data: str | dict[str, dict[str, Any]], lang: str
+    ) -> str:
         if isinstance(json_data, str):
             return json_data
 
         talks = json_data['Base']['talkData']
         specialEffects = json_data['Base']['specialEffectData']
+
+        appearCharacters = json_data['Base']['appearCharacters']
+        chara_id = set()
+        for chara in appearCharacters:
+            if str(chara['characterId']) in self.characters_json:
+                chara_id.add(chara['characterId'])
+        chara_id_list = sorted(chara_id)
+
+        if len(chara_id_list) > 0:
+            ret0 = (
+                '（登场角色：'
+                + '、'.join(
+                    [
+                        self.get_chara_bandAbbr_and_name(id, lang)[1]
+                        for id in chara_id_list
+                    ]
+                )
+                + '）\n'
+            )
+        else:
+            ret0 = ''
 
         snippets = json_data['Base']['snippets']
         next_talk_need_newline = True
@@ -146,7 +169,7 @@ class Story_reader(util.Base_fetcher):
                         snippet_name = snippet['actionType']
                     ret += f'SnippetAction: {snippet_name}, {index}\n'
 
-        return ret.strip()
+        return (ret0 + '\n' + ret.strip()).strip()
 
 
 class Event_story_getter(util.Base_getter):
@@ -240,7 +263,7 @@ class Event_story_getter(util.Base_getter):
             )
 
             if self.parse:
-                text = self.reader.read_story_in_json(story_json)
+                text = self.reader.read_story_in_json(story_json, lang)
             else:
                 text = ''
         elif event_id in Event_story_getter.event_is_main:
@@ -358,7 +381,7 @@ class Band_story_getter(util.Base_getter):
         )
 
         if self.parse:
-            text = self.reader.read_story_in_json(story_json)
+            text = self.reader.read_story_in_json(story_json, lang)
 
             async with self.file_semaphore:
                 async with aiofiles.open(
@@ -434,7 +457,7 @@ class Main_story_getter(util.Base_getter):
         )
 
         if self.parse:
-            text = self.reader.read_story_in_json(story_json)
+            text = self.reader.read_story_in_json(story_json, lang)
 
             async with self.file_semaphore:
                 async with aiofiles.open(
@@ -560,8 +583,8 @@ class Card_story_getter(util.Base_getter):
             )
 
             if self.parse:
-                text_1 = self.reader.read_story_in_json(story_1_json)
-                text_2 = self.reader.read_story_in_json(story_2_json)
+                text_1 = self.reader.read_story_in_json(story_1_json, lang)
+                text_2 = self.reader.read_story_in_json(story_2_json, lang)
             else:
                 text_1 = ''
                 text_2 = ''
