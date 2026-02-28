@@ -389,6 +389,7 @@ class Event_story_getter(util.Base_getter):
             if gameCharacterId != -1:
                 chara_name = self.reader.get_chara_unitAbbr_name(gameCharacterId)[1]
                 episode_name += f" ({chara_name})"
+                episode_save_name += util.valid_filename(f" ({chara_name})")
 
         scenarioId = episode['scenarioId']
 
