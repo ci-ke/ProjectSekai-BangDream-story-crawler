@@ -164,12 +164,14 @@ class Event_story_getter(util.Base_getter):
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
+        maxlen_eventId: int = 3,
     ) -> None:
         super().__init__(
             save_dir, assets_save_dir, online, save_assets, parse, missing_download
         )
 
         self.reader = reader
+        self.maxlen_eventId = maxlen_eventId
 
         self.events_id_url = URLS['bestdori.com']['events_id']
         self.event_asset_url = URLS['bestdori.com']['event_asset']
@@ -187,7 +189,7 @@ class Event_story_getter(util.Base_getter):
 
         event_filename = util.valid_filename(event_name)
 
-        save_folder_name = f'{event_id} {event_filename}'
+        save_folder_name = f'{event_id:0{self.maxlen_eventId}} {event_filename}'
 
         save_folder_name = lang + '-' + save_folder_name
 
@@ -458,12 +460,14 @@ class Card_story_getter(util.Base_getter):
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
+        maxlen_id: int = 4,
     ) -> None:
         super().__init__(
             save_dir, assets_save_dir, online, save_assets, parse, missing_download
         )
 
         self.reader = reader
+        self.maxlen_id = maxlen_id
 
         self.cards_all_0_url = URLS['bestdori.com']['cards_all_0']
         self.cards_id_url = URLS['bestdori.com']['cards_id']
@@ -506,7 +510,7 @@ class Card_story_getter(util.Base_getter):
         resourceSetName: str = card['resourceSetName']
 
         card_story_filename = util.valid_filename(
-            f'{card_id}_{chara_name}_R{cardRarityType} {card_name}'
+            f'{card_id:0{self.maxlen_id}}_{chara_name}_R{cardRarityType} {card_name}'
         )
 
         if 'episodes' not in card:

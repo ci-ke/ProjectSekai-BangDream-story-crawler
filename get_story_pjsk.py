@@ -258,6 +258,7 @@ class Event_story_getter(util.Base_getter):
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
+        maxlen_eventId_episode: tuple[int, int] = (3, 2),
     ) -> None:
         '''
         src: sekai.best or pjsk.moe
@@ -268,6 +269,8 @@ class Event_story_getter(util.Base_getter):
         )
 
         self.reader = reader
+
+        self.maxlen_eventId_episode = maxlen_eventId_episode
 
         self.events_url = Constant.get_src_url(
             self.reader.lang, src, 'master', 'events'
@@ -343,7 +346,7 @@ class Event_story_getter(util.Base_getter):
             banner_name = f'{unit_abbr}_{banner_chara_name}'
 
         save_folder_name = util.valid_filename(
-            f'{event_id} {event_name} ({banner_name})'
+            f'{event_id:0{self.maxlen_eventId_episode[0]}} {event_name} ({banner_name})'
         )
 
         save_folder_name = self.reader.lang + '-' + save_folder_name
@@ -377,9 +380,7 @@ class Event_story_getter(util.Base_getter):
         event_id: int,
         event_name: str,
     ) -> None:
-        episode_name = (
-            f"{episode['eventStoryId']}-{episode['episodeNo']} {episode['title']}"
-        )
+        episode_name = f"{episode['eventStoryId']:0{self.maxlen_eventId_episode[0]}}-{episode['episodeNo']:0{self.maxlen_eventId_episode[1]}} {episode['title']}"
         if event_type == 'world_bloom':
             gameCharacterId = episode.get('gameCharacterId', -1)
             if gameCharacterId != -1:
@@ -546,6 +547,7 @@ class Card_story_getter(util.Base_getter):
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
+        maxlen_id: int = 4,
     ) -> None:
 
         super().__init__(
@@ -553,6 +555,7 @@ class Card_story_getter(util.Base_getter):
         )
 
         self.reader = reader
+        self.maxlen_id = maxlen_id
 
         self.cards_url = Constant.get_src_url(self.reader.lang, src, 'master', 'cards')
         self.cardEpisodes_url = Constant.get_src_url(
@@ -640,7 +643,7 @@ class Card_story_getter(util.Base_getter):
             )
 
         card_story_filename = util.valid_filename(
-            f'{card_id}_{chara_name}{sub_unit_name}_{card_id_for_chara}_{cardRarityType} {card_name}{belong_event}'
+            f'{card_id:0{self.maxlen_id}}_{chara_name}{sub_unit_name}_{card_id_for_chara}_{cardRarityType} {card_name}{belong_event}'
         )
 
         # card_story_filename = self.reader.lang + '-' + card_story_filename
@@ -694,6 +697,7 @@ class Area_talk_getter((util.Base_getter)):
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
+        maxlen_eventId_areaID: tuple[int, int] = (3, 2),
     ) -> None:
 
         super().__init__(
@@ -701,6 +705,7 @@ class Area_talk_getter((util.Base_getter)):
         )
 
         self.reader = reader
+        self.maxlen_eventId_areaID = maxlen_eventId_areaID
 
         self.areas_url = Constant.get_src_url(self.reader.lang, src, 'master', 'areas')
         self.actionSets_url = Constant.get_src_url(
@@ -811,7 +816,9 @@ class Area_talk_getter((util.Base_getter)):
             ]
 
             if isinstance(target, int):  # event id
-                filename = f'talk_event_{target}'
+                filename = f'talk_event_{target:0{self.maxlen_eventId_areaID[0]}}'
+            elif target.startswith('limited_'):
+                filename = f'talk_{target.split('_')[0]}_{target.split('_')[1]:0{self.maxlen_eventId_areaID[1]}}'
             else:
                 filename = f'talk_{target}'
 
@@ -1018,12 +1025,14 @@ class Special_story_getter(util.Base_getter):
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
+        maxlen_sp: int = 3,
     ):
         super().__init__(
             save_dir, assets_save_dir, online, save_assets, parse, missing_download
         )
 
         self.reader = reader
+        self.maxlen_sp = maxlen_sp
 
         self.specialStories_url = Constant.get_src_url(
             self.reader.lang, src, 'master', 'specialStories'
@@ -1059,7 +1068,7 @@ class Special_story_getter(util.Base_getter):
         if title is None:
             title = episodes[0]['title']
 
-        filename = f'sp{id}_{title}'
+        filename = f'sp{id:0{self.maxlen_sp}}_{title}'
         filename = self.reader.lang + '-' + filename
         filename = util.valid_filename(filename)
 
