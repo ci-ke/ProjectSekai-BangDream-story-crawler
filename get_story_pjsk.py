@@ -644,6 +644,7 @@ class Card_story_getter(util.Base_getter):
         chara_name = self.reader.get_chara_unitAbbr_name(card['characterId'])[1]
         cardRarityType = Constant.rarity_name[card['cardRarityType']]
         card_name = card['prefix']
+        card_gachaPhrase = card['gachaPhrase'].replace('\n',' ')
         sub_unit = card['supportUnit']
         assetbundleName: str = card['assetbundleName']
 
@@ -707,6 +708,8 @@ class Card_story_getter(util.Base_getter):
                     encoding='utf8',
                 ) as f:
                     await f.write(card_story_name + '\n\n')
+                    if card_gachaPhrase != '-':
+                        await f.write('抽卡台词：' + card_gachaPhrase + '\n\n')
                     await f.write(story_1_name + '\n\n')
                     await f.write(text_1 + '\n\n\n')
                     await f.write(story_2_name + '\n\n')
@@ -787,7 +790,7 @@ class Area_talk_getter((util.Base_getter)):
         ):
             return 'grade2'
         elif ('scenarioId' in action) and (
-            action["releaseConditionId"] >= 2000000
+            2000000 <= action["releaseConditionId"] <= 2000036
         ):  # cn and jp have diff
             return 'theater'
         elif (
