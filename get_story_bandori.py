@@ -537,58 +537,55 @@ class Card_story_getter(util.Base_getter):
         )
 
         if 'episodes' not in card:
-            card_has_story = False
-            text_1 = ''
-            text_2 = ''
-        else:
-            card_has_story = True
+            print(f'card {card_id} does not have story.')
+            return
 
-            story_1_name = card['episodes']['entries'][0]['title'][
-                Constant.lang_index[lang]
-            ]
-            story_2_name = card['episodes']['entries'][1]['title'][
-                Constant.lang_index[lang]
-            ]
+        story_1_name = card['episodes']['entries'][0]['title'][
+            Constant.lang_index[lang]
+        ]
+        story_2_name = card['episodes']['entries'][1]['title'][
+            Constant.lang_index[lang]
+        ]
 
-            story_1_type = card['episodes']['entries'][0]['episodeType']
-            story_2_type = card['episodes']['entries'][1]['episodeType']
+        story_1_type = card['episodes']['entries'][0]['episodeType']
+        story_2_type = card['episodes']['entries'][1]['episodeType']
 
-            if story_1_type != 'animation':
-                scenarioId_1 = card['episodes']['entries'][0]['scenarioId']
-                story_1_json_task = util.fetch_url_json_simple(
-                    self.card_asset_url.format(
-                        lang=lang, res_id=resourceSetName, scenarioId=scenarioId_1
-                    ),
-                    self,
-                    card_story_filename,
-                )
-            else:
-
-                async def noop() -> str:
-                    return '动画故事'
-
-                story_1_json_task = noop()
-
-            scenarioId_2 = card['episodes']['entries'][1]['scenarioId']
-
-            story_2_json_task = util.fetch_url_json_simple(
+        if story_1_type != 'animation':
+            scenarioId_1 = card['episodes']['entries'][0]['scenarioId']
+            story_1_json_task = util.fetch_url_json_simple(
                 self.card_asset_url.format(
-                    lang=lang, res_id=resourceSetName, scenarioId=scenarioId_2
+                    lang=lang, res_id=resourceSetName, scenarioId=scenarioId_1
                 ),
                 self,
                 card_story_filename,
             )
+        else:
 
-            story_1_json, story_2_json = await asyncio.gather(
-                story_1_json_task, story_2_json_task
-            )
+            async def noop() -> str:
+                return '动画故事'
 
-            if self.parse:
-                text_1 = self.reader.read_story_in_json(story_1_json, lang)
-                text_2 = self.reader.read_story_in_json(story_2_json, lang)
-            else:
-                text_1 = ''
-                text_2 = ''
+            story_1_json_task = noop()
+
+        scenarioId_2 = card['episodes']['entries'][1]['scenarioId']
+
+        story_2_json_task = util.fetch_url_json_simple(
+            self.card_asset_url.format(
+                lang=lang, res_id=resourceSetName, scenarioId=scenarioId_2
+            ),
+            self,
+            card_story_filename,
+        )
+
+        story_1_json, story_2_json = await asyncio.gather(
+            story_1_json_task, story_2_json_task
+        )
+
+        if self.parse:
+            text_1 = self.reader.read_story_in_json(story_1_json, lang)
+            text_2 = self.reader.read_story_in_json(story_2_json, lang)
+        else:
+            text_1 = ''
+            text_2 = ''
 
         if self.parse:
             card_save_dir = os.path.join(self.save_dir, chara_band_and_name)
@@ -601,20 +598,15 @@ class Card_story_getter(util.Base_getter):
                     'w',
                     encoding='utf8',
                 ) as f:
-                    if card_has_story:
-                        await f.write(card_story_name + '\n\n')
-                        if card_gachaText:
-                            await f.write(
-                                '抽卡台词：'
-                                + card_gachaText.replace('\n', ' ')
-                                + '\n\n'
-                            )
-                        await f.write(f'《{story_1_name}》' + '\n\n')
-                        await f.write(text_1 + '\n\n\n')
-                        await f.write(f'《{story_2_name}》' + '\n\n')
-                        await f.write(text_2 + '\n')
-                    else:
-                        await f.write('本卡面没有剧情\n')
+                    await f.write(card_story_name + '\n\n')
+                    if card_gachaText:
+                        await f.write(
+                            '抽卡台词：' + card_gachaText.replace('\n', ' ') + '\n\n'
+                        )
+                    await f.write(f'《{story_1_name}》' + '\n\n')
+                    await f.write(text_1 + '\n\n\n')
+                    await f.write(f'《{story_2_name}》' + '\n\n')
+                    await f.write(text_2 + '\n')
 
         print(f'get card {card_story_filename} done.')
 
