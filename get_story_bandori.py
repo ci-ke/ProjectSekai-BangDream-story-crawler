@@ -155,7 +155,7 @@ class Story_reader(util.Base_fetcher):
                 if next_talk_need_newline:
                     ret += '\n'
                 ret += (
-                    talk['windowDisplayName']
+                    talk['windowDisplayName'].replace('\n', ' ')
                     + '：'
                     + talk['body'].replace('\n', ' ')
                     + '\n'
@@ -522,7 +522,9 @@ class Card_story_getter(util.Base_getter):
         chara_band_and_name = lang + '-' + '_'.join((chara_bandAbbr, chara_name))
         cardRarityType = card['rarity']
         card_name = card['prefix'][Constant.lang_index[lang]]
-        card_gachaText = card['gachaText'][Constant.lang_index[lang]]
+        card_gachaText: str | None = card['gachaText'][Constant.lang_index[lang]]
+        if card_gachaText:
+            card_gachaText = card_gachaText.replace('\n', ' ')
 
         if card_name is None:
             print(f'card {card_id} has no {lang.upper()}.')
@@ -600,9 +602,7 @@ class Card_story_getter(util.Base_getter):
                 ) as f:
                     await f.write(card_story_name + '\n\n')
                     if card_gachaText:
-                        await f.write(
-                            '抽卡台词：' + card_gachaText.replace('\n', ' ') + '\n\n'
-                        )
+                        await f.write('抽卡台词：' + card_gachaText + '\n\n')
                     await f.write(f'《{story_1_name}》' + '\n\n')
                     await f.write(text_1 + '\n\n\n')
                     await f.write(f'《{story_2_name}》' + '\n\n')

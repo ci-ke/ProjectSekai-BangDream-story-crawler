@@ -66,11 +66,15 @@ class Story_reader(util.Base_fetcher):
         save_assets: bool = True,
         missing_download: bool = True,
         debug_parse: bool = False,
+        cg_add_link: bool = True,
     ) -> None:
         super().__init__(assets_save_dir, online, save_assets, missing_download)
 
         self.lang = lang
         self.debug_parse = debug_parse
+        self.cg_add_link = cg_add_link
+
+        self.cg_link = 'https://storage.sekai.best/sekai-jp-assets/scenario/background/{pic_name}/{pic_name}.webp'
 
         self.gameCharacters_url = Constant.get_src_url(
             lang, src, 'master', 'gameCharacters'
@@ -187,7 +191,10 @@ class Story_reader(util.Base_fetcher):
                         ret += '\n'
                     pic_name = specialEffect['StringVal']
                     if Constant.is_cg(pic_name):
-                        ret += f'（插入CG）：{pic_name}\n'
+                        if not self.cg_add_link:
+                            ret += f'（插入CG）：{pic_name}\n'
+                        else:
+                            ret += f'（插入CG）：{self.cg_link.format(pic_name=pic_name)}\n'
                     else:
                         ret += (
                             '（背景切换）'
@@ -227,7 +234,7 @@ class Story_reader(util.Base_fetcher):
                 if next_talk_need_newline:
                     ret += '\n'
                 ret += (
-                    talk['WindowDisplayName']
+                    talk['WindowDisplayName'].replace('\n', ' ')
                     + '：'
                     + talk['Body'].replace('\n', ' ')
                     + '\n'
@@ -644,7 +651,7 @@ class Card_story_getter(util.Base_getter):
         chara_name = self.reader.get_chara_unitAbbr_name(card['characterId'])[1]
         cardRarityType = Constant.rarity_name[card['cardRarityType']]
         card_name = card['prefix']
-        card_gachaPhrase = card['gachaPhrase'].replace('\n',' ')
+        card_gachaPhrase = card['gachaPhrase'].replace('\n', ' ')
         sub_unit = card['supportUnit']
         assetbundleName: str = card['assetbundleName']
 
