@@ -736,9 +736,19 @@ class Card_story_getter(util.Base_getter):
                             + card_gachaPhrase
                             + '\n\n'
                         )
-                    await f.write(story_1_name + '\n\n')
+                    await f.write(
+                        Mark_multi_lang['<'][self.reader.mark_lang]
+                        + story_1_name
+                        + Mark_multi_lang['>'][self.reader.mark_lang]
+                        + '\n\n'
+                    )
                     await f.write(text_1 + '\n\n\n')
-                    await f.write(story_2_name + '\n\n')
+                    await f.write(
+                        Mark_multi_lang['<'][self.reader.mark_lang]
+                        + story_2_name
+                        + Mark_multi_lang['>'][self.reader.mark_lang]
+                        + '\n\n'
+                    )
                     await f.write(text_2 + '\n')
 
         print(f'get card {card_story_name} done.')
@@ -1067,9 +1077,19 @@ class Self_intro_getter(util.Base_getter):
                     await f.write(
                         f"{Mark_multi_lang['self intro'][self.reader.mark_lang]}{chara_unit_name.split('_')[1]}\n\n"
                     )
-                    await f.write('YEAR 1' + '\n\n')
+                    await f.write(
+                        Mark_multi_lang['<'][self.reader.mark_lang]
+                        + 'YEAR 1'
+                        + Mark_multi_lang['>'][self.reader.mark_lang]
+                        + '\n\n'
+                    )
                     await f.write(text_1 + '\n\n\n')
-                    await f.write('YEAR 2' + '\n\n')
+                    await f.write(
+                        Mark_multi_lang['<'][self.reader.mark_lang]
+                        + 'YEAR 2'
+                        + Mark_multi_lang['>'][self.reader.mark_lang]
+                        + '\n\n'
+                    )
                     await f.write(text_2 + '\n')
 
         print(f'get self intro {filename} done.')
@@ -1172,7 +1192,12 @@ class Special_story_getter(util.Base_getter):
                     for episode, text in zip(episodes, texts):
                         if record_No:
                             await f.write(str(episode['episodeNo']) + ' ')
-                        await f.write(episode['title'] + '\n\n')
+                        await f.write(
+                            Mark_multi_lang['<'][self.reader.mark_lang]
+                            + episode['title']
+                            + Mark_multi_lang['>'][self.reader.mark_lang]
+                            + '\n\n'
+                        )
                         await f.write(text + '\n\n\n')
 
         print(f'get special {filename} done.')
