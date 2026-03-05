@@ -8,6 +8,7 @@ import aiofiles  # type: ignore
 from aiohttp import ClientSession, TCPConnector  # type: ignore
 
 import get_story_util as util
+from get_story_util import Mark_multi_lang
 
 URLS: dict[str, dict[str, str]] = json.load(open('urls_bandori.json', encoding='utf8'))
 
@@ -68,7 +69,10 @@ class Story_reader(util.Base_fetcher):
         return band_abbr, name
 
     def read_story_in_json(
-        self, json_data: str | dict[str, dict[str, Any]], lang: str
+        self,
+        json_data: str | dict[str, dict[str, Any]],
+        lang: str,
+        mark_lang: str,
     ) -> str:
         if isinstance(json_data, str):
             return json_data
@@ -85,14 +89,14 @@ class Story_reader(util.Base_fetcher):
 
         if len(chara_id_list) > 0:
             ret0 = (
-                '（登场角色：'
-                + '、'.join(
+                Mark_multi_lang['characters'][mark_lang]
+                + Mark_multi_lang[','][mark_lang].join(
                     [
                         self.get_chara_bandAbbr_and_name(id, lang)[1]
                         for id in chara_id_list
                     ]
                 )
-                + '）\n'
+                + Mark_multi_lang[')'][mark_lang]
             )
         else:
             ret0 = ''
@@ -107,7 +111,13 @@ class Story_reader(util.Base_fetcher):
             if snippet['actionType'] == util.SnippetAction.SpecialEffect:
                 specialEffect = specialEffects[snippet['referenceIndex']]
                 if specialEffect['effectType'] == util.SpecialEffectType.Telop:
-                    ret += '\n【' + specialEffect['stringVal'] + '】\n'
+                    ret += (
+                        '\n'
+                        + Mark_multi_lang['['][mark_lang]
+                        + specialEffect['stringVal']
+                        + Mark_multi_lang[']'][mark_lang]
+                        + '\n'
+                    )
                     next_talk_need_newline = True
                 elif (
                     specialEffect['effectType']
@@ -116,9 +126,9 @@ class Story_reader(util.Base_fetcher):
                     if next_talk_need_newline:
                         ret += '\n'
                     ret += (
-                        '（背景切换）'
+                        Mark_multi_lang['background'][mark_lang]
                         + (
-                            f"：{specialEffect['stringVal']}, {specialEffect['stringValSub']}"
+                            f": {specialEffect['stringVal']}, {specialEffect['stringValSub']}"
                             if self.debug_parse
                             else ''
                         )
@@ -126,20 +136,20 @@ class Story_reader(util.Base_fetcher):
                     )
                     next_talk_need_newline = False
                 elif specialEffect['effectType'] == util.SpecialEffectType.FlashbackIn:
-                    ret += '\n（回忆切入 ↓）\n'
+                    ret += '\n' + Mark_multi_lang['memory in'][mark_lang] + '\n'
                     next_talk_need_newline = True
                 elif specialEffect['effectType'] == util.SpecialEffectType.FlashbackOut:
-                    ret += '\n（回忆切出 ↑）\n'
+                    ret += '\n' + Mark_multi_lang['memory out'][mark_lang] + '\n'
                     next_talk_need_newline = True
                 elif specialEffect['effectType'] == util.SpecialEffectType.BlackOut:
                     if next_talk_need_newline:
                         ret += '\n'
-                    ret += '（黑屏转场）\n'
+                    ret += Mark_multi_lang['black out'][mark_lang] + '\n'
                     next_talk_need_newline = False
                 elif specialEffect['effectType'] == util.SpecialEffectType.WhiteOut:
                     if next_talk_need_newline:
                         ret += '\n'
-                    ret += '（白屏转场）\n'
+                    ret += Mark_multi_lang['white out'][mark_lang] + '\n'
                     next_talk_need_newline = False
                 else:
                     if self.debug_parse:
@@ -156,7 +166,7 @@ class Story_reader(util.Base_fetcher):
                     ret += '\n'
                 ret += (
                     talk['windowDisplayName'].replace('\n', ' ')
-                    + '：'
+                    + Mark_multi_lang[':'][mark_lang]
                     + talk['body'].replace('\n', ' ')
                     + '\n'
                 )
@@ -169,7 +179,7 @@ class Story_reader(util.Base_fetcher):
                         snippet_name = snippet['actionType']
                     ret += f'SnippetAction: {snippet_name}, {index}\n'
 
-        return (ret0 + '\n' + ret.strip()).strip()
+        return (ret0 + '\n\n' + ret.strip()).strip()
 
 
 class Event_story_getter(util.Base_getter):
@@ -198,7 +208,7 @@ class Event_story_getter(util.Base_getter):
         self.events_id_url = URLS['bestdori.com']['events_id']
         self.event_asset_url = URLS['bestdori.com']['event_asset']
 
-    async def get(self, event_id: int, lang: str = 'cn') -> None:
+    async def get(self, event_id: int, lang: str = 'cn', mark_lang: str = 'cn') -> None:
 
         info_json: dict[str, Any] = await util.fetch_url_json_simple(
             self.events_id_url.format(event_id=event_id), self
@@ -223,15 +233,24 @@ class Event_story_getter(util.Base_getter):
             if event_id in Event_story_getter.event_no_story:
                 async with self.file_semaphore:
                     async with aiofiles.open(
-                        os.path.join(event_save_dir, '无剧情.txt'), 'w', encoding='utf8'
+                        os.path.join(
+                            event_save_dir,
+                            f"{Mark_multi_lang['no story'][mark_lang]}.txt",
+                        ),
+                        'w',
+                        encoding='utf8',
                     ) as f:
-                        await f.write('本活动没有活动剧情\n')
+                        await f.write(
+                            Mark_multi_lang['event no story'][mark_lang] + '\n'
+                        )
                     return
 
         tasks = []
         for story in info_json['stories']:
             tasks.append(
-                self.__get_story(story, lang, event_id, event_save_dir, event_name)
+                self.__get_story(
+                    story, lang, event_id, event_save_dir, event_name, mark_lang
+                )
             )
         await asyncio.gather(*tasks)
 
@@ -242,6 +261,7 @@ class Event_story_getter(util.Base_getter):
         event_id: int,
         event_save_dir: str,
         event_name: str,
+        mark_lang: str,
     ):
         name = f"{story['scenarioId']} {story['caption'][Constant.lang_index[lang]]} {story['title'][Constant.lang_index[lang]]}"
 
@@ -263,13 +283,13 @@ class Event_story_getter(util.Base_getter):
             )
 
             if self.parse:
-                text = self.reader.read_story_in_json(story_json, lang)
+                text = self.reader.read_story_in_json(story_json, lang, mark_lang)
             else:
                 text = ''
         elif event_id in Event_story_getter.event_is_main:
-            text = '见主线故事'
+            text = Mark_multi_lang['see main story'][mark_lang]
         else:
-            text = '见乐队故事'
+            text = Mark_multi_lang['see band story'][mark_lang]
 
         if self.parse:
             async with self.file_semaphore:
@@ -310,6 +330,7 @@ class Band_story_getter(util.Base_getter):
         want_band_id: int | None = None,
         want_chapter_number: int | None = None,
         lang: str = 'cn',
+        mark_lang: str = 'cn',
     ) -> None:
         if want_band_id is not None:
             assert str(want_band_id) in self.reader.bands_json
@@ -354,7 +375,13 @@ class Band_story_getter(util.Base_getter):
             for story in band_story['stories'].values():
                 tasks.append(
                     self.__get_story(
-                        story, lang, band_id, band_save_dir, band_name, band_story
+                        story,
+                        lang,
+                        band_id,
+                        band_save_dir,
+                        band_name,
+                        band_story,
+                        mark_lang,
                     )
                 )
         await asyncio.gather(*tasks)
@@ -367,6 +394,7 @@ class Band_story_getter(util.Base_getter):
         band_save_dir: str,
         band_name: str,
         band_story: dict[str, Any],
+        mark_lang: str,
     ):
         name = f"{story['scenarioId']} {story['caption'][Constant.lang_index[lang]]} {story['title'][Constant.lang_index[lang]]}"
         synopsis = story['synopsis'][Constant.lang_index[lang]].replace('\n', ' ')
@@ -381,7 +409,7 @@ class Band_story_getter(util.Base_getter):
         )
 
         if self.parse:
-            text = self.reader.read_story_in_json(story_json, lang)
+            text = self.reader.read_story_in_json(story_json, lang, mark_lang)
 
             async with self.file_semaphore:
                 async with aiofiles.open(
@@ -418,7 +446,9 @@ class Main_story_getter(util.Base_getter):
         self.mainstories_5_url = URLS['bestdori.com']['mainstories_5']
         self.main_asset_url = URLS['bestdori.com']['main_asset']
 
-    async def get(self, id_range: list[int] | None = None, lang: str = 'cn') -> None:
+    async def get(
+        self, id_range: list[int] | None = None, lang: str = 'cn', mark_lang: str = 'cn'
+    ) -> None:
         info_json: dict[str, dict[str, Any]] = await util.fetch_url_json_simple(
             self.mainstories_5_url, self
         )
@@ -446,18 +476,26 @@ class Main_story_getter(util.Base_getter):
             )
             id = main_story['scenarioId']
 
-            tasks.append(self.__get_story(lang, id, filename, name, synopsis))
+            tasks.append(
+                self.__get_story(lang, id, filename, name, synopsis, mark_lang)
+            )
         await asyncio.gather(*tasks)
 
     async def __get_story(
-        self, lang: str, id: str, filename: str, name: str, synopsis: str
+        self,
+        lang: str,
+        id: str,
+        filename: str,
+        name: str,
+        synopsis: str,
+        mark_lang: str,
     ) -> None:
         story_json: dict[str, dict[str, Any]] = await util.fetch_url_json_simple(
             self.main_asset_url.format(lang=lang, id=id), self, filename
         )
 
         if self.parse:
-            text = self.reader.read_story_in_json(story_json, lang)
+            text = self.reader.read_story_in_json(story_json, lang, mark_lang)
 
             async with self.file_semaphore:
                 async with aiofiles.open(
@@ -507,7 +545,7 @@ class Card_story_getter(util.Base_getter):
 
         self.cards_ids: list[int] = [int(id) for id in all_cards_list.keys()]
 
-    async def get(self, card_id: int, lang: str = 'cn') -> None:
+    async def get(self, card_id: int, lang: str = 'cn', mark_lang: str = 'cn') -> None:
         if card_id not in self.cards_ids:
             print(f'card {card_id} does not exist.')
             return
@@ -564,7 +602,7 @@ class Card_story_getter(util.Base_getter):
         else:
 
             async def noop() -> str:
-                return '动画故事'
+                return Mark_multi_lang['anime story'][mark_lang]
 
             story_1_json_task = noop()
 
@@ -583,8 +621,8 @@ class Card_story_getter(util.Base_getter):
         )
 
         if self.parse:
-            text_1 = self.reader.read_story_in_json(story_1_json, lang)
-            text_2 = self.reader.read_story_in_json(story_2_json, lang)
+            text_1 = self.reader.read_story_in_json(story_1_json, lang, mark_lang)
+            text_2 = self.reader.read_story_in_json(story_2_json, lang, mark_lang)
         else:
             text_1 = ''
             text_2 = ''
@@ -602,10 +640,24 @@ class Card_story_getter(util.Base_getter):
                 ) as f:
                     await f.write(card_story_name + '\n\n')
                     if card_gachaText:
-                        await f.write('抽卡台词：' + card_gachaText + '\n\n')
-                    await f.write(f'《{story_1_name}》' + '\n\n')
+                        await f.write(
+                            Mark_multi_lang['gacha phrase'][mark_lang]
+                            + card_gachaText
+                            + '\n\n'
+                        )
+                    await f.write(
+                        Mark_multi_lang['<'][mark_lang]
+                        + story_1_name
+                        + Mark_multi_lang['>'][mark_lang]
+                        + '\n\n'
+                    )
                     await f.write(text_1 + '\n\n\n')
-                    await f.write(f'《{story_2_name}》' + '\n\n')
+                    await f.write(
+                        Mark_multi_lang['<'][mark_lang]
+                        + story_2_name
+                        + Mark_multi_lang['>'][mark_lang]
+                        + '\n\n'
+                    )
                     await f.write(text_2 + '\n')
 
         print(f'get card {card_story_filename} done.')

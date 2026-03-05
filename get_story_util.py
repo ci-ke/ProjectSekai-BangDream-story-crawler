@@ -68,6 +68,36 @@ class SpecialEffectType(int, Enum):
     Blur = 44
 
 
+Mark_multi_lang = {
+    ':': {'cn': '：', 'en': ': '},
+    ')': {'cn': '）', 'en': ')'},
+    ',': {'cn': '、', 'en': ', '},
+    '[': {'cn': '【', 'en': '['},
+    ']': {'cn': '】', 'en': ']'},
+    '<': {'cn': '《', 'en': '<'},
+    '>': {'cn': '》', 'en': '>'},
+    'characters': {'cn': '（登场角色：', 'en': '(Characters: '},
+    'place': {'cn': '（地点）：', 'en': '(Place): '},
+    'fullscreen text': {'cn': '（全屏幕文字）：', 'en': 'Fullscreen text: '},
+    'selection': {'cn': '（选项）：', 'en': '(Selection): '},
+    'video': {'cn': '（播放视频）：', 'en': '(Video): '},
+    'mv': {'cn': '（播放MV）：', 'en': '(Music video): '},
+    'cg': {'cn': '（插入CG）：', 'en': '(CG insert): '},
+    'background': {'cn': '（背景切换）', 'en': '(Background change)'},
+    'memory in': {'cn': '（回忆切入 ↓）', 'en': '(Memory cut-in ↓)'},
+    'memory out': {'cn': '（回忆切出 ↑）', 'en': '(Memory cut-out ↑)'},
+    'black out': {'cn': '（黑屏转场）', 'en': '(Black cut)'},
+    'white out': {'cn': '（白屏转场）', 'en': '(White cut)'},
+    'gacha phrase': {'cn': '抽卡台词：', 'en': 'Gacha phrase: '},
+    'self intro': {'cn': '自我介绍：', 'en': 'Self introduction: '},
+    'anime story': {'cn': '动画故事', 'en': 'Anime story'},
+    'no story': {'cn': '无剧情', 'en': 'No story'},
+    'event no story': {'cn': '本活动没有活动剧情', 'en': 'No event story in the event'},
+    'see main story': {'cn': '见主线故事', 'en': 'See in main story'},
+    'see band story': {'cn': '见乐队故事', 'en': 'See in band story'},
+}
+
+
 _net_semaphore = asyncio.Semaphore(20)
 _file_semaphore = asyncio.Semaphore(20)
 
@@ -161,6 +191,25 @@ async def save_json_to_url(
             await f.write(json.dumps(content, ensure_ascii=False))
 
 
+_file_locks = {}
+
+
+def _get_lock(file_path: str) -> asyncio.Lock:
+    if file_path not in _file_locks:
+        _file_locks[file_path] = asyncio.Lock()
+    return _file_locks[file_path]
+
+
+async def write_to_file(
+    file_path: str, content: str, file_semaphore: Semaphore
+) -> None:
+    async with file_semaphore:
+        lock = _get_lock(file_path)
+        async with lock:
+            async with aiofiles.open(file_path, 'a', encoding='utf-8') as f:
+                await f.write(f"{content}\n")
+
+
 async def read_json_from_url(
     url: str,
     missing_download: bool,
@@ -197,29 +246,10 @@ async def read_json_from_url(
             if missing_assets_file:
                 await write_to_file(
                     missing_assets_file,
-                    f"{extra_record_msg}{'：' if extra_record_msg else ''}{url}",
+                    f"{extra_record_msg}{': ' if extra_record_msg else ''}{url}",
                     file_semaphore,
                 )
-            return '未能读取json文件'
-
-
-_file_locks = {}
-
-
-def _get_lock(file_path: str) -> asyncio.Lock:
-    if file_path not in _file_locks:
-        _file_locks[file_path] = asyncio.Lock()
-    return _file_locks[file_path]
-
-
-async def write_to_file(
-    file_path: str, content: str, file_semaphore: Semaphore
-) -> None:
-    async with file_semaphore:
-        lock = _get_lock(file_path)
-        async with lock:
-            async with aiofiles.open(file_path, 'a', encoding='utf-8') as f:
-                await f.write(f"{content}\n")
+            return 'Unable read json file'
 
 
 async def fetch_url_json(
@@ -257,12 +287,12 @@ async def fetch_url_json(
 
                 except Exception:
                     # if encounter "Can not decode content-encoding: br", pip install -U brotli
-                    json_content = f'获取json出错：{traceback.format_exc()}'
+                    json_content = f'Fetch json error: {traceback.format_exc()}'
                     print(json_content)
                     if error_assets_file:
                         await write_to_file(
                             error_assets_file,
-                            f"{extra_record_msg}{'：' if extra_record_msg else ''}{url}",
+                            f"{extra_record_msg}{': ' if extra_record_msg else ''}{url}",
                             file_semaphore,
                         )
     else:

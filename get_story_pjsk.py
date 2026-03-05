@@ -8,6 +8,7 @@ import aiofiles  # type: ignore
 from aiohttp import ClientSession, TCPConnector  # type: ignore
 
 import get_story_util as util
+from get_story_util import Mark_multi_lang
 
 
 class Constant:
@@ -65,12 +66,14 @@ class Story_reader(util.Base_fetcher):
         online: bool = True,
         save_assets: bool = True,
         missing_download: bool = True,
+        mark_lang: str = 'cn',
         debug_parse: bool = False,
         cg_add_link: bool = True,
     ) -> None:
         super().__init__(assets_save_dir, online, save_assets, missing_download)
 
         self.lang = lang
+        self.mark_lang = mark_lang
         self.debug_parse = debug_parse
         self.cg_add_link = cg_add_link
 
@@ -129,11 +132,11 @@ class Story_reader(util.Base_fetcher):
 
         if len(chara_id_list) > 0:
             ret0 = (
-                '（登场角色：'
-                + '、'.join(
+                Mark_multi_lang['characters'][self.mark_lang]
+                + Mark_multi_lang[','][self.mark_lang].join(
                     [self.get_chara_unitAbbr_name(id)[1] for id in chara_id_list]
                 )
-                + '）\n'
+                + Mark_multi_lang[')'][self.mark_lang]
             )
         else:
             ret0 = ''
@@ -147,12 +150,18 @@ class Story_reader(util.Base_fetcher):
             if snippet['Action'] == util.SnippetAction.SpecialEffect:
                 specialEffect = specialEffects[snippet['ReferenceIndex']]
                 if specialEffect['EffectType'] == util.SpecialEffectType.Telop:
-                    ret += '\n【' + specialEffect['StringVal'] + '】\n'
+                    ret += (
+                        '\n'
+                        + Mark_multi_lang['['][self.mark_lang]
+                        + specialEffect['StringVal']
+                        + Mark_multi_lang[']'][self.mark_lang]
+                        + '\n'
+                    )
                     next_talk_need_newline = True
                 elif specialEffect['EffectType'] == util.SpecialEffectType.PlaceInfo:
                     if next_talk_need_newline:
                         ret += '\n'
-                    ret += f"（地点）：{specialEffect['StringVal']}\n"
+                    ret += f"{Mark_multi_lang['place'][self.mark_lang]}{specialEffect['StringVal']}\n"
                     next_talk_need_newline = False
                 elif (
                     specialEffect['EffectType'] == util.SpecialEffectType.FullScreenText
@@ -160,7 +169,7 @@ class Story_reader(util.Base_fetcher):
                     if next_talk_need_newline:
                         ret += '\n'
                     ret += (
-                        '（全屏幕文字）：'
+                        Mark_multi_lang['fullscreen text'][self.mark_lang]
                         + specialEffect['StringVal'].replace('\n', ' ')
                         + '\n'
                     )
@@ -171,17 +180,17 @@ class Story_reader(util.Base_fetcher):
                 ):
                     if next_talk_need_newline:
                         ret += '\n'
-                    ret += f"（选项）：{specialEffect['StringVal']}\n"
+                    ret += f"{Mark_multi_lang['selection'][self.mark_lang]}{specialEffect['StringVal']}\n"
                     next_talk_need_newline = False
                 elif specialEffect['EffectType'] == util.SpecialEffectType.Movie:
                     if next_talk_need_newline:
                         ret += '\n'
-                    ret += f"（播放视频）：{specialEffect['StringVal']}\n"
+                    ret += f"{Mark_multi_lang['video'][self.mark_lang]}{specialEffect['StringVal']}\n"
                     next_talk_need_newline = False
                 elif specialEffect['EffectType'] == util.SpecialEffectType.PlayMV:
                     if next_talk_need_newline:
                         ret += '\n'
-                    ret += f"（播放MV）：{specialEffect['IntVal']}\n"
+                    ret += f"{Mark_multi_lang['mv'][self.mark_lang]}{specialEffect['IntVal']}\n"
                     next_talk_need_newline = False
                 elif (
                     specialEffect['EffectType']
@@ -192,31 +201,37 @@ class Story_reader(util.Base_fetcher):
                     pic_name = specialEffect['StringVal']
                     if Constant.is_cg(pic_name):
                         if not self.cg_add_link:
-                            ret += f'（插入CG）：{pic_name}\n'
+                            ret += (
+                                f"{Mark_multi_lang['cg'][self.mark_lang]}{pic_name}\n"
+                            )
                         else:
-                            ret += f'（插入CG）：{self.cg_link.format(pic_name=pic_name)}\n'
+                            ret += f"{Mark_multi_lang['cg'][self.mark_lang]}{self.cg_link.format(pic_name=pic_name)}\n"
                     else:
                         ret += (
-                            '（背景切换）'
-                            + (f'：{pic_name}' if self.debug_parse else '')
+                            Mark_multi_lang['background'][self.mark_lang]
+                            + (
+                                (Mark_multi_lang[':'][self.mark_lang] + pic_name)
+                                if self.debug_parse
+                                else ''
+                            )
                             + '\n'
                         )
                     next_talk_need_newline = False
                 elif specialEffect['EffectType'] == util.SpecialEffectType.FlashbackIn:
-                    ret += '\n（回忆切入 ↓）\n'
+                    ret += '\n' + Mark_multi_lang['memory in'][self.mark_lang] + '\n'
                     next_talk_need_newline = True
                 elif specialEffect['EffectType'] == util.SpecialEffectType.FlashbackOut:
-                    ret += '\n（回忆切出 ↑）\n'
+                    ret += '\n' + Mark_multi_lang['memory out'][self.mark_lang] + '\n'
                     next_talk_need_newline = True
                 elif specialEffect['EffectType'] == util.SpecialEffectType.BlackOut:
                     if next_talk_need_newline:
                         ret += '\n'
-                    ret += '（黑屏转场）\n'
+                    ret += Mark_multi_lang['black out'][self.mark_lang] + '\n'
                     next_talk_need_newline = False
                 elif specialEffect['EffectType'] == util.SpecialEffectType.WhiteOut:
                     if next_talk_need_newline:
                         ret += '\n'
-                    ret += '（白屏转场）\n'
+                    ret += Mark_multi_lang['white out'][self.mark_lang] + '\n'
                     next_talk_need_newline = False
                 else:
                     if self.debug_parse:
@@ -235,7 +250,7 @@ class Story_reader(util.Base_fetcher):
                     ret += '\n'
                 ret += (
                     talk['WindowDisplayName'].replace('\n', ' ')
-                    + '：'
+                    + Mark_multi_lang[':'][self.mark_lang]
                     + talk['Body'].replace('\n', ' ')
                     + '\n'
                 )
@@ -248,7 +263,7 @@ class Story_reader(util.Base_fetcher):
                         snippet_name = snippet['Action']
                     ret += f"SnippetAction: {snippet_name}, {snippet_index}\n"
 
-        return (ret0 + '\n' + ret.strip()).strip()
+        return (ret0 + '\n\n' + ret.strip()).strip()
 
 
 class Event_story_getter(util.Base_getter):
@@ -716,7 +731,11 @@ class Card_story_getter(util.Base_getter):
                 ) as f:
                     await f.write(card_story_name + '\n\n')
                     if card_gachaPhrase != '-':
-                        await f.write('抽卡台词：' + card_gachaPhrase + '\n\n')
+                        await f.write(
+                            Mark_multi_lang['gacha phrase'][self.reader.mark_lang]
+                            + card_gachaPhrase
+                            + '\n\n'
+                        )
                     await f.write(story_1_name + '\n\n')
                     await f.write(text_1 + '\n\n\n')
                     await f.write(story_2_name + '\n\n')
@@ -891,8 +910,10 @@ class Area_talk_getter((util.Base_getter)):
                             else:
                                 assert action['id'] == 618  # special case
 
+                        left = Mark_multi_lang['['][self.reader.mark_lang]
+                        right = Mark_multi_lang[']'][self.reader.mark_lang]
                         await f.write(
-                            f"{index+1}: {action['id']}{talk_type} 【{area_name}】\n\n"
+                            f"{index+1}: {action['id']}{talk_type} {left}{area_name}{right}\n\n"
                         )
                         await f.write(text + '\n\n\n')
 
@@ -958,7 +979,9 @@ class Area_talk_getter((util.Base_getter)):
                     'w',
                     encoding='utf8',
                 ) as f:
-                    await f.write(f"{actionSet['id']} 【{area_name}】\n\n")
+                    left = Mark_multi_lang['['][self.reader.mark_lang]
+                    right = Mark_multi_lang[']'][self.reader.mark_lang]
+                    await f.write(f"{actionSet['id']} {left}{area_name}{right}\n\n")
                     await f.write(text + '\n')
 
         print(f'get talk {talk_id} done.')
@@ -1041,7 +1064,9 @@ class Self_intro_getter(util.Base_getter):
                     'w',
                     encoding='utf8',
                 ) as f:
-                    await f.write(f'自我介绍：{chara_unit_name.split('_')[1]}\n\n')
+                    await f.write(
+                        f"{Mark_multi_lang['self intro'][self.reader.mark_lang]}{chara_unit_name.split('_')[1]}\n\n"
+                    )
                     await f.write('YEAR 1' + '\n\n')
                     await f.write(text_1 + '\n\n\n')
                     await f.write('YEAR 2' + '\n\n')
