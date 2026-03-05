@@ -923,7 +923,7 @@ class Area_talk_getter((util.Base_getter)):
                         left = Mark_multi_lang['['][self.reader.mark_lang]
                         right = Mark_multi_lang[']'][self.reader.mark_lang]
                         await f.write(
-                            f"{index+1}: {action['id']}{talk_type} {left}{area_name}{right}\n\n"
+                            f"{index+1} {action['id']}{talk_type} {left}{area_name}{right}\n\n"
                         )
                         await f.write(text + '\n\n\n')
 
