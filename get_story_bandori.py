@@ -185,7 +185,6 @@ class Story_reader(util.Base_fetcher):
 class Event_story_getter(util.Base_getter):
 
     event_is_main = [217]
-    event_no_story = [248]
 
     def __init__(
         self,
@@ -218,6 +217,9 @@ class Event_story_getter(util.Base_getter):
         if event_name is None:
             print(f'event {event_id} has no {lang.upper()}.')
             return
+        if len(info_json['stories']) == 0:
+            print(f'event {event_id} has no story.')
+            return
 
         event_filename = util.valid_filename(event_name)
 
@@ -229,21 +231,6 @@ class Event_story_getter(util.Base_getter):
 
         if self.parse:
             os.makedirs(event_save_dir, exist_ok=True)
-
-            if event_id in Event_story_getter.event_no_story:
-                async with self.file_semaphore:
-                    async with aiofiles.open(
-                        os.path.join(
-                            event_save_dir,
-                            f"{Mark_multi_lang['no story'][mark_lang]}.txt",
-                        ),
-                        'w',
-                        encoding='utf8',
-                    ) as f:
-                        await f.write(
-                            Mark_multi_lang['event no story'][mark_lang] + '\n'
-                        )
-                    return
 
         tasks = []
         for story in info_json['stories']:

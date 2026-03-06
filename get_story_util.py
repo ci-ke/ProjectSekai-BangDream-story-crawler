@@ -91,8 +91,6 @@ Mark_multi_lang = {
     'gacha phrase': {'cn': '抽卡台词：', 'en': 'Gacha phrase: '},
     'self intro': {'cn': '自我介绍：', 'en': 'Self introduction: '},
     'anime story': {'cn': '动画故事', 'en': 'Anime story'},
-    'no story': {'cn': '无剧情', 'en': 'No story'},
-    'event no story': {'cn': '本活动没有活动剧情', 'en': 'No event story in the event'},
     'see main story': {'cn': '见主线故事', 'en': 'See in main story'},
     'see band story': {'cn': '见乐队故事', 'en': 'See in band story'},
 }
@@ -249,7 +247,7 @@ async def read_json_from_url(
                     f"{extra_record_msg}{': ' if extra_record_msg else ''}{url}",
                     file_semaphore,
                 )
-            return 'Unable read json file'
+            return 'Unable to read json file'
 
 
 async def fetch_url_json(
