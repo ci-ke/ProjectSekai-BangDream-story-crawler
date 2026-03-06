@@ -4,8 +4,8 @@ import os, math, asyncio, json
 from asyncio import Semaphore
 from typing import Any, cast
 
-import aiofiles  # type: ignore
-from aiohttp import ClientSession, TCPConnector  # type: ignore
+import aiofiles
+from aiohttp import ClientSession, TCPConnector
 
 import get_story_util as util
 from get_story_util import Mark_multi_lang

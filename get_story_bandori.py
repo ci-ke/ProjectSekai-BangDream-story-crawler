@@ -4,8 +4,8 @@ import os, asyncio, json
 from typing import Any
 from asyncio import Semaphore
 
-import aiofiles  # type: ignore
-from aiohttp import ClientSession, TCPConnector  # type: ignore
+import aiofiles
+from aiohttp import ClientSession, TCPConnector
 
 import get_story_util as util
 from get_story_util import Mark_multi_lang
@@ -541,6 +541,10 @@ class Card_story_getter(util.Base_getter):
             self.cards_id_url.format(id=card_id), self
         )
 
+        if 'episodes' not in card:
+            print(f'card {card_id} does not have story.')
+            return
+
         chara_bandAbbr, chara_name = self.reader.get_chara_bandAbbr_and_name(
             card['characterId'], lang
         )
@@ -562,10 +566,6 @@ class Card_story_getter(util.Base_getter):
         card_story_filename = util.valid_filename(
             f'{card_id:0{self.maxlen_id}}_{chara_name}_R{cardRarityType} {card_name}'
         )
-
-        if 'episodes' not in card:
-            print(f'card {card_id} does not have story.')
-            return
 
         story_1_name = card['episodes']['entries'][0]['title'][
             Constant.lang_index[lang]

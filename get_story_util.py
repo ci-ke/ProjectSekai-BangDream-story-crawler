@@ -1,10 +1,12 @@
+# https://github.com/ci-ke/ProjectSekai-BangDream-story-crawler
+
 import bisect
 import os, json, asyncio, traceback
 from enum import Enum
 from typing import Any
 from asyncio import Semaphore
 
-import aiohttp, aiofiles  # type: ignore
+import aiohttp, aiofiles
 
 
 # https://github.com/EternalFlower/Project-Sekai-Story-Parser/blob/main/PJSekai%20Story%20parser.py
