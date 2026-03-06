@@ -106,7 +106,7 @@ async def _get_translate_episode(
         async with aiofiles.open(
             new_epi_file, 'w', encoding='utf8'
         ) as wf, aiofiles.open(episode_file, encoding='utf8') as rf:
-            await wf.write(source + '. ')
+            await wf.write(source + '; ')
 
             async for line in rf:
                 name, *sentence_list = line.split(util.Mark_multi_lang[':'][mark_lang])

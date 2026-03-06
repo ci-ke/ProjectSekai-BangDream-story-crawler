@@ -36,15 +36,5 @@
             "jp": "jp-",
             "tw": "tw-"
         }
-    },
-    "pjsk.moe": {
-        "master": "{lang}https://sekaimaster.exmeaning.com/master/{file}.json",
-        "master_lang": {
-            "jp": ""
-        },
-        "event_asset": "{lang}https://snowyassets.exmeaning.com/ondemand/event_story/{{assetbundleName}}/scenario/{{scenarioId}}.json",
-        "asset_lang": {
-            "jp": ""
-        }
     }
 }
