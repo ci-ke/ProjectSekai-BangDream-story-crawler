@@ -124,7 +124,7 @@ class Story_reader(util.Base_fetcher):
         for chara in appearCharacters:
             chara2dId = chara['Character2dId']
             chara2d = self.character2ds[self.character2ds_lookup.find_index(chara2dId)]
-            if chara2d['characterId'] in self.gameCharacters_lookup.ids:
+            if chara2d['characterType'] == 'game_character':
                 chara_id.add(chara2d['characterId'])
         chara_id_list = sorted(chara_id)
 
