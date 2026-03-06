@@ -1,5 +1,3 @@
-# https://github.com/ci-ke/ProjectSekai-BangDream-story-crawler
-
 import os, math, asyncio, json
 from asyncio import Semaphore
 from typing import Any, cast
@@ -1203,52 +1201,53 @@ class Special_story_getter(util.Base_getter):
         print(f'get special {filename} done.')
 
 
+net_connect_limit = 20
+
+online = False
+
+lang = 'cn'
+src = 'sekai.best'
+
+reader = Story_reader(lang, src=src, online=online)
+unit_getter = Unit_story_getter(reader, src=src, online=online)
+event_getter = Event_story_getter(reader, src=src, online=online)
+card_getter = Card_story_getter(reader, src=src, online=online)
+area_getter = Area_talk_getter(reader, src=src, online=online)
+self_getter = Self_intro_getter(reader, src=src, online=online)
+special_getter = Special_story_getter(reader, src=src, online=online)
+
+
+async def main():
+    async with ClientSession(
+        trust_env=True, connector=TCPConnector(limit=net_connect_limit)
+    ) as session:
+        await asyncio.gather(
+            reader.init(session),
+            unit_getter.init(session),
+            event_getter.init(session),
+            card_getter.init(session),
+            area_getter.init(session),
+            self_getter.init(session),
+            special_getter.init(session),
+        )
+
+        tasks = []
+
+        for i in range(1, 3):
+            tasks.append(unit_getter.get(i))
+        for i in range(1, 4):
+            tasks.append(event_getter.get(i))
+        for i in range(1, 4):
+            tasks.append(card_getter.get(i))
+        for i in range(1, 4):
+            tasks.append(area_getter.get(i))
+        for i in range(1, 3):
+            tasks.append(self_getter.get(i))
+        for i in range(1, 5):
+            tasks.append(special_getter.get(i))
+
+        await asyncio.gather(*tasks)
+
+
 if __name__ == '__main__':
-
-    net_connect_limit = 20
-
-    online = False
-
-    lang = 'cn'
-    src = 'sekai.best'
-
-    reader = Story_reader(lang, src=src, online=online)
-    unit_getter = Unit_story_getter(reader, src=src, online=online)
-    event_getter = Event_story_getter(reader, src=src, online=online)
-    card_getter = Card_story_getter(reader, src=src, online=online)
-    area_getter = Area_talk_getter(reader, src=src, online=online)
-    self_getter = Self_intro_getter(reader, src=src, online=online)
-    special_getter = Special_story_getter(reader, src=src, online=online)
-
-    async def main():
-        async with ClientSession(
-            trust_env=True, connector=TCPConnector(limit=net_connect_limit)
-        ) as session:
-            await asyncio.gather(
-                reader.init(session),
-                unit_getter.init(session),
-                event_getter.init(session),
-                card_getter.init(session),
-                area_getter.init(session),
-                self_getter.init(session),
-                special_getter.init(session),
-            )
-
-            tasks = []
-
-            for i in range(1, 3):
-                tasks.append(unit_getter.get(i))
-            for i in range(1, 4):
-                tasks.append(event_getter.get(i))
-            for i in range(1, 4):
-                tasks.append(card_getter.get(i))
-            for i in range(1, 4):
-                tasks.append(area_getter.get(i))
-            for i in range(1, 3):
-                tasks.append(self_getter.get(i))
-            for i in range(1, 5):
-                tasks.append(special_getter.get(i))
-
-            await asyncio.gather(*tasks)
-
     asyncio.run(main())

@@ -1,5 +1,3 @@
-# https://github.com/ci-ke/ProjectSekai-BangDream-story-crawler
-
 import bisect
 import os, json, asyncio, traceback
 from enum import Enum
