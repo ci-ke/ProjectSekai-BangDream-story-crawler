@@ -79,8 +79,8 @@ class Event_tranlation_getter(util.Base_fetcher):
                     format_index_talk[index_str] = {}
                     for raw_sentence, raw_translate in raw_talk.items():
                         format_index_talk[index_str][
-                            raw_sentence.strip().replace('\n', ' ')
-                        ] = raw_translate.strip().replace('\n', ' ')
+                            raw_sentence.replace('\n', ' ')
+                        ] = raw_translate.replace('\n', ' ')
 
                 tasks = []
                 for episode_file in event_dir.iterdir():
@@ -131,11 +131,10 @@ class Event_tranlation_getter(util.Base_fetcher):
                 await wf.write(source + '; ')
 
                 async for line in rf:
-                    name, *sentence_list = line.split(
+                    name, *sentence_list = line.rstrip('\n').split(
                         util.Mark_multi_lang[':'][self.mark_lang]
                     )
-                    name = name.strip()
-                    sentence = ''.join(sentence_list).strip()
+                    sentence = ''.join(sentence_list)
 
                     trans_name = format_index_talk[episode_index].get(name, name)
                     trans_sentence = format_index_talk[episode_index].get(
