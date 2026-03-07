@@ -134,7 +134,9 @@ class Event_tranlation_getter(util.Base_fetcher):
                     name, *sentence_list = line.rstrip('\n').split(
                         util.Mark_multi_lang[':'][self.mark_lang]
                     )
-                    sentence = ''.join(sentence_list)
+                    sentence = util.Mark_multi_lang[':'][self.mark_lang].join(
+                        sentence_list
+                    )
 
                     trans_name = format_index_talk[episode_index].get(name, name)
                     trans_sentence = format_index_talk[episode_index].get(
