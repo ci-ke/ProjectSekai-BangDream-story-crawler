@@ -4,7 +4,7 @@ import os
 import re
 import glob
 
-from bs4 import BeautifulSoup  # type: ignore
+from bs4 import BeautifulSoup
 
 
 def extract_event_info(html_file_path):

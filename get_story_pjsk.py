@@ -1201,23 +1201,25 @@ class Special_story_getter(util.Base_getter):
         print(f'get special {filename} done.')
 
 
-net_connect_limit = 20
-
-online = False
-
-lang = 'cn'
-src = 'sekai.best'
-
-reader = Story_reader(lang, src=src, online=online)
-unit_getter = Unit_story_getter(reader, src=src, online=online)
-event_getter = Event_story_getter(reader, src=src, online=online)
-card_getter = Card_story_getter(reader, src=src, online=online)
-area_getter = Area_talk_getter(reader, src=src, online=online)
-self_getter = Self_intro_getter(reader, src=src, online=online)
-special_getter = Special_story_getter(reader, src=src, online=online)
-
-
 async def main():
+
+    net_connect_limit = 20
+
+    online = False
+
+    text_lang = 'cn'
+    mark_lang = 'cn'
+
+    src = 'sekai.best'
+
+    reader = Story_reader(text_lang, src=src, online=online, mark_lang=mark_lang)
+    unit_getter = Unit_story_getter(reader, src=src, online=online)
+    event_getter = Event_story_getter(reader, src=src, online=online)
+    card_getter = Card_story_getter(reader, src=src, online=online)
+    area_getter = Area_talk_getter(reader, src=src, online=online)
+    self_getter = Self_intro_getter(reader, src=src, online=online)
+    special_getter = Special_story_getter(reader, src=src, online=online)
+
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=net_connect_limit)
     ) as session:

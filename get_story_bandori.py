@@ -648,18 +648,18 @@ class Card_story_getter(util.Base_getter):
         print(f'get card {card_story_filename} done.')
 
 
-net_connect_limit = 10
-
-online = False
-
-reader = Story_reader(online=online)
-main_getter = Main_story_getter(reader, online=online)
-band_getter = Band_story_getter(reader, online=online)
-event_getter = Event_story_getter(reader, online=online)
-card_getter = Card_story_getter(reader, online=online)
-
-
 async def main():
+
+    net_connect_limit = 10
+
+    online = False
+
+    reader = Story_reader(online=online)
+    main_getter = Main_story_getter(reader, online=online)
+    band_getter = Band_story_getter(reader, online=online)
+    event_getter = Event_story_getter(reader, online=online)
+    card_getter = Card_story_getter(reader, online=online)
+
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=net_connect_limit)
     ) as session:
@@ -674,16 +674,16 @@ async def main():
 
         tasks = []
 
-        lang = 'cn'
+        text_mark_lang = ('cn', 'cn')
 
-        tasks.append(main_getter.get(list(range(1, 4)), lang))
+        tasks.append(main_getter.get(list(range(1, 4)), *text_mark_lang))
         for i in [1, 2]:
             for j in [1]:
-                tasks.append(band_getter.get(i, j, lang))
+                tasks.append(band_getter.get(i, j, *text_mark_lang))
         for i in range(1, 11):
-            tasks.append(event_getter.get(i, lang))
+            tasks.append(event_getter.get(i, *text_mark_lang))
         for i in range(1, 11):
-            tasks.append(card_getter.get(i, lang))
+            tasks.append(card_getter.get(i, *text_mark_lang))
 
         await asyncio.gather(*tasks)
 

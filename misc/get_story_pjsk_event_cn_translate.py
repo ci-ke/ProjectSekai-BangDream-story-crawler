@@ -1,9 +1,11 @@
-import asyncio
+import sys, asyncio
 from pathlib import Path
 from typing import Any
 
 import aiofiles
 from aiohttp import ClientSession
+
+sys.path.insert(0, str(Path(__file__).parents[1]))
 
 import get_story_util as util
 
@@ -130,7 +132,7 @@ async def _get_translate_episode(
 
 async def main():
     async with ClientSession(trust_env=True) as session:
-        await get_translate(197, online=False, session=session)
+        await get_translate(1, online=False, session=session)
 
 
 if __name__ == '__main__':
