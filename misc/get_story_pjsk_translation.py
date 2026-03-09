@@ -53,10 +53,7 @@ class Event_tranlation_getter(util.Base_fetcher):
                 translate_json: dict = await util.fetch_url_json_simple(
                     self.translate_url.format(event_id), self
                 )
-                try:
-                    source = 'pjsk.moe: ' + translate_json['meta']['source']
-                except KeyError:
-                    source = 'pjsk.moe'
+                source = 'pjsk.moe: ' + translate_json['meta']['source']
 
                 event_name = ' '.join(event_dir.stem.split(' ')[1:-1])
                 banner_name = event_dir.stem.split(' ')[-1]
@@ -70,9 +67,7 @@ class Event_tranlation_getter(util.Base_fetcher):
                 )
                 new_event_dir.mkdir(exist_ok=True)
 
-                index_episode: dict[str, dict[str, Any]] = translate_json.get(
-                    'episodes', translate_json
-                )
+                index_episode: dict[str, dict[str, Any]] = translate_json['episodes']
                 format_index_talk: dict[str, dict[str, str]] = {}
                 for index_str in index_episode:
                     raw_talk: dict[str, str] = index_episode[index_str]['talkData']
@@ -113,7 +108,9 @@ class Event_tranlation_getter(util.Base_fetcher):
         else:
             is_wl = False
 
-        translate_epi_name = index_episode[episode_index].get('title', episode_name)
+        translate_epi_name = index_episode[episode_index]['title']
+        if not translate_epi_name:
+            translate_epi_name = episode_name
 
         new_epi_file = new_event_dir / Path(
             util.valid_filename(
