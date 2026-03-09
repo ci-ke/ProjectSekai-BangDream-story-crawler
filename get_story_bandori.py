@@ -202,10 +202,28 @@ class Event_story_getter(util.Base_getter):
         self.reader = reader
         self.maxlen_eventId = maxlen_eventId
 
+        self.events_all_stories_url = URLS['bestdori.com']['events_all_stories']
         self.events_id_url = URLS['bestdori.com']['events_id']
         self.event_asset_url = URLS['bestdori.com']['event_asset']
 
+    async def init(
+        self,
+        session: ClientSession | None = None,
+        network_semaphore: Semaphore | None = None,
+        file_semaphore: Semaphore | None = None,
+    ) -> None:
+        await super().init(session, network_semaphore, file_semaphore)
+
+        events_all_stories_json: dict[int, Any] = await util.fetch_url_json_simple(
+            self.events_all_stories_url, self
+        )
+
+        self.events_ids: set[int] = {int(id) for id in events_all_stories_json.keys()}
+
     async def get(self, event_id: int, lang: str = 'cn', mark_lang: str = 'cn') -> None:
+        if event_id not in self.events_ids:
+            print(f'event {event_id} does not exist.')
+            return
 
         info_json: dict[str, Any] = await util.fetch_url_json_simple(
             self.events_id_url.format(event_id=event_id), self
@@ -310,6 +328,18 @@ class Band_story_getter(util.Base_getter):
         self.bandstories_5_url = URLS['bestdori.com']['bandstories_5']
         self.band_asset_url = URLS['bestdori.com']['band_asset']
 
+    async def init(
+        self,
+        session: ClientSession | None = None,
+        network_semaphore: Semaphore | None = None,
+        file_semaphore: Semaphore | None = None,
+    ) -> None:
+        await super().init(session, network_semaphore, file_semaphore)
+
+        self.info_json: dict[str, dict[str, Any]] = await util.fetch_url_json_simple(
+            self.bandstories_5_url, self
+        )
+
     async def get(
         self,
         want_band_id: int | None = None,
@@ -317,15 +347,9 @@ class Band_story_getter(util.Base_getter):
         lang: str = 'cn',
         mark_lang: str = 'cn',
     ) -> None:
-        if want_band_id is not None:
-            assert str(want_band_id) in self.reader.bands_json
-
-        info_json: dict[str, dict[str, Any]] = await util.fetch_url_json_simple(
-            self.bandstories_5_url, self
-        )
 
         tasks = []
-        for band_story in info_json.values():
+        for band_story in self.info_json.values():
             band_id = band_story['bandId']
             try:
                 chapterNumber = band_story['chapterNumber']
@@ -431,18 +455,26 @@ class Main_story_getter(util.Base_getter):
         self.mainstories_5_url = URLS['bestdori.com']['mainstories_5']
         self.main_asset_url = URLS['bestdori.com']['main_asset']
 
-    async def get(
-        self, id_range: list[int] | None = None, lang: str = 'cn', mark_lang: str = 'cn'
+    async def init(
+        self,
+        session: ClientSession | None = None,
+        network_semaphore: Semaphore | None = None,
+        file_semaphore: Semaphore | None = None,
     ) -> None:
-        info_json: dict[str, dict[str, Any]] = await util.fetch_url_json_simple(
+        await super().init(session, network_semaphore, file_semaphore)
+
+        self.info_json: dict[str, dict[str, Any]] = await util.fetch_url_json_simple(
             self.mainstories_5_url, self
         )
 
+    async def get(
+        self, id_range: list[int] | None = None, lang: str = 'cn', mark_lang: str = 'cn'
+    ) -> None:
         if self.parse:
             os.makedirs(self.save_dir, exist_ok=True)
 
         tasks = []
-        for strId, main_story in info_json.items():
+        for strId, main_story in self.info_json.items():
             if id_range is not None and int(strId) not in id_range:
                 continue
 
@@ -528,7 +560,7 @@ class Card_story_getter(util.Base_getter):
             self.cards_all_0_url, self
         )
 
-        self.cards_ids: list[int] = [int(id) for id in all_cards_list.keys()]
+        self.cards_ids: set[int] = {int(id) for id in all_cards_list.keys()}
 
     async def get(self, card_id: int, lang: str = 'cn', mark_lang: str = 'cn') -> None:
         if card_id not in self.cards_ids:
