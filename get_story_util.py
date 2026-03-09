@@ -186,7 +186,7 @@ async def save_json_to_url(
 
     async with file_semaphore:
         async with aiofiles.open(path, 'w', encoding='utf8') as f:
-            await f.write(json.dumps(content, ensure_ascii=False))
+            await f.write(json.dumps(content, ensure_ascii=False, indent=2))
 
 
 _file_locks = {}
