@@ -202,7 +202,7 @@ class Event_story_getter(util.Base_getter):
         self.reader = reader
         self.maxlen_eventId = maxlen_eventId
 
-        self.events_all_stories_url = URLS['bestdori.com']['events_all_stories']
+        self.events_all_url = URLS['bestdori.com']['events_all_3']
         self.events_id_url = URLS['bestdori.com']['events_id']
         self.event_asset_url = URLS['bestdori.com']['event_asset']
 
@@ -214,11 +214,11 @@ class Event_story_getter(util.Base_getter):
     ) -> None:
         await super().init(session, network_semaphore, file_semaphore)
 
-        events_all_stories_json: dict[int, Any] = await util.fetch_url_json_simple(
-            self.events_all_stories_url, self
+        events_all_json: dict[int, Any] = await util.fetch_url_json_simple(
+            self.events_all_url, self
         )
 
-        self.events_ids: set[int] = {int(id) for id in events_all_stories_json.keys()}
+        self.events_ids: set[int] = {int(id) for id in events_all_json.keys()}
 
     async def get(self, event_id: int, lang: str = 'cn', mark_lang: str = 'cn') -> None:
         if event_id not in self.events_ids:

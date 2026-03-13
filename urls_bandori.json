@@ -7,7 +7,7 @@
         "main_asset": "https://bestdori.com/assets/{lang}/scenario/main_rip/Scenario{id}.asset",
         "bandstories_5": "https://bestdori.com/api/misc/bandstories.5.json",
         "band_asset": "https://bestdori.com/assets/{lang}/scenario/band/{band_id:03}_rip/Scenario{id}.asset",
-        "events_all_stories": "https://bestdori.com/api/events/all.stories.json",
+        "events_all_3": "https://bestdori.com/api/events/all.3.json",
         "events_id": "https://bestdori.com/api/events/{event_id}.json",
         "event_asset": "https://bestdori.com/assets/{lang}/scenario/eventstory/event{event_id}_rip/Scenario{id}.asset",
         "cards_all_0": "https://bestdori.com/api/cards/all.0.json",
