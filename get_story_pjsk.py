@@ -332,9 +332,10 @@ class Event_story_getter(util.Base_getter):
         self.eventStories_lookup = util.DictLookup(self.eventStories_json, 'eventId')
         self.gameCharacterUnits_lookup = util.DictLookup(self.gameCharacterUnits, 'id')
 
-        self.event_type_map = self.__get_event_type(actionSets)
+        self.event_type_map = Event_story_getter.__get_event_type_map(actionSets)
 
-    def __get_event_type(self, actionSets: list[dict[str, Any]]) -> dict[int, str]:
+    @staticmethod
+    def __get_event_type_map(actionSets: list[dict[str, Any]]) -> dict[int, str]:
         ret = {}
 
         ret[1] = 'band'
@@ -365,17 +366,20 @@ class Event_story_getter(util.Base_getter):
                         ret[event_id] = event_type
         return ret
 
+    __type_str_code_map = {
+        'band': 'light_sound',
+        'idol': 'idol',
+        'street': 'street',
+        'wonder': 'theme_park',
+        'night': 'school_refusal',
+        'piapro': 'piapro',
+    }
+
     def get_event_unit_abbr(self, event_id: int) -> str:
-        type_str_code_map = {
-            'band': 'light_sound',
-            'idol': 'idol',
-            'street': 'street',
-            'wonder': 'theme_park',
-            'night': 'school_refusal',
-            'piapro': 'piapro',
-        }
         type_str = self.event_type_map[event_id]
-        return Constant.unit_code_abbr[type_str_code_map.get(type_str, 'mix')]
+        return Constant.unit_code_abbr[
+            Event_story_getter.__type_str_code_map.get(type_str, 'mix')
+        ]
 
     async def get(self, event_id: int) -> None:
 
