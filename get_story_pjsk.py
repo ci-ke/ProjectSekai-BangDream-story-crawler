@@ -17,6 +17,7 @@ class Constant:
         'theme_park': 'WxS',
         'school_refusal': 'N25',
         'piapro': 'VS',
+        'mix': 'Mix',
     }
 
     rarity_name = {
@@ -305,6 +306,8 @@ class Event_story_getter(util.Base_getter):
             self.reader.lang, src, 'asset', 'event'
         )
 
+        self.actionSets_url = Constant.get_src_url('jp', src, 'master', 'actionSets')
+
     async def init(
         self,
         session: ClientSession | None = None,
@@ -313,17 +316,66 @@ class Event_story_getter(util.Base_getter):
     ) -> None:
         await super().init(session, network_semaphore, file_semaphore)
 
-        self.events_json, self.eventStories_json, self.gameCharacterUnits = (
-            await asyncio.gather(
-                util.fetch_url_json_simple(self.events_url, self),
-                util.fetch_url_json_simple(self.eventStories_url, self),
-                util.fetch_url_json_simple(self.gameCharacterUnits_url, self),
-            )
+        (
+            self.events_json,
+            self.eventStories_json,
+            self.gameCharacterUnits,
+            actionSets,
+        ) = await asyncio.gather(
+            util.fetch_url_json_simple(self.events_url, self),
+            util.fetch_url_json_simple(self.eventStories_url, self),
+            util.fetch_url_json_simple(self.gameCharacterUnits_url, self),
+            util.fetch_url_json_simple(self.actionSets_url, self),
         )
 
         self.events_lookup = util.DictLookup(self.events_json, 'id')
         self.eventStories_lookup = util.DictLookup(self.eventStories_json, 'eventId')
         self.gameCharacterUnits_lookup = util.DictLookup(self.gameCharacterUnits, 'id')
+
+        self.event_type_map = self.__get_event_type(actionSets)
+
+    def __get_event_type(self, actionSets: list[dict[str, Any]]) -> dict[int, str]:
+        ret = {}
+
+        ret[1] = 'band'
+        ret[5] = 'idol'
+        ret[6] = 'street'
+        ret[9] = 'shuffle'
+
+        for action in actionSets:
+            releaseConditionId = str(action['releaseConditionId'])
+            is_event = (
+                ('scenarioId' in action)
+                and (
+                    'areatalk_ev' in action['scenarioId']
+                    or 'areatalk_wl' in action['scenarioId']
+                )
+                and (len(releaseConditionId) == 6)
+                and (releaseConditionId[0] == '1')
+            )
+            if is_event:
+                event_id = int(releaseConditionId[1:4]) + 1
+                scenarioId: str = action['scenarioId']
+                event_type = scenarioId.split('_')[2]
+                is_wl = scenarioId.split('_')[1] == 'wl'
+                if event_id not in ret:
+                    if False and is_wl:
+                        ret[event_id] = event_type + '_' + 'wl'
+                    else:
+                        ret[event_id] = event_type
+        return ret
+
+    def get_event_unit_abbr(self, event_id: int) -> str:
+        type_str_code_map = {
+            'band': 'light_sound',
+            'idol': 'idol',
+            'street': 'street',
+            'wonder': 'theme_park',
+            'night': 'school_refusal',
+            'piapro': 'piapro',
+        }
+        type_str = self.event_type_map[event_id]
+        return Constant.unit_code_abbr[type_str_code_map.get(type_str, 'mix')]
 
     async def get(self, event_id: int) -> None:
 
@@ -339,24 +391,21 @@ class Event_story_getter(util.Base_getter):
 
         event_name = event['name']
         event_type = event['eventType']
-        event_unit = event['unit']
+        # event_unit = event['unit']
         assetbundleName = event['assetbundleName']
         banner_chara_unit_id = eventStory.get('bannerGameCharacterUnitId')
         event_outline = eventStory['outline'].replace('\n', ' ')
 
+        unit_abbr = self.get_event_unit_abbr(event_id)
+
         if event_type == 'world_bloom':
-            if event_unit != 'none':
-                banner_name = f'{Constant.unit_code_abbr[event_unit]}_WL'
-            else:
-                banner_name = 'WL'
+            banner_name = f'{unit_abbr}_WL'
         else:
             assert banner_chara_unit_id is not None
             banner_chara_unit_index = self.gameCharacterUnits_lookup.find_index(
                 banner_chara_unit_id
             )
             assert banner_chara_unit_index != -1
-            banner_chara_unit = self.gameCharacterUnits[banner_chara_unit_index]['unit']
-            unit_abbr = Constant.unit_code_abbr[banner_chara_unit]
             banner_chara_name = self.reader.get_chara_unitAbbr_name(
                 self.gameCharacterUnits[banner_chara_unit_index]['gameCharacterId']
             )[1]

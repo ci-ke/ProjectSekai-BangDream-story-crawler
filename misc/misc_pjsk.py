@@ -1,8 +1,5 @@
-import sys, asyncio, pprint
-from typing import Any
+import sys
 from pathlib import Path
-
-from aiohttp import ClientSession
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
@@ -22,49 +19,3 @@ def get_chara2d_unitAbbr_name_isVS(
         return chara_unit, name, False
     else:
         return pjsk.Constant.unit_code_abbr[actual_unit], name, True
-
-
-def get_event_type(actionSets: list[dict[str, Any]]) -> dict[int, str]:
-    ret = {}
-
-    ret[1] = 'band'
-    ret[5] = 'idol'
-    ret[6] = 'street'
-    ret[9] = 'shuffle'
-
-    for action in actionSets:
-        releaseConditionId = str(action['releaseConditionId'])
-        is_event = (
-            ('scenarioId' in action)
-            and (
-                'areatalk_ev' in action['scenarioId']
-                or 'areatalk_wl' in action['scenarioId']
-            )
-            and (len(releaseConditionId) == 6)
-            and (releaseConditionId[0] == '1')
-        )
-        if is_event:
-            event_id = int(releaseConditionId[1:4]) + 1
-            scenarioId: str = action['scenarioId']
-            event_type = scenarioId.split('_')[2]
-            is_wl = scenarioId.split('_')[1] == 'wl'
-            if event_id not in ret:
-                if is_wl:
-                    ret[event_id] = event_type + '_' + 'wl'
-                else:
-                    ret[event_id] = event_type
-    return ret
-
-
-async def main():
-    reader = pjsk.Story_reader('jp', online=False)
-    area_getter = pjsk.Area_talk_getter(reader, online=False)
-
-    async with ClientSession(trust_env=True) as session:
-        await area_getter.init(session)
-
-    pprint.pprint(get_event_type(area_getter.actionSets_json))
-
-
-if __name__ == '__main__':
-    asyncio.run(main())
