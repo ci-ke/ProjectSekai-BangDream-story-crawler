@@ -11,7 +11,7 @@ from get_story_util import Mark_multi_lang
 
 class Constant:
     unit_code_abbr = {
-        'light_sound': 'L/n',
+        'light_sound': 'Ln',
         'idol': 'MMJ',
         'street': 'VBS',
         'theme_park': 'WxS',

@@ -18,7 +18,7 @@ class Constant:
         1: 'PPP',
         2: 'Ag',
         3: 'HHW',
-        4: 'P＊P',
+        4: 'PP',
         5: 'Ro',
         18: 'RAS',
         21: 'Mor',
