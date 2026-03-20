@@ -17,6 +17,7 @@ class Constant:
         'theme_park': 'WxS',
         'school_refusal': 'N25',
         'piapro': 'VS',
+        'none': 'none',
         'mix': 'Mix',
     }
 
@@ -101,7 +102,7 @@ class Story_reader(util.Base_fetcher):
         self.gameCharacters_lookup = util.DictLookup(self.gameCharacters, 'id')
         self.character2ds_lookup = util.DictLookup(self.character2ds, 'id')
 
-    def get_chara_unitAbbr_name(self, chara_id: int) -> tuple[str, str]:
+    def get_chara_unitAbbr_names(self, chara_id: int) -> tuple[str, str, str]:
         profile_index = self.gameCharacters_lookup.find_index(chara_id)
         assert profile_index != -1
         profile: dict[str, Any] = self.gameCharacters[profile_index]
@@ -110,7 +111,21 @@ class Story_reader(util.Base_fetcher):
         full_name = first_name + givenName if first_name is not None else givenName
 
         unit_abbr = Constant.unit_code_abbr[profile['unit']]
-        return (unit_abbr, full_name)
+        return (unit_abbr, full_name, givenName)
+
+    def get_chara2d_unitAbbr_names_isVS(
+        self, chara2dId: int
+    ) -> tuple[str, str, str, bool]:
+        chara2d = self.character2ds[self.character2ds_lookup.find_index(chara2dId)]
+        if chara2d['characterType'] != 'game_character':
+            return '', '', '', False
+        actual_unit = chara2d['unit']
+        chara_id = chara2d['characterId']
+        chara_unit, fullname, givenname = self.get_chara_unitAbbr_names(chara_id)
+        if chara_unit != 'VS':
+            return chara_unit, fullname, givenname, False
+        else:
+            return Constant.unit_code_abbr[actual_unit], fullname, givenname, True
 
     def read_story_in_json(self, json_data: str | dict[str, Any]) -> str:
         if isinstance(json_data, str):
@@ -133,7 +148,7 @@ class Story_reader(util.Base_fetcher):
             ret0 = (
                 Mark_multi_lang['characters'][self.mark_lang]
                 + Mark_multi_lang[','][self.mark_lang].join(
-                    [self.get_chara_unitAbbr_name(id)[1] for id in chara_id_list]
+                    [self.get_chara_unitAbbr_names(id)[1] for id in chara_id_list]
                 )
                 + Mark_multi_lang[')'][self.mark_lang]
             )
@@ -160,7 +175,7 @@ class Story_reader(util.Base_fetcher):
                 elif specialEffect['EffectType'] == util.SpecialEffectType.PlaceInfo:
                     if next_talk_need_newline:
                         ret += '\n'
-                    ret += f"{Mark_multi_lang['place'][self.mark_lang]}{specialEffect['StringVal']}\n"
+                    ret += f"{Mark_multi_lang['place'][self.mark_lang]}{specialEffect['StringVal']}{Mark_multi_lang[')'][self.mark_lang]}\n"
                     next_talk_need_newline = False
                 elif (
                     specialEffect['EffectType'] == util.SpecialEffectType.FullScreenText
@@ -179,17 +194,17 @@ class Story_reader(util.Base_fetcher):
                 ):
                     if next_talk_need_newline:
                         ret += '\n'
-                    ret += f"{Mark_multi_lang['selection'][self.mark_lang]}{specialEffect['StringVal']}\n"
+                    ret += f"{Mark_multi_lang['selection'][self.mark_lang]}{specialEffect['StringVal']}{Mark_multi_lang[')'][self.mark_lang]}\n"
                     next_talk_need_newline = False
                 elif specialEffect['EffectType'] == util.SpecialEffectType.Movie:
                     if next_talk_need_newline:
                         ret += '\n'
-                    ret += f"{Mark_multi_lang['video'][self.mark_lang]}{specialEffect['StringVal']}\n"
+                    ret += f"{Mark_multi_lang['video'][self.mark_lang]}{specialEffect['StringVal']}{Mark_multi_lang[')'][self.mark_lang]}\n"
                     next_talk_need_newline = False
                 elif specialEffect['EffectType'] == util.SpecialEffectType.PlayMV:
                     if next_talk_need_newline:
                         ret += '\n'
-                    ret += f"{Mark_multi_lang['mv'][self.mark_lang]}{specialEffect['IntVal']}\n"
+                    ret += f"{Mark_multi_lang['mv'][self.mark_lang]}{specialEffect['IntVal']}{Mark_multi_lang[')'][self.mark_lang]}\n"
                     next_talk_need_newline = False
                 elif (
                     specialEffect['EffectType']
@@ -200,11 +215,9 @@ class Story_reader(util.Base_fetcher):
                     pic_name = specialEffect['StringVal']
                     if Constant.is_cg(pic_name):
                         if not self.cg_add_link:
-                            ret += (
-                                f"{Mark_multi_lang['cg'][self.mark_lang]}{pic_name}\n"
-                            )
+                            ret += f"{Mark_multi_lang['cg'][self.mark_lang]}{pic_name}{Mark_multi_lang[')'][self.mark_lang]}\n"
                         else:
-                            ret += f"{Mark_multi_lang['cg'][self.mark_lang]}{self.cg_link.format(pic_name=pic_name)}\n"
+                            ret += f"{Mark_multi_lang['cg'][self.mark_lang]}{self.cg_link.format(pic_name=pic_name)}{Mark_multi_lang[')'][self.mark_lang]}\n"
                     else:
                         ret += (
                             Mark_multi_lang['background'][self.mark_lang]
@@ -245,10 +258,27 @@ class Story_reader(util.Base_fetcher):
             elif snippet['Action'] == util.SnippetAction.Talk:
                 talk = talks[snippet['ReferenceIndex']]
 
+                talk_chara2did = talk['TalkCharacters'][0]['Character2dId']
+                speaker_shortname = self.get_chara2d_unitAbbr_names_isVS(
+                    talk_chara2did
+                )[2]
+
+                displayname = talk['WindowDisplayName'].replace('\n', ' ')
+
+                if speaker_shortname not in displayname:
+                    name = (
+                        displayname
+                        + util.Mark_multi_lang['('][self.mark_lang]
+                        + speaker_shortname
+                        + util.Mark_multi_lang[')'][self.mark_lang]
+                    )
+                else:
+                    name = displayname
+
                 if next_talk_need_newline:
                     ret += '\n'
                 ret += (
-                    talk['WindowDisplayName'].replace('\n', ' ')
+                    name
                     + Mark_multi_lang[':'][self.mark_lang]
                     + talk['Body'].replace('\n', ' ')
                     + '\n'
@@ -410,7 +440,7 @@ class Event_story_getter(util.Base_getter):
                 banner_chara_unit_id
             )
             assert banner_chara_unit_index != -1
-            banner_chara_name = self.reader.get_chara_unitAbbr_name(
+            banner_chara_name = self.reader.get_chara_unitAbbr_names(
                 self.gameCharacterUnits[banner_chara_unit_index]['gameCharacterId']
             )[1]
             banner_name = f'{unit_abbr}_{banner_chara_name}'
@@ -460,7 +490,7 @@ class Event_story_getter(util.Base_getter):
         if event_type == 'world_bloom':
             gameCharacterId = episode.get('gameCharacterId', -1)
             if gameCharacterId != -1:
-                chara_name = self.reader.get_chara_unitAbbr_name(gameCharacterId)[1]
+                chara_name = self.reader.get_chara_unitAbbr_names(gameCharacterId)[1]
                 episode_name += f" ({chara_name})"
                 episode_save_name = util.valid_filename(
                     episode_save_name + f" ({chara_name})"
@@ -712,9 +742,9 @@ class Card_story_getter(util.Base_getter):
         cardEpisode_2 = self.cardEpisodes_json[cardEpisode_index + 1]
 
         chara_unit_and_name = '_'.join(
-            self.reader.get_chara_unitAbbr_name(card['characterId'])
+            self.reader.get_chara_unitAbbr_names(card['characterId'])[:2]
         )
-        chara_name = self.reader.get_chara_unitAbbr_name(card['characterId'])[1]
+        chara_name = self.reader.get_chara_unitAbbr_names(card['characterId'])[1]
         cardRarityType = Constant.rarity_name[card['cardRarityType']]
         card_name = card['prefix']
         card_gachaPhrase = card['gachaPhrase'].replace('\n', ' ')
@@ -1095,7 +1125,7 @@ class Self_intro_getter(util.Base_getter):
             print(f'character {chara_id} does not exist.')
             return
 
-        chara_unit_name = '_'.join(self.reader.get_chara_unitAbbr_name(chara_id))
+        chara_unit_name = '_'.join(self.reader.get_chara_unitAbbr_names(chara_id)[:2])
 
         filename = util.valid_filename(self.reader.lang + '-' + chara_unit_name)
 

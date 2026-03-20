@@ -58,9 +58,9 @@ class Event_tranlation_getter(util.Base_fetcher):
                 event_name = ' '.join(event_dir.stem.split(' ')[1:-1])
                 banner_name = event_dir.stem.split(' ')[-1]
 
-                trans_event_name = self.translate_title_json['name'].get(
-                    event_name, event_name
-                )
+                trans_event_name = self.translate_title_json['name'].get(event_name)
+                if not trans_event_name:
+                    trans_event_name = event_name
 
                 new_event_dir = event_dir.parent / Path(
                     f'cn-{event_id:0{self.event_id_maxlen}} 翻译 {trans_event_name} {banner_name}'

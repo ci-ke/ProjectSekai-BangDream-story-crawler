@@ -58,13 +58,20 @@ class Story_reader(util.Base_fetcher):
     def get_band_name(self, band_id: int, lang: str) -> str:
         return self.bands_json[str(band_id)]['bandName'][Constant.lang_index[lang]]
 
-    def get_chara_bandAbbr_and_name(self, chara_id: int, lang: str) -> tuple[str, str]:
-        name = self.characters_json[str(chara_id)]['characterName'][
+    def get_chara_bandAbbr_and_names(
+        self, chara_id: int, lang: str
+    ) -> tuple[str, str, str]:
+        if str(chara_id) not in self.characters_json:
+            return '', '', ''
+        fullname = self.characters_json[str(chara_id)]['characterName'][
             Constant.lang_index[lang]
         ].replace(' ', '')
+        shortname = self.characters_json[str(chara_id)]['firstName'][
+            Constant.lang_index[lang]
+        ]
         band_id = self.characters_json[str(chara_id)]['bandId']
         band_abbr = Constant.band_id_abbr[band_id]
-        return band_abbr, name
+        return band_abbr, fullname, shortname
 
     def read_story_in_json(
         self,
@@ -90,7 +97,7 @@ class Story_reader(util.Base_fetcher):
                 Mark_multi_lang['characters'][mark_lang]
                 + Mark_multi_lang[','][mark_lang].join(
                     [
-                        self.get_chara_bandAbbr_and_name(id, lang)[1]
+                        self.get_chara_bandAbbr_and_names(id, lang)[1]
                         for id in chara_id_list
                     ]
                 )
@@ -160,10 +167,28 @@ class Story_reader(util.Base_fetcher):
                         ret += f"SpecialEffectType: {effect_name}, {index}, {specialEffect['stringVal']}\n"
             elif snippet['actionType'] == util.SnippetAction.Talk:
                 talk = talks[snippet['referenceIndex']]
+
+                talk_charaid = talk['talkCharacters'][0]['characterId']
+                speaker_shortname = self.get_chara_bandAbbr_and_names(
+                    talk_charaid, lang
+                )[2]
+
+                displayname = talk['windowDisplayName'].replace('\n', ' ')
+
+                if speaker_shortname not in displayname:
+                    name = (
+                        displayname
+                        + util.Mark_multi_lang['('][mark_lang]
+                        + speaker_shortname
+                        + util.Mark_multi_lang[')'][mark_lang]
+                    )
+                else:
+                    name = displayname
+
                 if next_talk_need_newline:
                     ret += '\n'
                 ret += (
-                    talk['windowDisplayName'].replace('\n', ' ')
+                    name
                     + Mark_multi_lang[':'][mark_lang]
                     + talk['body'].replace('\n', ' ')
                     + '\n'
@@ -575,7 +600,7 @@ class Card_story_getter(util.Base_getter):
             print(f'card {card_id} does not have story.')
             return
 
-        chara_bandAbbr, chara_name = self.reader.get_chara_bandAbbr_and_name(
+        chara_bandAbbr, chara_name, _ = self.reader.get_chara_bandAbbr_and_names(
             card['characterId'], lang
         )
         chara_band_and_name = lang + '-' + '_'.join((chara_bandAbbr, chara_name))
