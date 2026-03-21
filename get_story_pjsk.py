@@ -834,6 +834,53 @@ class Card_story_getter(util.Base_getter):
 
         print(f'get card {card_story_name} done.')
 
+    async def get_event(self, event_id: int) -> None:
+        newest_event_id = self.eventCards_json[-1]['eventId']
+        if event_id > newest_event_id + 1:
+            return
+
+        if event_id == 0:
+            start_cardid = 1
+            end_cardid = self.eventCards_json[0]['cardId'] - 1
+        elif event_id == 1:
+            event_cardids = [
+                card['cardId']
+                for card in self.eventCards_json
+                if card['eventId'] == event_id
+            ]
+            start_cardid = event_cardids[0]
+            end_cardid = event_cardids[-1]
+        elif event_id == newest_event_id + 1:
+            start_cardid = self.eventCards_json[-1]['cardId'] + 1
+            end_cardid = self.cardEpisodes_json[-1]['cardId']
+        else:
+            last_event_cardids: list[int] = []
+            forward_i = 1
+            while len(last_event_cardids) == 0 and (event_id - forward_i > 0):
+                last_event_cardids = [
+                    card['cardId']
+                    for card in self.eventCards_json
+                    if card['eventId'] == event_id - forward_i
+                ]
+                forward_i += 1
+            start_cardid = last_event_cardids[-1] + 1
+
+            event_cardids = [
+                card['cardId']
+                for card in self.eventCards_json
+                if card['eventId'] == event_id
+            ]
+
+            if len(event_cardids) > 0:
+                end_cardid = event_cardids[-1]
+            else:
+                return
+
+        tasks = []
+        for i in range(start_cardid, end_cardid + 1):
+            tasks.append(self.get(i))
+        await asyncio.gather(*tasks)
+
 
 class Area_talk_getter((util.Base_getter)):
     def __init__(
