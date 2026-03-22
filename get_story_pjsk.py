@@ -259,8 +259,8 @@ class Story_reader(util.Base_fetcher):
                 talk = talks[snippet['ReferenceIndex']]
 
                 talk_chara2did = talk['TalkCharacters'][0]['Character2dId']
-                unit, _, speaker_shortname, isVS = self.get_chara2d_unitAbbr_names_isVS(
-                    talk_chara2did
+                unit, speaker_fullname, speaker_shortname, isVS = (
+                    self.get_chara2d_unitAbbr_names_isVS(talk_chara2did)
                 )
                 if isVS and unit not in (
                     'VS',
@@ -272,7 +272,9 @@ class Story_reader(util.Base_fetcher):
 
                 displayname = talk['WindowDisplayName'].replace('\n', ' ')
 
-                if speaker_shortname not in displayname:
+                if len(speaker_fullname) > 0 and (
+                    displayname not in (speaker_fullname, speaker_shortname)
+                ):
                     name = (
                         displayname
                         + util.Mark_multi_lang['('][self.mark_lang]

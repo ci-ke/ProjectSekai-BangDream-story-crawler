@@ -169,13 +169,16 @@ class Story_reader(util.Base_fetcher):
                 talk = talks[snippet['referenceIndex']]
 
                 talk_charaid = talk['talkCharacters'][0]['characterId']
-                speaker_shortname = self.get_chara_bandAbbr_and_names(
-                    talk_charaid, lang
-                )[2]
+                _, speaker_fullname, speaker_shortname = (
+                    self.get_chara_bandAbbr_and_names(talk_charaid, lang)
+                )
 
                 displayname = talk['windowDisplayName'].replace('\n', ' ')
 
-                if speaker_shortname not in displayname:
+                if len(speaker_fullname) > 0 and displayname not in (
+                    speaker_fullname,
+                    speaker_shortname,
+                ):
                     name = (
                         displayname
                         + util.Mark_multi_lang['('][mark_lang]
