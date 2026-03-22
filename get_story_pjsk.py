@@ -259,9 +259,14 @@ class Story_reader(util.Base_fetcher):
                 talk = talks[snippet['ReferenceIndex']]
 
                 talk_chara2did = talk['TalkCharacters'][0]['Character2dId']
-                speaker_shortname = self.get_chara2d_unitAbbr_names_isVS(
+                unit, _, speaker_shortname, isVS = self.get_chara2d_unitAbbr_names_isVS(
                     talk_chara2did
-                )[2]
+                )
+                if isVS and unit not in (
+                    'VS',
+                    'none',
+                ):  # none for some VS in chara2D, like card 335
+                    speaker_shortname = f'{speaker_shortname}-{unit}'
 
                 displayname = talk['WindowDisplayName'].replace('\n', ' ')
 
