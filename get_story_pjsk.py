@@ -266,7 +266,9 @@ class Story_reader(util.Base_fetcher):
                     'VS',
                     'none',
                 ):  # none for some VS in chara2D, like card 335
-                    speaker_shortname = f'{speaker_shortname}-{unit}'
+                    need_unit_annotation = True
+                else:
+                    need_unit_annotation = False
 
                 displayname = talk['WindowDisplayName'].replace('\n', ' ')
 
@@ -275,10 +277,19 @@ class Story_reader(util.Base_fetcher):
                         displayname
                         + util.Mark_multi_lang['('][self.mark_lang]
                         + speaker_shortname
+                        + (f'-{unit}' if need_unit_annotation else '')
                         + util.Mark_multi_lang[')'][self.mark_lang]
                     )
                 else:
-                    name = displayname
+                    name = displayname + (
+                        (
+                            util.Mark_multi_lang['('][self.mark_lang]
+                            + unit
+                            + util.Mark_multi_lang[')'][self.mark_lang]
+                        )
+                        if need_unit_annotation
+                        else ''
+                    )
 
                 if next_talk_need_newline:
                     ret += '\n'
