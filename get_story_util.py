@@ -180,9 +180,16 @@ def url_to_path(url: str, save_dir: str) -> str:
 
 
 async def save_json_to_url(
-    url: str, content: Any, save_dir: str, file_semaphore: Semaphore
+    url: str,
+    content: Any,
+    save_dir: str,
+    file_semaphore: Semaphore,
+    append_save_path: str | None,
 ) -> None:
-    path = url_to_path(url, save_dir)
+    if append_save_path is None:
+        path = url_to_path(url, save_dir)
+    else:
+        path = os.path.normpath(os.path.join(save_dir, append_save_path))
     os.makedirs(os.path.split(path)[0], exist_ok=True)
 
     async with file_semaphore:
@@ -219,8 +226,12 @@ async def read_json_from_url(
     session: aiohttp.ClientSession | None,
     network_semaphore: Semaphore,
     file_semaphore: Semaphore,
+    append_save_path: str | None,
 ) -> Any:
-    path = url_to_path(url, save_dir)
+    if append_save_path is None:
+        path = url_to_path(url, save_dir)
+    else:
+        path = os.path.normpath(os.path.join(save_dir, append_save_path))
     if os.path.exists(path):
         async with file_semaphore:
             async with aiofiles.open(path, encoding='utf8') as f:
@@ -240,6 +251,7 @@ async def read_json_from_url(
                 session,
                 network_semaphore,
                 file_semaphore,
+                append_save_path=append_save_path,
             )
         else:
             if missing_assets_file:
@@ -252,7 +264,7 @@ async def read_json_from_url(
 
 
 async def fetch_url_json(
-    url: str,
+    url: str | list[str],
     online: bool,
     save: bool,
     save_dir: str,
@@ -264,6 +276,8 @@ async def fetch_url_json(
     network_semaphore: Semaphore | None = None,
     file_semaphore: Semaphore | None = None,
     print_done: bool = False,
+    append_save_path: str | None = None,
+    max_retries: int = 5,
 ) -> Any:
 
     if network_semaphore is None:
@@ -271,32 +285,58 @@ async def fetch_url_json(
     if file_semaphore is None:
         file_semaphore = _file_semaphore
 
+    # 统一转为列表
+    urls = [url] if isinstance(url, str) else url
+
     if online:
         assert session is not None
 
-        async with network_semaphore:
-            async with session.get(url) as res:
-                try:
-                    res.raise_for_status()
-                    json_content = await res.json(content_type=None)
-                    if save:
-                        await save_json_to_url(
-                            url, json_content, save_dir, file_semaphore
-                        )
+        json_content = None
+        last_error = None
 
-                except Exception:
-                    # if encounter "Can not decode content-encoding: br", pip install -U brotli
-                    json_content = f'Fetch json error: {traceback.format_exc()}'
-                    print(json_content)
-                    if error_assets_file:
-                        await write_to_file(
-                            error_assets_file,
-                            f"{extra_record_msg}{': ' if extra_record_msg else ''}{url}",
-                            file_semaphore,
-                        )
+        for attempt in range(max_retries):
+            for current_url in urls:
+                async with network_semaphore:
+                    async with session.get(current_url) as res:
+                        try:
+                            res.raise_for_status()
+                            json_content = await res.json(content_type=None)
+                            if save:
+                                await save_json_to_url(
+                                    current_url,
+                                    json_content,
+                                    save_dir,
+                                    file_semaphore,
+                                    append_save_path,
+                                )
+                            # 成功，直接跳出所有循环
+                            last_error = None
+                            break
+
+                        except Exception:
+                            # if encounter "Can not decode content-encoding: br", pip install -U brotli
+                            last_error = f'Fetch json error (attempt {attempt + 1}/{max_retries}, url: {current_url}):\n{traceback.format_exc()}'
+                            print(last_error)
+
+            # 内层 for 循环正常结束（所有 url 均失败）则继续重试，若被 break 则 last_error 为 None
+            if last_error is None:
+                break
+
+        # 全部重试耗尽后仍失败
+        if last_error is not None:
+            json_content = last_error
+            if error_assets_file:
+                failed_urls = ', '.join(urls)
+                await write_to_file(
+                    error_assets_file,
+                    f"{extra_record_msg}{': ' if extra_record_msg else ''}{failed_urls}",
+                    file_semaphore,
+                )
+
     else:
+        # offline 模式：只取第一个 url（本地路径唯一）
         json_content = await read_json_from_url(
-            url,
+            urls[0],
             missing_download,
             save_dir,
             extra_record_msg,
@@ -305,16 +345,21 @@ async def fetch_url_json(
             session,
             network_semaphore,
             file_semaphore,
+            append_save_path,
         )
 
     if print_done:
-        print('get ' + url + ' done.')
+        print('get ' + (urls[0] if len(urls) == 1 else str(urls)) + ' done.')
 
     return json_content
 
 
 async def fetch_url_json_simple(
-    url: str, self: Base_fetcher, extra_record_msg: str = '', print_done: bool = False
+    url: str | list[str],
+    self: Base_fetcher,
+    extra_record_msg: str = '',
+    print_done: bool = False,
+    append_save_path: str | None = None,
 ) -> Any:
     return await fetch_url_json(
         url,
@@ -327,4 +372,5 @@ async def fetch_url_json_simple(
         network_semaphore=self.network_semaphore,
         file_semaphore=self.file_semaphore,
         print_done=print_done,
+        append_save_path=append_save_path,
     )

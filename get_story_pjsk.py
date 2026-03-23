@@ -1,6 +1,6 @@
-import os, math, asyncio, json
+import os, math, asyncio, json, re
 from asyncio import Semaphore
-from typing import Any, cast
+from typing import Any, Callable, cast
 
 import aiofiles
 from aiohttp import ClientSession, TCPConnector
@@ -57,6 +57,53 @@ class Constant:
             return base_url.format(lang=Constant.urls[src]['asset_lang'][lang])
 
 
+class Fetch:
+    @staticmethod
+    def url_to_apd_path_master(url: str, lang: str) -> str:
+        master_name_match = re.search(r'master.*/(\w+\.json)', url)
+        if master_name_match:
+            master_name = master_name_match.group(1)
+        else:
+            raise RuntimeError
+        return os.path.normpath(os.path.join(f'{lang}-master', master_name))
+
+    @staticmethod
+    def url_to_apd_path_asset(url: str, lang: str) -> str:
+        asset_name_match = re.search(r'(ondemand|startapp|sekai-\w+-assets)/(.*)', url)
+        if asset_name_match:
+            asset_name = asset_name_match.group(2)
+        else:
+            raise RuntimeError
+        return os.path.normpath(os.path.join(f'{lang}-assets', asset_name))
+
+    @staticmethod
+    async def fetch_url_json_simple(
+        url: str, self: Any, extra_record_msg: str = '', print_done: bool = False
+    ) -> Any:
+        try:
+            lang = self.reader.lang
+        except AttributeError:
+            lang = self.lang
+
+        master_name_match = re.search(r'master.*/(\w+\.json)', url)
+        if master_name_match:
+            return await util.fetch_url_json_simple(
+                url,
+                self,
+                extra_record_msg,
+                print_done,
+                append_save_path=Fetch.url_to_apd_path_master(url, lang),
+            )
+        else:
+            return await util.fetch_url_json_simple(
+                url,
+                self,
+                extra_record_msg,
+                print_done,
+                append_save_path=Fetch.url_to_apd_path_asset(url, lang),
+            )
+
+
 class Story_reader(util.Base_fetcher):
     def __init__(
         self,
@@ -95,8 +142,8 @@ class Story_reader(util.Base_fetcher):
         await super().init(session, network_semaphore, file_semaphore)
 
         self.gameCharacters, self.character2ds = await asyncio.gather(
-            util.fetch_url_json_simple(self.gameCharacters_url, self),
-            util.fetch_url_json_simple(self.character2ds_url, self),
+            Fetch.fetch_url_json_simple(self.gameCharacters_url, self),
+            Fetch.fetch_url_json_simple(self.character2ds_url, self),
         )
 
         self.gameCharacters_lookup = util.DictLookup(self.gameCharacters, 'id')
@@ -370,10 +417,10 @@ class Event_story_getter(util.Base_getter):
             self.gameCharacterUnits,
             actionSets,
         ) = await asyncio.gather(
-            util.fetch_url_json_simple(self.events_url, self),
-            util.fetch_url_json_simple(self.eventStories_url, self),
-            util.fetch_url_json_simple(self.gameCharacterUnits_url, self),
-            util.fetch_url_json_simple(self.actionSets_url, self),
+            Fetch.fetch_url_json_simple(self.events_url, self),
+            Fetch.fetch_url_json_simple(self.eventStories_url, self),
+            Fetch.fetch_url_json_simple(self.gameCharacterUnits_url, self),
+            Fetch.fetch_url_json_simple(self.actionSets_url, self),
         )
 
         self.events_lookup = util.DictLookup(self.events_json, 'id')
@@ -516,7 +563,7 @@ class Event_story_getter(util.Base_getter):
 
         scenarioId = episode['scenarioId']
 
-        story_json: dict[str, Any] = await util.fetch_url_json_simple(
+        story_json: dict[str, Any] = await Fetch.fetch_url_json_simple(
             self.event_asset_url.format(
                 assetbundleName=assetbundleName, scenarioId=scenarioId
             ),
@@ -587,9 +634,9 @@ class Unit_story_getter(util.Base_getter):
             self.unitStoryEpisodeGroups_json,
             self.unitStories_json,
         ) = await asyncio.gather(
-            util.fetch_url_json_simple(self.unitProfiles_url, self),
-            util.fetch_url_json_simple(self.unitStoryEpisodeGroups_url, self),
-            util.fetch_url_json_simple(self.unitStories_url, self),
+            Fetch.fetch_url_json_simple(self.unitProfiles_url, self),
+            Fetch.fetch_url_json_simple(self.unitStoryEpisodeGroups_url, self),
+            Fetch.fetch_url_json_simple(self.unitStories_url, self),
         )
 
         self.unitStoryEpisodeGroups_lookup = util.DictLookup(
@@ -666,7 +713,7 @@ class Unit_story_getter(util.Base_getter):
 
         episode_save_name = util.valid_filename(episode_name)
 
-        story_json: dict[str, Any] = await util.fetch_url_json_simple(
+        story_json: dict[str, Any] = await Fetch.fetch_url_json_simple(
             self.unit_asset_url.format(
                 assetbundleName=assetbundleName, scenarioId=scenarioId
             ),
@@ -732,9 +779,9 @@ class Card_story_getter(util.Base_getter):
 
         self.cards_json, self.cardEpisodes_json, ori_eventCards_json = (
             await asyncio.gather(
-                util.fetch_url_json_simple(self.cards_url, self),
-                util.fetch_url_json_simple(self.cardEpisodes_url, self),
-                util.fetch_url_json_simple(self.eventCards_url, self),
+                Fetch.fetch_url_json_simple(self.cards_url, self),
+                Fetch.fetch_url_json_simple(self.cardEpisodes_url, self),
+                Fetch.fetch_url_json_simple(self.eventCards_url, self),
             )
         )
 
@@ -802,14 +849,14 @@ class Card_story_getter(util.Base_getter):
         )
 
         story_1_json, story_2_json = await asyncio.gather(
-            util.fetch_url_json_simple(
+            Fetch.fetch_url_json_simple(
                 self.card_asset_url.format(
                     assetbundleName=assetbundleName, scenarioId=story_1_scenarioId
                 ),
                 self,
                 card_story_name + ' part1',
             ),
-            util.fetch_url_json_simple(
+            Fetch.fetch_url_json_simple(
                 self.card_asset_url.format(
                     assetbundleName=assetbundleName, scenarioId=story_2_scenarioId
                 ),
@@ -938,8 +985,8 @@ class Area_talk_getter((util.Base_getter)):
         await super().init(session, network_semaphore, file_semaphore)
 
         self.area_name_json, self.actionSets_json = await asyncio.gather(
-            util.fetch_url_json_simple(self.areas_url, self),
-            util.fetch_url_json_simple(self.actionSets_url, self),
+            Fetch.fetch_url_json_simple(self.areas_url, self),
+            Fetch.fetch_url_json_simple(self.actionSets_url, self),
         )
 
         self.area_name_lookup = util.DictLookup(self.area_name_json, 'id')
@@ -1012,7 +1059,7 @@ class Area_talk_getter((util.Base_getter)):
         tasks = []
         for action in actions:
             tasks.append(
-                util.fetch_url_json_simple(
+                Fetch.fetch_url_json_simple(
                     self.talk_asset_url.format(
                         group=math.floor(action['id'] / 100),
                         scenarioId=action['scenarioId'],
@@ -1110,7 +1157,7 @@ class Area_talk_getter((util.Base_getter)):
         if self.parse:
             os.makedirs(self.save_dir, exist_ok=True)
 
-        talk_json = await util.fetch_url_json_simple(
+        talk_json = await Fetch.fetch_url_json_simple(
             self.talk_asset_url.format(
                 group=math.floor(talk_id / 100), scenarioId=actionSet['scenarioId']
             ),
@@ -1177,7 +1224,7 @@ class Self_intro_getter(util.Base_getter):
         await super().init(session, network_semaphore, file_semaphore)
 
         self.characterProfiles_json: list[dict[str, Any]] = (
-            await util.fetch_url_json_simple(self.characterProfiles_url, self)
+            await Fetch.fetch_url_json_simple(self.characterProfiles_url, self)
         )
 
         self.characterProfiles_lookup = util.DictLookup(
@@ -1200,10 +1247,10 @@ class Self_intro_getter(util.Base_getter):
         scenarioId_common = scenarioId[: scenarioId.rindex('_')]
 
         grade1_json, grade2_json = await asyncio.gather(
-            util.fetch_url_json_simple(
+            Fetch.fetch_url_json_simple(
                 self.self_asset_url.format(scenarioId=scenarioId_common), self
             ),
-            util.fetch_url_json_simple(
+            Fetch.fetch_url_json_simple(
                 self.self_asset_url.format(scenarioId=scenarioId), self
             ),
         )
@@ -1277,7 +1324,7 @@ class Special_story_getter(util.Base_getter):
         await super().init(session, network_semaphore, file_semaphore)
 
         self.specialStories_json: list[dict[str, Any]] = (
-            await util.fetch_url_json_simple(self.specialStories_url, self)
+            await Fetch.fetch_url_json_simple(self.specialStories_url, self)
         )
 
         self.specialStories_lookup = util.DictLookup(self.specialStories_json, 'id')
@@ -1304,7 +1351,7 @@ class Special_story_getter(util.Base_getter):
         episode_tasks = []
         for episode in episodes:
             episode_tasks.append(
-                util.fetch_url_json_simple(
+                Fetch.fetch_url_json_simple(
                     self.special_asset_url.format(
                         assetbundleName=episode['assetbundleName'],
                         scenarioId=episode['scenarioId'],
@@ -1358,7 +1405,7 @@ async def main():
     text_lang = 'cn'
     mark_lang = 'cn'
 
-    src = 'sekai.best'
+    src = 'haruki'
 
     reader = Story_reader(text_lang, src=src, online=online, mark_lang=mark_lang)
     unit_getter = Unit_story_getter(reader, src=src, online=online)
