@@ -1,6 +1,6 @@
 import os, math, asyncio, json, re
 from asyncio import Semaphore
-from typing import Any, Callable, cast
+from typing import Any, cast
 
 import aiofiles
 from aiohttp import ClientSession, TCPConnector
@@ -41,20 +41,29 @@ class Constant:
     urls: dict[str, dict[str, Any]] = json.load(open('urls_pjsk.json', encoding='utf8'))
 
     @staticmethod
-    def get_src_url(lang: str, src: str, file_type: str, file: str) -> str:
+    def get_srcs_url(
+        lang: str, srcs: list[str], file_type: str, file: str
+    ) -> list[str]:
         '''
         lang: cn jp tw
 
         file_type: master or asset
         '''
-        if file_type == 'master':
-            base_url: str = Constant.urls[src]['master']
-            return base_url.format(
-                lang=Constant.urls[src]['master_lang'][lang], file=file
-            )
-        else:
-            base_url = Constant.urls[src][f'{file}_asset']
-            return base_url.format(lang=Constant.urls[src]['asset_lang'][lang])
+        base_urls = []
+        for src in srcs:
+            if file_type == 'master':
+                base_url: str = Constant.urls[src]['master']
+                base_urls.append(
+                    base_url.format(
+                        lang=Constant.urls[src]['master_lang'][lang], file=file
+                    )
+                )
+            else:
+                base_url = Constant.urls[src][f'{file}_asset']
+                base_urls.append(
+                    base_url.format(lang=Constant.urls[src]['asset_lang'][lang])
+                )
+        return base_urls
 
 
 class Fetch:
@@ -78,21 +87,26 @@ class Fetch:
 
     @staticmethod
     async def fetch_url_json_simple(
-        url: str, self: Any, extra_record_msg: str = '', print_done: bool = False
+        url: str | list[str],
+        self: Any,
+        extra_record_msg: str = '',
+        print_done: bool = False,
     ) -> Any:
         try:
             lang = self.reader.lang
         except AttributeError:
             lang = self.lang
 
-        master_name_match = re.search(r'master.*/(\w+\.json)', url)
+        urls = [url] if isinstance(url, str) else url
+
+        master_name_match = re.search(r'master.*/(\w+\.json)', urls[0])
         if master_name_match:
             return await util.fetch_url_json_simple(
                 url,
                 self,
                 extra_record_msg,
                 print_done,
-                append_save_path=Fetch.url_to_apd_path_master(url, lang),
+                append_save_path=Fetch.url_to_apd_path_master(urls[0], lang),
             )
         else:
             return await util.fetch_url_json_simple(
@@ -100,7 +114,7 @@ class Fetch:
                 self,
                 extra_record_msg,
                 print_done,
-                append_save_path=Fetch.url_to_apd_path_asset(url, lang),
+                append_save_path=Fetch.url_to_apd_path_asset(urls[0], lang),
             )
 
 
@@ -108,7 +122,7 @@ class Story_reader(util.Base_fetcher):
     def __init__(
         self,
         lang: str = 'cn',
-        src: str = 'sekai.best',
+        src: list[str] = ['haruki', 'sekai.best'],
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
@@ -126,10 +140,10 @@ class Story_reader(util.Base_fetcher):
 
         self.cg_link = 'https://storage.sekai.best/sekai-jp-assets/scenario/background/{pic_name}/{pic_name}.webp'
 
-        self.gameCharacters_url = Constant.get_src_url(
+        self.gameCharacters_url = Constant.get_srcs_url(
             lang, src, 'master', 'gameCharacters'
         )
-        self.character2ds_url = Constant.get_src_url(
+        self.character2ds_url = Constant.get_srcs_url(
             lang, src, 'master', 'character2ds'
         )
 
@@ -364,7 +378,7 @@ class Event_story_getter(util.Base_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: str = 'sekai.best',
+        src: list[str] = ['haruki', 'sekai.best'],
         save_dir: str = './story_event',
         assets_save_dir: str = './assets',
         online: bool = True,
@@ -385,23 +399,23 @@ class Event_story_getter(util.Base_getter):
 
         self.maxlen_eventId_episode = maxlen_eventId_episode
 
-        self.events_url = Constant.get_src_url(
+        self.events_url = Constant.get_srcs_url(
             self.reader.lang, src, 'master', 'events'
         )
-        self.eventStories_url = Constant.get_src_url(
+        self.eventStories_url = Constant.get_srcs_url(
             self.reader.lang, src, 'master', 'eventStories'
         )
-        self.gameCharacterUnits_url = Constant.get_src_url(
+        self.gameCharacterUnits_url = Constant.get_srcs_url(
             self.reader.lang,
             src,
             'master',
             'gameCharacterUnits',
         )
-        self.event_asset_url = Constant.get_src_url(
+        self.event_asset_url = Constant.get_srcs_url(
             self.reader.lang, src, 'asset', 'event'
         )
 
-        self.actionSets_url = Constant.get_src_url('jp', src, 'master', 'actionSets')
+        self.actionSets_url = Constant.get_srcs_url('jp', src, 'master', 'actionSets')
 
     async def init(
         self,
@@ -564,9 +578,10 @@ class Event_story_getter(util.Base_getter):
         scenarioId = episode['scenarioId']
 
         story_json: dict[str, Any] = await Fetch.fetch_url_json_simple(
-            self.event_asset_url.format(
-                assetbundleName=assetbundleName, scenarioId=scenarioId
-            ),
+            [
+                url.format(assetbundleName=assetbundleName, scenarioId=scenarioId)
+                for url in self.event_asset_url
+            ],
             self,
         )
 
@@ -591,7 +606,7 @@ class Unit_story_getter(util.Base_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: str = 'sekai.best',
+        src: list[str] = ['haruki', 'sekai.best'],
         save_dir: str = './story_unit',
         assets_save_dir: str = './assets',
         online: bool = True,
@@ -606,18 +621,18 @@ class Unit_story_getter(util.Base_getter):
 
         self.reader = reader
 
-        self.unitProfiles_url = Constant.get_src_url(
+        self.unitProfiles_url = Constant.get_srcs_url(
             self.reader.lang, src, 'master', 'unitProfiles'
         )
 
-        self.unitStoryEpisodeGroups_url = Constant.get_src_url(
+        self.unitStoryEpisodeGroups_url = Constant.get_srcs_url(
             self.reader.lang, src, 'master', 'unitStoryEpisodeGroups'
         )
 
-        self.unitStories_url = Constant.get_src_url(
+        self.unitStories_url = Constant.get_srcs_url(
             self.reader.lang, src, 'master', 'unitStories'
         )
-        self.unit_asset_url = Constant.get_src_url(
+        self.unit_asset_url = Constant.get_srcs_url(
             self.reader.lang, src, 'asset', 'unit'
         )
 
@@ -714,9 +729,10 @@ class Unit_story_getter(util.Base_getter):
         episode_save_name = util.valid_filename(episode_name)
 
         story_json: dict[str, Any] = await Fetch.fetch_url_json_simple(
-            self.unit_asset_url.format(
-                assetbundleName=assetbundleName, scenarioId=scenarioId
-            ),
+            [
+                url.format(assetbundleName=assetbundleName, scenarioId=scenarioId)
+                for url in self.unit_asset_url
+            ],
             self,
         )
 
@@ -741,7 +757,7 @@ class Card_story_getter(util.Base_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: str = 'sekai.best',
+        src: list[str] = ['haruki', 'sekai.best'],
         save_dir: str = './story_card',
         assets_save_dir: str = './assets',
         online: bool = True,
@@ -758,14 +774,14 @@ class Card_story_getter(util.Base_getter):
         self.reader = reader
         self.maxlen_id = maxlen_id
 
-        self.cards_url = Constant.get_src_url(self.reader.lang, src, 'master', 'cards')
-        self.cardEpisodes_url = Constant.get_src_url(
+        self.cards_url = Constant.get_srcs_url(self.reader.lang, src, 'master', 'cards')
+        self.cardEpisodes_url = Constant.get_srcs_url(
             self.reader.lang, src, 'master', 'cardEpisodes'
         )
-        self.eventCards_url = Constant.get_src_url(
+        self.eventCards_url = Constant.get_srcs_url(
             self.reader.lang, src, 'master', 'eventCards'
         )
-        self.card_asset_url = Constant.get_src_url(
+        self.card_asset_url = Constant.get_srcs_url(
             self.reader.lang, src, 'asset', 'card'
         )
 
@@ -850,16 +866,22 @@ class Card_story_getter(util.Base_getter):
 
         story_1_json, story_2_json = await asyncio.gather(
             Fetch.fetch_url_json_simple(
-                self.card_asset_url.format(
-                    assetbundleName=assetbundleName, scenarioId=story_1_scenarioId
-                ),
+                [
+                    url.format(
+                        assetbundleName=assetbundleName, scenarioId=story_1_scenarioId
+                    )
+                    for url in self.card_asset_url
+                ],
                 self,
                 card_story_name + ' part1',
             ),
             Fetch.fetch_url_json_simple(
-                self.card_asset_url.format(
-                    assetbundleName=assetbundleName, scenarioId=story_2_scenarioId
-                ),
+                [
+                    url.format(
+                        assetbundleName=assetbundleName, scenarioId=story_2_scenarioId
+                    )
+                    for url in self.card_asset_url
+                ],
                 self,
                 card_story_name + ' part2',
             ),
@@ -951,7 +973,7 @@ class Area_talk_getter((util.Base_getter)):
     def __init__(
         self,
         reader: Story_reader,
-        src: str = 'sekai.best',
+        src: list[str] = ['haruki', 'sekai.best'],
         save_dir: str = './story_area',
         assets_save_dir: str = './assets',
         online: bool = True,
@@ -968,11 +990,11 @@ class Area_talk_getter((util.Base_getter)):
         self.reader = reader
         self.maxlen_eventId_areaID = maxlen_eventId_areaID
 
-        self.areas_url = Constant.get_src_url(self.reader.lang, src, 'master', 'areas')
-        self.actionSets_url = Constant.get_src_url(
+        self.areas_url = Constant.get_srcs_url(self.reader.lang, src, 'master', 'areas')
+        self.actionSets_url = Constant.get_srcs_url(
             self.reader.lang, src, 'master', 'actionSets'
         )
-        self.talk_asset_url = Constant.get_src_url(
+        self.talk_asset_url = Constant.get_srcs_url(
             self.reader.lang, src, 'asset', 'talk'
         )
 
@@ -1060,10 +1082,13 @@ class Area_talk_getter((util.Base_getter)):
         for action in actions:
             tasks.append(
                 Fetch.fetch_url_json_simple(
-                    self.talk_asset_url.format(
-                        group=math.floor(action['id'] / 100),
-                        scenarioId=action['scenarioId'],
-                    ),
+                    [
+                        url.format(
+                            group=math.floor(action['id'] / 100),
+                            scenarioId=action['scenarioId'],
+                        )
+                        for url in self.talk_asset_url
+                    ],
                     self,
                     print_done=True,
                 )
@@ -1158,9 +1183,12 @@ class Area_talk_getter((util.Base_getter)):
             os.makedirs(self.save_dir, exist_ok=True)
 
         talk_json = await Fetch.fetch_url_json_simple(
-            self.talk_asset_url.format(
-                group=math.floor(talk_id / 100), scenarioId=actionSet['scenarioId']
-            ),
+            [
+                url.format(
+                    group=math.floor(talk_id / 100), scenarioId=actionSet['scenarioId']
+                )
+                for url in self.talk_asset_url
+            ],
             self,
         )
 
@@ -1194,7 +1222,7 @@ class Self_intro_getter(util.Base_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: str = 'sekai.best',
+        src: list[str] = ['haruki', 'sekai.best'],
         save_dir: str = './story_self',
         assets_save_dir: str = './assets',
         online: bool = True,
@@ -1208,10 +1236,10 @@ class Self_intro_getter(util.Base_getter):
 
         self.reader = reader
 
-        self.characterProfiles_url = Constant.get_src_url(
+        self.characterProfiles_url = Constant.get_srcs_url(
             self.reader.lang, src, 'master', 'characterProfiles'
         )
-        self.self_asset_url = Constant.get_src_url(
+        self.self_asset_url = Constant.get_srcs_url(
             self.reader.lang, src, 'asset', 'self'
         )
 
@@ -1248,10 +1276,14 @@ class Self_intro_getter(util.Base_getter):
 
         grade1_json, grade2_json = await asyncio.gather(
             Fetch.fetch_url_json_simple(
-                self.self_asset_url.format(scenarioId=scenarioId_common), self
+                [
+                    url.format(scenarioId=scenarioId_common)
+                    for url in self.self_asset_url
+                ],
+                self,
             ),
             Fetch.fetch_url_json_simple(
-                self.self_asset_url.format(scenarioId=scenarioId), self
+                [url.format(scenarioId=scenarioId) for url in self.self_asset_url], self
             ),
         )
 
@@ -1292,7 +1324,7 @@ class Special_story_getter(util.Base_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: str = 'sekai.best',
+        src: list[str] = ['haruki', 'sekai.best'],
         save_dir: str = './story_special',
         assets_save_dir: str = './assets',
         online: bool = True,
@@ -1308,10 +1340,10 @@ class Special_story_getter(util.Base_getter):
         self.reader = reader
         self.maxlen_sp = maxlen_sp
 
-        self.specialStories_url = Constant.get_src_url(
+        self.specialStories_url = Constant.get_srcs_url(
             self.reader.lang, src, 'master', 'specialStories'
         )
-        self.special_asset_url = Constant.get_src_url(
+        self.special_asset_url = Constant.get_srcs_url(
             self.reader.lang, src, 'asset', 'special'
         )
 
@@ -1352,10 +1384,13 @@ class Special_story_getter(util.Base_getter):
         for episode in episodes:
             episode_tasks.append(
                 Fetch.fetch_url_json_simple(
-                    self.special_asset_url.format(
-                        assetbundleName=episode['assetbundleName'],
-                        scenarioId=episode['scenarioId'],
-                    ),
+                    [
+                        url.format(
+                            assetbundleName=episode['assetbundleName'],
+                            scenarioId=episode['scenarioId'],
+                        )
+                        for url in self.special_asset_url
+                    ],
                     self,
                     filename,
                 )
@@ -1405,15 +1440,13 @@ async def main():
     text_lang = 'cn'
     mark_lang = 'cn'
 
-    src = 'haruki'
-
-    reader = Story_reader(text_lang, src=src, online=online, mark_lang=mark_lang)
-    unit_getter = Unit_story_getter(reader, src=src, online=online)
-    event_getter = Event_story_getter(reader, src=src, online=online)
-    card_getter = Card_story_getter(reader, src=src, online=online)
-    area_getter = Area_talk_getter(reader, src=src, online=online)
-    self_getter = Self_intro_getter(reader, src=src, online=online)
-    special_getter = Special_story_getter(reader, src=src, online=online)
+    reader = Story_reader(text_lang, online=online, mark_lang=mark_lang)
+    unit_getter = Unit_story_getter(reader, online=online)
+    event_getter = Event_story_getter(reader, online=online)
+    card_getter = Card_story_getter(reader, online=online)
+    area_getter = Area_talk_getter(reader, online=online)
+    self_getter = Self_intro_getter(reader, online=online)
+    special_getter = Special_story_getter(reader, online=online)
 
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=net_connect_limit)

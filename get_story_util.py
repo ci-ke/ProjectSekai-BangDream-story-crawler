@@ -294,8 +294,8 @@ async def fetch_url_json(
         json_content = None
         last_error = None
 
-        for attempt in range(max_retries):
-            for current_url in urls:
+        for current_url in urls:
+            for attempt in range(max_retries):
                 async with network_semaphore:
                     async with session.get(current_url) as res:
                         try:
@@ -316,13 +316,14 @@ async def fetch_url_json(
                         except Exception:
                             # if encounter "Can not decode content-encoding: br", pip install -U brotli
                             last_error = f'Fetch json error (attempt {attempt + 1}/{max_retries}, url: {current_url}):\n{traceback.format_exc()}'
-                            print(last_error)
+                            if attempt + 1 == max_retries:
+                                print(last_error)
 
-            # 内层 for 循环正常结束（所有 url 均失败）则继续重试，若被 break 则 last_error 为 None
+            # 内层 for 循环正常结束（所有尝试均失败）则更换url，若被 break 则 last_error 为 None
             if last_error is None:
                 break
 
-        # 全部重试耗尽后仍失败
+        # 全部url尝试后仍失败
         if last_error is not None:
             json_content = last_error
             if error_assets_file:
@@ -349,7 +350,7 @@ async def fetch_url_json(
         )
 
     if print_done:
-        print('get ' + (urls[0] if len(urls) == 1 else str(urls)) + ' done.')
+        print('fetch ' + (urls[0] if len(urls) == 1 else str(urls)) + ' done.')
 
     return json_content
 
