@@ -218,7 +218,7 @@ async def write_to_file(
 
 
 async def read_json_from_url(
-    url: str,
+    urls: list[str],
     missing_download: bool,
     save_dir: str,
     extra_record_msg: str,
@@ -229,39 +229,43 @@ async def read_json_from_url(
     file_semaphore: Semaphore,
     append_save_path: str | None,
 ) -> Any:
-    if append_save_path is None:
-        path = url_to_path(url, save_dir)
-    else:
-        path = os.path.normpath(os.path.join(save_dir, append_save_path))
-    if os.path.exists(path):
-        async with file_semaphore:
-            async with aiofiles.open(path, encoding='utf8') as f:
-                content = await f.read()
-                return json.loads(content)
-    else:
-        if missing_download:
-            return await fetch_url_json(
-                url,
-                True,
-                True,
-                save_dir,
-                False,
-                extra_record_msg,
-                error_assets_file,
-                None,
-                session,
-                network_semaphore,
-                file_semaphore,
-                append_save_path=append_save_path,
-            )
+    # 第一步：按顺序尝试读取本地文件，返回第一个找到的
+    for url in urls:
+        if append_save_path is None:
+            path = url_to_path(url, save_dir)
         else:
-            if missing_assets_file:
-                await write_to_file(
-                    missing_assets_file,
-                    f"{extra_record_msg}{': ' if extra_record_msg else ''}{url}",
-                    file_semaphore,
-                )
-            return _MISSING
+            path = os.path.normpath(os.path.join(save_dir, append_save_path))
+        if os.path.exists(path):
+            async with file_semaphore:
+                async with aiofiles.open(path, encoding='utf8') as f:
+                    content = await f.read()
+                    return json.loads(content)
+
+    # 第二步：所有本地文件均缺失
+    if missing_download:
+        # 把全部 url 交给 online 模式按顺序重试下载
+        return await fetch_url_json(
+            urls,
+            True,
+            True,
+            save_dir,
+            False,
+            extra_record_msg,
+            error_assets_file,
+            None,
+            session,
+            network_semaphore,
+            file_semaphore,
+            append_save_path=append_save_path,
+        )
+    else:
+        if missing_assets_file:
+            await write_to_file(
+                missing_assets_file,
+                f"{extra_record_msg}{': ' if extra_record_msg else ''}{', '.join(urls)}",
+                file_semaphore,
+            )
+        return _MISSING
 
 
 async def fetch_url_json(
@@ -336,28 +340,20 @@ async def fetch_url_json(
                 )
 
     else:
-        # offline 模式：按顺序尝试所有 url，返回第一个成功的
-        json_content = _MISSING
-        for current_url in urls:
-            result = await read_json_from_url(
-                current_url,
-                missing_download,
-                save_dir,
-                extra_record_msg,
-                error_assets_file,
-                missing_assets_file,
-                session,
-                network_semaphore,
-                file_semaphore,
-                append_save_path,
-            )
-            if result is not _MISSING:
-                json_content = result
-                break
-
-        # 全部 url 均失败
-        if json_content is _MISSING:
-            json_content = 'Unable to read json file'
+        # offline 模式：交由 read_json_from_url 统一处理本地遍历与按需下载
+        result = await read_json_from_url(
+            urls,
+            missing_download,
+            save_dir,
+            extra_record_msg,
+            error_assets_file,
+            missing_assets_file,
+            session,
+            network_semaphore,
+            file_semaphore,
+            append_save_path,
+        )
+        json_content = 'Unable to read json file' if result is _MISSING else result
 
     if print_done:
         print('fetch ' + (urls[0] if len(urls) == 1 else str(urls)) + ' done.')
