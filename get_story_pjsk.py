@@ -73,7 +73,7 @@ class Fetch:
         if master_name_match:
             master_name = master_name_match.group(1)
         else:
-            raise RuntimeError
+            raise RuntimeError(url)
         return os.path.normpath(os.path.join(f'pjsk-{lang}-master', master_name))
 
     @staticmethod
@@ -82,7 +82,7 @@ class Fetch:
         if asset_name_match:
             asset_name = asset_name_match.group(2)
         else:
-            raise RuntimeError
+            raise RuntimeError(url)
         return os.path.normpath(os.path.join(f'pjsk-{lang}-assets', asset_name))
 
     @staticmethod

@@ -99,6 +99,7 @@ Mark_multi_lang = {
 
 _net_semaphore = asyncio.Semaphore(20)
 _file_semaphore = asyncio.Semaphore(20)
+_MISSING = object()  # 哨兵，用于区分"文件不存在"与"文件内容为 null"
 
 
 class Base_fetcher:
@@ -260,7 +261,7 @@ async def read_json_from_url(
                     f"{extra_record_msg}{': ' if extra_record_msg else ''}{url}",
                     file_semaphore,
                 )
-            return 'Unable to read json file'
+            return _MISSING
 
 
 async def fetch_url_json(
@@ -335,19 +336,28 @@ async def fetch_url_json(
                 )
 
     else:
-        # offline 模式：只取第一个 url（本地路径唯一）
-        json_content = await read_json_from_url(
-            urls[0],
-            missing_download,
-            save_dir,
-            extra_record_msg,
-            error_assets_file,
-            missing_assets_file,
-            session,
-            network_semaphore,
-            file_semaphore,
-            append_save_path,
-        )
+        # offline 模式：按顺序尝试所有 url，返回第一个成功的
+        json_content = _MISSING
+        for current_url in urls:
+            result = await read_json_from_url(
+                current_url,
+                missing_download,
+                save_dir,
+                extra_record_msg,
+                error_assets_file,
+                missing_assets_file,
+                session,
+                network_semaphore,
+                file_semaphore,
+                append_save_path,
+            )
+            if result is not _MISSING:
+                json_content = result
+                break
+
+        # 全部 url 均失败
+        if json_content is _MISSING:
+            json_content = 'Unable to read json file'
 
     if print_done:
         print('fetch ' + (urls[0] if len(urls) == 1 else str(urls)) + ' done.')
