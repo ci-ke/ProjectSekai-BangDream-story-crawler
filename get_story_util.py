@@ -318,11 +318,17 @@ async def fetch_url_json(
                             last_error = None
                             break
 
-                        except Exception:
+                        except Exception as e:
                             # if encounter "Can not decode content-encoding: br", pip install -U brotli
                             last_error = f'Fetch json error (attempt {attempt + 1}/{max_retries}, url: {current_url}):\n{traceback.format_exc()}'
-                            if attempt + 1 == max_retries:
+                            no_retry = (
+                                isinstance(e, aiohttp.ClientResponseError)
+                                and 400 <= e.status < 500
+                            )
+                            if no_retry or attempt + 1 == max_retries:
                                 print(last_error)
+                            if no_retry:
+                                break
 
             # 内层 for 循环正常结束（所有尝试均失败）则更换url，若被 break 则 last_error 为 None
             if last_error is None:
