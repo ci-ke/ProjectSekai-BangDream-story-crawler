@@ -74,7 +74,7 @@ class Fetch:
             master_name = master_name_match.group(1)
         else:
             raise RuntimeError
-        return os.path.normpath(os.path.join(f'{lang}-master', master_name))
+        return os.path.normpath(os.path.join(f'pjsk-{lang}-master', master_name))
 
     @staticmethod
     def url_to_apd_path_asset(url: str, lang: str) -> str:
@@ -83,7 +83,7 @@ class Fetch:
             asset_name = asset_name_match.group(2)
         else:
             raise RuntimeError
-        return os.path.normpath(os.path.join(f'{lang}-assets', asset_name))
+        return os.path.normpath(os.path.join(f'pjsk-{lang}-assets', asset_name))
 
     @staticmethod
     async def fetch_url_json_simple(
