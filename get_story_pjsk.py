@@ -509,20 +509,27 @@ class Event_story_getter(util.Base_getter):
         banner_chara_unit_id = eventStory.get('bannerGameCharacterUnitId')
         event_outline = eventStory['outline'].replace('\n', ' ')
 
-        unit_abbr = self.get_event_unit_abbr(event_id)
+        event_unit_abbr = self.get_event_unit_abbr(event_id)
 
         if event_type == 'world_bloom':
-            banner_name = f'{unit_abbr}_WL'
+            banner_name = f'{event_unit_abbr}_WL'
         else:
             assert banner_chara_unit_id is not None
             banner_chara_unit_index = self.gameCharacterUnits_lookup.find_index(
                 banner_chara_unit_id
             )
             assert banner_chara_unit_index != -1
-            banner_chara_name = self.reader.get_chara_unitAbbr_names(
+            chara_unit, banner_chara_name, _ = self.reader.get_chara_unitAbbr_names(
                 self.gameCharacterUnits[banner_chara_unit_index]['gameCharacterId']
-            )[1]
-            banner_name = f'{unit_abbr}_{banner_chara_name}'
+            )
+            if chara_unit == 'VS':
+                banner_chara_name += (
+                    '-'
+                    + Constant.unit_code_abbr[
+                        self.gameCharacterUnits[banner_chara_unit_index]['unit']
+                    ]
+                )
+            banner_name = f'{event_unit_abbr}_{banner_chara_name}'
 
         save_folder_name = util.valid_filename(
             f'{event_id:0{self.maxlen_eventId_episode[0]}} {event_name} ({banner_name})'
