@@ -6,8 +6,8 @@ from asyncio import Semaphore
 import aiofiles
 from aiohttp import ClientSession, TCPConnector
 
-import src.get_story_util as util
-from src.get_story_util import Mark_multi_lang
+from . import get_story_util as util
+from .get_story_util import Mark_multi_lang
 
 URLS: dict[str, dict[str, str]] = json.load(
     open(Path(__file__).parent / 'urls_bandori.json', encoding='utf8')
