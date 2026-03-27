@@ -7,7 +7,7 @@ from aiohttp import ClientSession
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
-import get_story_util as util
+import src.get_story_util as util
 
 
 class Event_tranlation_getter(util.Base_fetcher):
@@ -122,9 +122,10 @@ class Event_tranlation_getter(util.Base_fetcher):
         )
 
         async with self.file_semaphore:
-            async with aiofiles.open(
-                new_epi_file, 'w', encoding='utf8'
-            ) as wf, aiofiles.open(episode_file, encoding='utf8') as rf:
+            async with (
+                aiofiles.open(new_epi_file, 'w', encoding='utf8') as wf,
+                aiofiles.open(episode_file, encoding='utf8') as rf,
+            ):
                 await wf.write(source + '; ')
 
                 async for line in rf:

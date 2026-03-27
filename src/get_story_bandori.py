@@ -1,14 +1,17 @@
 import os, asyncio, json
+from pathlib import Path
 from typing import Any
 from asyncio import Semaphore
 
 import aiofiles
 from aiohttp import ClientSession, TCPConnector
 
-import get_story_util as util
-from get_story_util import Mark_multi_lang
+import src.get_story_util as util
+from src.get_story_util import Mark_multi_lang
 
-URLS: dict[str, dict[str, str]] = json.load(open('urls_bandori.json', encoding='utf8'))
+URLS: dict[str, dict[str, str]] = json.load(
+    open(Path(__file__).parent / 'urls_bandori.json', encoding='utf8')
+)
 
 
 class Constant:

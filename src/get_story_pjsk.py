@@ -1,12 +1,13 @@
 import os, math, asyncio, json, re
+from pathlib import Path
 from asyncio import Semaphore
 from typing import Any, cast
 
 import aiofiles
 from aiohttp import ClientSession, TCPConnector
 
-import get_story_util as util
-from get_story_util import Mark_multi_lang
+import src.get_story_util as util
+from src.get_story_util import Mark_multi_lang
 
 
 class Constant:
@@ -38,7 +39,9 @@ class Constant:
         else:
             return False
 
-    urls: dict[str, dict[str, Any]] = json.load(open('urls_pjsk.json', encoding='utf8'))
+    urls: dict[str, dict[str, Any]] = json.load(
+        open(Path(__file__).parent / 'urls_pjsk.json', encoding='utf8')
+    )
 
     @staticmethod
     def get_srcs_url(
