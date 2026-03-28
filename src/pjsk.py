@@ -6,8 +6,8 @@ from typing import Any, cast
 import aiofiles
 from aiohttp import ClientSession, TCPConnector
 
-from . import get_story_util as util
-from .get_story_util import Mark_multi_lang
+from . import util
+from .util import Mark_multi_lang
 
 
 class Constant:

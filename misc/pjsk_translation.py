@@ -7,7 +7,7 @@ from aiohttp import ClientSession
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
-import src.get_story_util as util
+import src.util as util
 
 
 class Event_tranlation_getter(util.Base_fetcher):
