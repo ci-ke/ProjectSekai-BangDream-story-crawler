@@ -141,7 +141,7 @@ class Story_reader(util.Base_fetcher):
         self.debug_parse = debug_parse
         self.cg_add_link = cg_add_link
 
-        self.cg_link = 'https://storage.sekai.best/sekai-jp-assets/scenario/background/{pic_name}/{pic_name}.webp'
+        self.cg_link = 'https://sekai-assets-bdf29c81.seiunx.net/jp-assets/ondemand/scenario/background/{pic_name}/{pic_name}.png'
 
         self.gameCharacters_url = Constant.get_srcs_url(
             lang, src, 'master', 'gameCharacters'
