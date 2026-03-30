@@ -161,6 +161,12 @@ class DictLookup:
             return left_index
         return -1
 
+    def find_max_le_index(self, target_id: int) -> int:
+        insert_pos = bisect.bisect_right(self.ids, target_id)
+        if insert_pos == 0:
+            return -1
+        return insert_pos - 1
+
 
 def valid_filename(filename: str) -> str:
     return (

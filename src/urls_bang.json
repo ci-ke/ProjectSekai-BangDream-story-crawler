@@ -11,6 +11,7 @@
         "events_id": "https://bestdori.com/api/events/{event_id}.json",
         "event_asset": "https://bestdori.com/assets/{lang}/scenario/eventstory/event{event_id}_rip/Scenario{id}.asset",
         "cards_all_0": "https://bestdori.com/api/cards/all.0.json",
+        "cards_all_5": "https://bestdori.com/api/cards/all.5.json",
         "cards_id": "https://bestdori.com/api/cards/{id}.json",
         "card_asset": "https://bestdori.com/assets/{lang}/characters/resourceset/{res_id}_rip/Scenario{scenarioId}.asset"
     }
