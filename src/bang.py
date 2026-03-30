@@ -353,7 +353,7 @@ class Event_story_getter(util.Base_getter):
         for str_id, event in self.events_all_json.items():
             if (
                 startAt := event['startAt'][Constant.lang_index[lang]] is not None
-            ) and int(startAt) < timestamp13:
+            ) and int(startAt) <= timestamp13:
                 old_events.append((int(startAt), int(str_id)))
 
         new_events = sorted(old_events)[-quantity:]
@@ -751,7 +751,7 @@ class Card_story_getter(util.Base_getter):
         for str_id, card in self.cards_all_json.items():
             if (
                 (releaseAt := card['releasedAt'][Constant.lang_index[lang]]) is not None
-            ) and int(releaseAt) < timestamp13:
+            ) and int(releaseAt) <= timestamp13:
                 old_cards.append((int(releaseAt), int(str_id)))
 
         new_cards = sorted(old_cards)[-quantity:]

@@ -623,7 +623,7 @@ class Event_story_getter(util.Base_getter):
         old_events: list[tuple[int, int]] = []
 
         for event in self.events_json:
-            if event['startAt'] < timestamp13:
+            if event['startAt'] <= timestamp13:
                 old_events.append((event['startAt'], event['id']))
 
         new_events = sorted(old_events)[-quantity:]
@@ -1014,7 +1014,7 @@ class Card_story_getter(util.Base_getter):
         old_cards: list[tuple[int, int]] = []
 
         for card in self.cards_json:
-            if card['releaseAt'] < timestamp13:
+            if card['releaseAt'] <= timestamp13:
                 old_cards.append((card['releaseAt'], card['id']))
 
         new_cards = sorted(old_cards)[-quantity:]
