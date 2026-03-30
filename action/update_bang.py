@@ -25,9 +25,8 @@ async def main():
         )
 
         now = datetime.now(timezone.utc)
-        future_time = now + timedelta(hours=4)
-        future_timestamp = future_time.timestamp()
-        timestamp13 = int(future_timestamp * 1000)
+        timestamp = now.timestamp()
+        timestamp13 = int(timestamp * 1000)
 
         tasks = []
 
@@ -38,19 +37,15 @@ async def main():
             event_getter.get_newest('jp', 'en', quantity=10, timestamp13=timestamp13)
         )
 
-        tasks.append(card_getter.get_newest('cn', quantity=50, timestamp13=timestamp13))
+        tasks.append(
+            card_getter.get_newest(
+                'cn', quantity=50, timestamp13=timestamp13, exclude=[2163]
+            )
+        )
         tasks.append(
             card_getter.get_newest('jp', 'en', quantity=50, timestamp13=timestamp13)
         )
 
-        await asyncio.gather(*tasks)
-
-        # special case
-        tasks = []
-        card_getter.online = False
-        card_getter.missing_download = False
-        tasks.append(card_getter.get(2163, 'cn'))
-        tasks.append(card_getter.get(2163, 'jp', mark_lang='en'))
         await asyncio.gather(*tasks)
 
 

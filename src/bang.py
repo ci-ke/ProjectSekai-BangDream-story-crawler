@@ -742,6 +742,7 @@ class Card_story_getter(util.Base_getter):
         mark_lang: str = 'cn',
         quantity: int = 50,
         timestamp13: int | None = None,
+        exclude: list[int] | None = None,
     ) -> None:
         if timestamp13 is None:
             timestamp13 = int(time.time() * 1000)
@@ -752,6 +753,8 @@ class Card_story_getter(util.Base_getter):
             if (
                 (releaseAt := card['releasedAt'][Constant.lang_index[lang]]) is not None
             ) and int(releaseAt) <= timestamp13:
+                if exclude and int(str_id) in exclude:
+                    continue
                 old_cards.append((int(releaseAt), int(str_id)))
 
         new_cards = sorted(old_cards)[-quantity:]
