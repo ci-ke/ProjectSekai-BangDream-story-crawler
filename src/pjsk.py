@@ -1,7 +1,7 @@
-import os, math, asyncio, json, re
+import os, math, asyncio, json, re, time
 from pathlib import Path
 from asyncio import Semaphore
-from typing import Any, cast
+from typing import Any, Optional, cast
 
 import aiofiles
 from aiohttp import ClientSession, TCPConnector
@@ -611,6 +611,31 @@ class Event_story_getter(util.Base_getter):
 
         print(f'get event {event_id} {event_name} {episode_name} done.')
 
+    async def get_newest(
+        self,
+        quantity: int = 10,
+        timestamp13: int | None = None,
+        area_getter: Optional['Area_talk_getter'] = None,
+    ) -> None:
+        if timestamp13 is None:
+            timestamp13 = int(time.time() * 1000)
+
+        old_events: list[tuple[int, int]] = []
+
+        for event in self.events_json:
+            if event['startAt'] < timestamp13:
+                old_events.append((event['startAt'], event['id']))
+
+        new_events = sorted(old_events)[-quantity:]
+        new_eventids = [x[1] for x in new_events]
+
+        tasks = []
+        for i in new_eventids:
+            tasks.append(self.get(i))
+            if area_getter is not None:
+                tasks.append(area_getter.get(i))
+        await asyncio.gather(*tasks)
+
 
 class Unit_story_getter(util.Base_getter):
     def __init__(
@@ -975,6 +1000,28 @@ class Card_story_getter(util.Base_getter):
 
         tasks = []
         for i in range(start_cardid, end_cardid + 1):
+            tasks.append(self.get(i))
+        await asyncio.gather(*tasks)
+
+    async def get_newest(
+        self,
+        quantity: int = 50,
+        timestamp13: int | None = None,
+    ) -> None:
+        if timestamp13 is None:
+            timestamp13 = int(time.time() * 1000)
+
+        old_cards: list[tuple[int, int]] = []
+
+        for card in self.cards_json:
+            if card['releaseAt'] < timestamp13:
+                old_cards.append((card['releaseAt'], card['id']))
+
+        new_cards = sorted(old_cards)[-quantity:]
+        new_cardids = [x[1] for x in new_cards]
+
+        tasks = []
+        for i in new_cardids:
             tasks.append(self.get(i))
         await asyncio.gather(*tasks)
 

@@ -1,4 +1,4 @@
-import os, asyncio, json
+import os, asyncio, json, time
 from pathlib import Path
 from typing import Any
 from asyncio import Semaphore
@@ -245,11 +245,11 @@ class Event_story_getter(util.Base_getter):
     ) -> None:
         await super().init(session, network_semaphore, file_semaphore)
 
-        events_all_json: dict[int, Any] = await util.fetch_url_json_simple(
-            self.events_all_url, self
+        self.events_all_json: dict[str, dict[str, Any]] = (
+            await util.fetch_url_json_simple(self.events_all_url, self)
         )
 
-        self.events_ids: set[int] = {int(id) for id in events_all_json.keys()}
+        self.events_ids: set[int] = {int(id) for id in self.events_all_json.keys()}
 
     async def get(self, event_id: int, lang: str = 'cn', mark_lang: str = 'cn') -> None:
         if event_id not in self.events_ids:
@@ -337,6 +337,32 @@ class Event_story_getter(util.Base_getter):
                     await f.write(text + '\n')
 
         print(f'get event {event_id} {event_name} {name} done.')
+
+    async def get_newest(
+        self,
+        lang: str = 'cn',
+        mark_lang: str = 'cn',
+        quantity: int = 10,
+        timestamp13: int | None = None,
+    ) -> None:
+        if timestamp13 is None:
+            timestamp13 = int(time.time() * 1000)
+
+        old_events: list[tuple[int, int]] = []
+
+        for str_id, event in self.events_all_json.items():
+            if (
+                startAt := event['startAt'][Constant.lang_index[lang]] is not None
+            ) and int(startAt) < timestamp13:
+                old_events.append((int(startAt), int(str_id)))
+
+        new_events = sorted(old_events)[-quantity:]
+        new_eventids = [x[1] for x in new_events]
+
+        tasks = []
+        for i in new_eventids:
+            tasks.append(self.get(i, lang, mark_lang))
+        await asyncio.gather(*tasks)
 
 
 class Band_story_getter(util.Base_getter):
@@ -575,7 +601,7 @@ class Card_story_getter(util.Base_getter):
         self.reader = reader
         self.maxlen_id = maxlen_id
 
-        self.cards_all_0_url = URLS['bestdori.com']['cards_all_0']
+        self.cards_all_5_url = URLS['bestdori.com']['cards_all_5']
         self.cards_id_url = URLS['bestdori.com']['cards_id']
         self.card_asset_url = URLS['bestdori.com']['card_asset']
 
@@ -587,11 +613,11 @@ class Card_story_getter(util.Base_getter):
     ) -> None:
         await super().init(session, network_semaphore, file_semaphore)
 
-        all_cards_list: dict[int, Any] = await util.fetch_url_json_simple(
-            self.cards_all_0_url, self
+        self.cards_all_json: dict[str, dict[str, Any]] = (
+            await util.fetch_url_json_simple(self.cards_all_5_url, self)
         )
 
-        self.cards_ids: set[int] = {int(id) for id in all_cards_list.keys()}
+        self.cards_ids: set[int] = {int(id) for id in self.cards_all_json.keys()}
 
     async def get(self, card_id: int, lang: str = 'cn', mark_lang: str = 'cn') -> None:
         if card_id not in self.cards_ids:
@@ -709,6 +735,32 @@ class Card_story_getter(util.Base_getter):
                     await f.write(text_2 + '\n')
 
         print(f'get card {card_story_filename} done.')
+
+    async def get_newest(
+        self,
+        lang: str = 'cn',
+        mark_lang: str = 'cn',
+        quantity: int = 50,
+        timestamp13: int | None = None,
+    ) -> None:
+        if timestamp13 is None:
+            timestamp13 = int(time.time() * 1000)
+
+        old_cards: list[tuple[int, int]] = []
+
+        for str_id, card in self.cards_all_json.items():
+            if (
+                (releaseAt := card['releasedAt'][Constant.lang_index[lang]]) is not None
+            ) and int(releaseAt) < timestamp13:
+                old_cards.append((int(releaseAt), int(str_id)))
+
+        new_cards = sorted(old_cards)[-quantity:]
+        new_cardids = [x[1] for x in new_cards]
+
+        tasks = []
+        for i in new_cardids:
+            tasks.append(self.get(i, lang, mark_lang))
+        await asyncio.gather(*tasks)
 
 
 async def main():
