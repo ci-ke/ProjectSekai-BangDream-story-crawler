@@ -94,11 +94,14 @@ class Fetch:
         self: Any,
         extra_record_msg: str = '',
         print_done: bool = False,
+        lang_for_path: str | None = None,
     ) -> Any:
-        try:
-            lang = self.reader.lang
-        except AttributeError:
-            lang = self.lang
+        if lang_for_path is None:
+            try:
+                lang_for_path = self.reader.lang
+            except AttributeError:
+                lang_for_path = self.lang
+        assert lang_for_path is not None
 
         urls = [url] if isinstance(url, str) else url
 
@@ -109,7 +112,7 @@ class Fetch:
                 self,
                 extra_record_msg,
                 print_done,
-                append_save_path=Fetch.url_to_apd_path_master(urls[0], lang),
+                append_save_path=Fetch.url_to_apd_path_master(urls[0], lang_for_path),
             )
         else:
             return await util.fetch_url_json_simple(
@@ -117,7 +120,7 @@ class Fetch:
                 self,
                 extra_record_msg,
                 print_done,
-                append_save_path=Fetch.url_to_apd_path_asset(urls[0], lang),
+                append_save_path=Fetch.url_to_apd_path_asset(urls[0], lang_for_path),
             )
 
 
@@ -437,7 +440,7 @@ class Event_story_getter(util.Base_getter):
             Fetch.fetch_url_json_simple(self.events_url, self),
             Fetch.fetch_url_json_simple(self.eventStories_url, self),
             Fetch.fetch_url_json_simple(self.gameCharacterUnits_url, self),
-            Fetch.fetch_url_json_simple(self.actionSets_url, self),
+            Fetch.fetch_url_json_simple(self.actionSets_url, self, lang_for_path='jp'),
         )
 
         self.events_lookup = util.DictLookup(self.events_json, 'id')
