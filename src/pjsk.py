@@ -790,6 +790,12 @@ class Unit_story_getter(util.Base_getter):
 
         print(f'get unit {unit_id} {unitName} {episode_name} done.')
 
+    def tell_ids(self) -> list[int]:
+        ret = []
+        for unitProfile in self.unitProfiles_json:
+            ret.append(unitProfile['seq'])
+        return ret
+
 
 class Card_story_getter(util.Base_getter):
     def __init__(
@@ -1088,6 +1094,15 @@ class Area_talk_getter((util.Base_getter)):
             return 145
         elif (
             ('scenarioId' in action)
+            and (action.get("actionSetType") == "limited")
+            and ('aprilfool' not in action['scenarioId'])
+        ):
+            return f"limited_{action['areaId']}"
+        elif ('scenarioId' in action) and ('aprilfool' in action['scenarioId']):
+            talk_name: str = action['scenarioId']
+            return talk_name.split('_')[1]
+        elif (
+            ('scenarioId' in action)
             and (action.get("actionSetType") == "normal")
             and (action["isNextGrade"] == False)
             and (action["releaseConditionId"] == 1)
@@ -1104,20 +1119,8 @@ class Area_talk_getter((util.Base_getter)):
             2000000 <= action["releaseConditionId"] <= 2000036
         ):  # cn and jp have diff
             return 'theater'
-        elif (
-            ('scenarioId' in action)
-            and (action.get("actionSetType") == "limited")
-            and ('aprilfool' not in action['scenarioId'])
-        ):
-            return f"limited_{action['areaId']}"
-        elif (
-            ('scenarioId' in action)
-            # and (action.get("actionSetType") == "limited")
-            and (('aprilfool' in action['scenarioId']))
-        ):
-            talk_name: str = action['scenarioId']
-            return talk_name.split('_')[1]
         else:
+            assert 'scenarioId' not in action or action['scenarioId'] == 'op_02area'
             return ''
 
     async def get(self, target: int | str) -> None:
@@ -1235,6 +1238,8 @@ class Area_talk_getter((util.Base_getter)):
 
         actionSet = self.actionSets_json[actionSets_index]
 
+        cate = self.__get_category(actionSet)
+
         if 'scenarioId' not in actionSet:
             print(f'talk {talk_id} does have content.')
             return
@@ -1272,10 +1277,20 @@ class Area_talk_getter((util.Base_getter)):
                 ) as f:
                     left = Mark_multi_lang['['][self.reader.mark_lang]
                     right = Mark_multi_lang[']'][self.reader.mark_lang]
-                    await f.write(f"{actionSet['id']} {left}{area_name}{right}\n\n")
+                    await f.write(
+                        f"{actionSet['id']} {cate} {left}{area_name}{right}\n\n"
+                    )
                     await f.write(text + '\n')
 
         print(f'get talk {talk_id} done.')
+
+    def tell_categories(self) -> set[str]:
+        ret = set()
+        for actionSet in self.actionSets_json:
+            cate = self.__get_category(actionSet)
+            if cate != '':
+                ret.add(cate)
+        return ret
 
 
 class Self_intro_getter(util.Base_getter):
@@ -1378,6 +1393,12 @@ class Self_intro_getter(util.Base_getter):
                     await f.write(text_2 + '\n')
 
         print(f'get self intro {filename} done.')
+
+    def tell_ids(self) -> list[int]:
+        ret = []
+        for chara in self.characterProfiles_json:
+            ret.append(chara['characterId'])
+        return ret
 
 
 class Special_story_getter(util.Base_getter):
@@ -1489,6 +1510,12 @@ class Special_story_getter(util.Base_getter):
                         await f.write(text + '\n\n\n')
 
         print(f'get special {filename} done.')
+
+    def tell_ids(self):
+        ret = []
+        for sp in self.specialStories_json:
+            ret.append(sp['id'])
+        return ret
 
 
 async def main():
