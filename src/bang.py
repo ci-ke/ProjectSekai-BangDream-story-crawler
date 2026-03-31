@@ -345,6 +345,9 @@ class Event_story_getter(util.Base_getter):
         quantity: int = 10,
         timestamp13: int | None = None,
     ) -> None:
+        '''
+        quantity 0 = all
+        '''
         if timestamp13 is None:
             timestamp13 = int(time.time() * 1000)
 
@@ -744,6 +747,9 @@ class Card_story_getter(util.Base_getter):
         timestamp13: int | None = None,
         exclude: list[int] | None = None,
     ) -> None:
+        '''
+        quantity 0 = all
+        '''
         if timestamp13 is None:
             timestamp13 = int(time.time() * 1000)
 
