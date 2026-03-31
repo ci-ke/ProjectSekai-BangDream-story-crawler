@@ -39,11 +39,20 @@ async def main():
 
         tasks.append(
             card_getter.get_newest(
-                'cn', quantity=50, timestamp13=timestamp13, exclude=[2163]
+                'cn',
+                quantity=50,
+                timestamp13=timestamp13,
+                exclude=[1992, 2034, 2100, 2163],
             )
         )
         tasks.append(
-            card_getter.get_newest('jp', 'en', quantity=50, timestamp13=timestamp13)
+            card_getter.get_newest(
+                'jp',
+                'en',
+                quantity=50,
+                timestamp13=timestamp13,
+                exclude=[1992, 2034, 2100, 2163],
+            )
         )
 
         await asyncio.gather(*tasks)
