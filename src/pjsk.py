@@ -1112,7 +1112,7 @@ class Area_talk_getter((util.Base_getter)):
             return f"limited_{action['areaId']}"
         elif (
             ('scenarioId' in action)
-            and (action.get("actionSetType") == "limited")
+            # and (action.get("actionSetType") == "limited")
             and (('aprilfool' in action['scenarioId']))
         ):
             talk_name: str = action['scenarioId']
