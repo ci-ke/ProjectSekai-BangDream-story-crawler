@@ -97,6 +97,7 @@ class Fetch:
         lang_for_path: str | None = None,
         compress: bool = False,
         force_online: bool = False,
+        only_download: bool = False,
     ) -> Any:
         if lang_for_path is None:
             try:
@@ -121,6 +122,7 @@ class Fetch:
             append_save_path=append_save_path,
             compress=compress,
             force_online=force_online,
+            only_download=only_download,
         )
 
 
@@ -629,6 +631,7 @@ class Event_story_getter(util.Base_getter):
             ],
             self,
             compress=self.compress_assets,
+            only_download=not self.parse,
         )
 
         if self.parse:
@@ -826,6 +829,7 @@ class Unit_story_getter(util.Base_getter):
             ],
             self,
             compress=self.compress_assets,
+            only_download=not self.parse,
         )
 
         if self.parse:
@@ -988,6 +992,7 @@ class Card_story_getter(util.Base_getter):
                 self,
                 card_story_name + ' part1',
                 compress=self.compress_assets,
+                only_download=not self.parse,
             ),
             Fetch.fetch_url_json_simple(
                 [
@@ -999,6 +1004,7 @@ class Card_story_getter(util.Base_getter):
                 self,
                 card_story_name + ' part2',
                 compress=self.compress_assets,
+                only_download=not self.parse,
             ),
         )
 
@@ -1244,6 +1250,7 @@ class Area_talk_getter((util.Base_getter)):
                     self,
                     print_done=self.print_fetch_detial,
                     compress=self.compress_assets,
+                    only_download=not self.parse,
                 )
             )
 
@@ -1346,6 +1353,7 @@ class Area_talk_getter((util.Base_getter)):
             ],
             self,
             compress=self.compress_assets,
+            only_download=not self.parse,
         )
 
         if self.parse:
@@ -1459,11 +1467,13 @@ class Self_intro_getter(util.Base_getter):
                 ],
                 self,
                 compress=self.compress_assets,
+                only_download=not self.parse,
             ),
             Fetch.fetch_url_json_simple(
                 [url.format(scenarioId=scenarioId) for url in self.self_asset_url],
                 self,
                 compress=self.compress_assets,
+                only_download=not self.parse,
             ),
         )
 
@@ -1591,6 +1601,7 @@ class Special_story_getter(util.Base_getter):
                     self,
                     filename,
                     compress=self.compress_assets,
+                    only_download=not self.parse,
                 )
             )
         episode_story_jsons = await asyncio.gather(*episode_tasks)

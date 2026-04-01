@@ -341,6 +341,7 @@ class Event_story_getter(util.Base_getter):
                 self,
                 filename,
                 compress=self.compress_assets,
+                only_download=not self.parse,
             )
 
             if self.parse:
@@ -512,6 +513,7 @@ class Band_story_getter(util.Base_getter):
             self,
             filename,
             compress=self.compress_assets,
+            only_download=not self.parse,
         )
 
         if self.parse:
@@ -618,6 +620,7 @@ class Main_story_getter(util.Base_getter):
             self,
             filename,
             compress=self.compress_assets,
+            only_download=not self.parse,
         )
 
         if self.parse:
@@ -739,6 +742,7 @@ class Card_story_getter(util.Base_getter):
                 self,
                 card_story_filename,
                 compress=self.compress_assets,
+                only_download=not self.parse,
             )
         else:
 
@@ -756,6 +760,7 @@ class Card_story_getter(util.Base_getter):
             self,
             card_story_filename,
             compress=self.compress_assets,
+            only_download=not self.parse,
         )
 
         story_1_json, story_2_json = await asyncio.gather(
