@@ -95,6 +95,8 @@ class Fetch:
         extra_record_msg: str = '',
         print_done: bool = False,
         lang_for_path: str | None = None,
+        compress: bool = False,
+        force_online: bool = False,
     ) -> Any:
         if lang_for_path is None:
             try:
@@ -107,21 +109,19 @@ class Fetch:
 
         master_name_match = re.search(r'master.*/(\w+\.json)', urls[0])
         if master_name_match:
-            return await util.fetch_url_json_simple(
-                url,
-                self,
-                extra_record_msg,
-                print_done,
-                append_save_path=Fetch.url_to_apd_path_master(urls[0], lang_for_path),
-            )
+            append_save_path = Fetch.url_to_apd_path_master(urls[0], lang_for_path)
         else:
-            return await util.fetch_url_json_simple(
-                url,
-                self,
-                extra_record_msg,
-                print_done,
-                append_save_path=Fetch.url_to_apd_path_asset(urls[0], lang_for_path),
-            )
+            append_save_path = Fetch.url_to_apd_path_asset(urls[0], lang_for_path)
+
+        return await util.fetch_url_json_simple(
+            url,
+            self,
+            extra_record_msg,
+            print_done,
+            append_save_path=append_save_path,
+            compress=compress,
+            force_online=force_online,
+        )
 
 
 class Story_reader(util.Base_fetcher):
@@ -136,8 +136,16 @@ class Story_reader(util.Base_fetcher):
         mark_lang: str = 'cn',
         debug_parse: bool = False,
         cg_add_link: bool = True,
+        force_master_online: bool = False,
     ) -> None:
-        super().__init__(assets_save_dir, online, save_assets, missing_download)
+        super().__init__(
+            assets_save_dir,
+            online,
+            save_assets,
+            missing_download,
+            False,
+            force_master_online,
+        )
 
         self.lang = lang
         self.mark_lang = mark_lang
@@ -162,8 +170,12 @@ class Story_reader(util.Base_fetcher):
         await super().init(session, network_semaphore, file_semaphore)
 
         self.gameCharacters, self.character2ds = await asyncio.gather(
-            Fetch.fetch_url_json_simple(self.gameCharacters_url, self),
-            Fetch.fetch_url_json_simple(self.character2ds_url, self),
+            Fetch.fetch_url_json_simple(
+                self.gameCharacters_url, self, force_online=self.force_master_online
+            ),
+            Fetch.fetch_url_json_simple(
+                self.character2ds_url, self, force_online=self.force_master_online
+            ),
         )
 
         self.gameCharacters_lookup = util.DictLookup(self.gameCharacters, 'id')
@@ -392,13 +404,22 @@ class Event_story_getter(util.Base_getter):
         parse: bool = True,
         missing_download: bool = True,
         maxlen_eventId_episode: tuple[int, int] = (3, 2),
+        compress_assets: bool = False,
+        force_master_online: bool = False,
     ) -> None:
         '''
         src: sekai.best or pjsk.moe
         '''
 
         super().__init__(
-            save_dir, assets_save_dir, online, save_assets, parse, missing_download
+            save_dir,
+            assets_save_dir,
+            online,
+            save_assets,
+            parse,
+            missing_download,
+            compress_assets,
+            force_master_online,
         )
 
         self.reader = reader
@@ -437,10 +458,21 @@ class Event_story_getter(util.Base_getter):
             self.gameCharacterUnits,
             actionSets,
         ) = await asyncio.gather(
-            Fetch.fetch_url_json_simple(self.events_url, self),
-            Fetch.fetch_url_json_simple(self.eventStories_url, self),
-            Fetch.fetch_url_json_simple(self.gameCharacterUnits_url, self),
-            Fetch.fetch_url_json_simple(self.actionSets_url, self, lang_for_path='jp'),
+            Fetch.fetch_url_json_simple(
+                self.events_url, self, force_online=self.force_master_online
+            ),
+            Fetch.fetch_url_json_simple(
+                self.eventStories_url, self, force_online=self.force_master_online
+            ),
+            Fetch.fetch_url_json_simple(
+                self.gameCharacterUnits_url, self, force_online=self.force_master_online
+            ),
+            Fetch.fetch_url_json_simple(
+                self.actionSets_url,
+                self,
+                lang_for_path='jp',
+                force_online=self.force_master_online,
+            ),
         )
 
         self.events_lookup = util.DictLookup(self.events_json, 'id')
@@ -596,6 +628,7 @@ class Event_story_getter(util.Base_getter):
                 for url in self.event_asset_url
             ],
             self,
+            compress=self.compress_assets,
         )
 
         if self.parse:
@@ -654,10 +687,19 @@ class Unit_story_getter(util.Base_getter):
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
+        compress_assets: bool = False,
+        force_master_online: bool = False,
     ) -> None:
 
         super().__init__(
-            save_dir, assets_save_dir, online, save_assets, parse, missing_download
+            save_dir,
+            assets_save_dir,
+            online,
+            save_assets,
+            parse,
+            missing_download,
+            compress_assets,
+            force_master_online,
         )
 
         self.reader = reader
@@ -690,9 +732,17 @@ class Unit_story_getter(util.Base_getter):
             self.unitStoryEpisodeGroups_json,
             self.unitStories_json,
         ) = await asyncio.gather(
-            Fetch.fetch_url_json_simple(self.unitProfiles_url, self),
-            Fetch.fetch_url_json_simple(self.unitStoryEpisodeGroups_url, self),
-            Fetch.fetch_url_json_simple(self.unitStories_url, self),
+            Fetch.fetch_url_json_simple(
+                self.unitProfiles_url, self, force_online=self.force_master_online
+            ),
+            Fetch.fetch_url_json_simple(
+                self.unitStoryEpisodeGroups_url,
+                self,
+                force_online=self.force_master_online,
+            ),
+            Fetch.fetch_url_json_simple(
+                self.unitStories_url, self, force_online=self.force_master_online
+            ),
         )
 
         self.unitStoryEpisodeGroups_lookup = util.DictLookup(
@@ -775,6 +825,7 @@ class Unit_story_getter(util.Base_getter):
                 for url in self.unit_asset_url
             ],
             self,
+            compress=self.compress_assets,
         )
 
         if self.parse:
@@ -812,10 +863,19 @@ class Card_story_getter(util.Base_getter):
         parse: bool = True,
         missing_download: bool = True,
         maxlen_id: int = 4,
+        compress_assets: bool = False,
+        force_master_online: bool = False,
     ) -> None:
 
         super().__init__(
-            save_dir, assets_save_dir, online, save_assets, parse, missing_download
+            save_dir,
+            assets_save_dir,
+            online,
+            save_assets,
+            parse,
+            missing_download,
+            compress_assets,
+            force_master_online,
         )
 
         self.reader = reader
@@ -842,9 +902,15 @@ class Card_story_getter(util.Base_getter):
 
         self.cards_json, self.cardEpisodes_json, ori_eventCards_json = (
             await asyncio.gather(
-                Fetch.fetch_url_json_simple(self.cards_url, self),
-                Fetch.fetch_url_json_simple(self.cardEpisodes_url, self),
-                Fetch.fetch_url_json_simple(self.eventCards_url, self),
+                Fetch.fetch_url_json_simple(
+                    self.cards_url, self, force_online=self.force_master_online
+                ),
+                Fetch.fetch_url_json_simple(
+                    self.cardEpisodes_url, self, force_online=self.force_master_online
+                ),
+                Fetch.fetch_url_json_simple(
+                    self.eventCards_url, self, force_online=self.force_master_online
+                ),
             )
         )
 
@@ -921,6 +987,7 @@ class Card_story_getter(util.Base_getter):
                 ],
                 self,
                 card_story_name + ' part1',
+                compress=self.compress_assets,
             ),
             Fetch.fetch_url_json_simple(
                 [
@@ -931,6 +998,7 @@ class Card_story_getter(util.Base_getter):
                 ],
                 self,
                 card_story_name + ' part2',
+                compress=self.compress_assets,
             ),
         )
 
@@ -1053,10 +1121,19 @@ class Area_talk_getter((util.Base_getter)):
         parse: bool = True,
         missing_download: bool = True,
         maxlen_eventId_areaID: tuple[int, int] = (3, 2),
+        compress_assets: bool = False,
+        force_master_online: bool = False,
     ) -> None:
 
         super().__init__(
-            save_dir, assets_save_dir, online, save_assets, parse, missing_download
+            save_dir,
+            assets_save_dir,
+            online,
+            save_assets,
+            parse,
+            missing_download,
+            compress_assets,
+            force_master_online,
         )
 
         self.reader = reader
@@ -1079,8 +1156,12 @@ class Area_talk_getter((util.Base_getter)):
         await super().init(session, network_semaphore, file_semaphore)
 
         self.area_name_json, self.actionSets_json = await asyncio.gather(
-            Fetch.fetch_url_json_simple(self.areas_url, self),
-            Fetch.fetch_url_json_simple(self.actionSets_url, self),
+            Fetch.fetch_url_json_simple(
+                self.areas_url, self, force_online=self.force_master_online
+            ),
+            Fetch.fetch_url_json_simple(
+                self.actionSets_url, self, force_online=self.force_master_online
+            ),
         )
 
         self.area_name_lookup = util.DictLookup(self.area_name_json, 'id')
@@ -1160,6 +1241,7 @@ class Area_talk_getter((util.Base_getter)):
                     ],
                     self,
                     print_done=True,
+                    compress=self.compress_assets,
                 )
             )
 
@@ -1214,7 +1296,7 @@ class Area_talk_getter((util.Base_getter)):
                         )
                         await f.write(text + '\n\n\n')
 
-        print(f'get talk {filename} done.')
+        print(f'get talk {target} done.')
 
     # mainly for update new talk
     async def get_id_range(
@@ -1261,6 +1343,7 @@ class Area_talk_getter((util.Base_getter)):
                 for url in self.talk_asset_url
             ],
             self,
+            compress=self.compress_assets,
         )
 
         if self.parse:
@@ -1310,9 +1393,18 @@ class Self_intro_getter(util.Base_getter):
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
+        compress_assets: bool = False,
+        force_master_online: bool = False,
     ):
         super().__init__(
-            save_dir, assets_save_dir, online, save_assets, parse, missing_download
+            save_dir,
+            assets_save_dir,
+            online,
+            save_assets,
+            parse,
+            missing_download,
+            compress_assets,
+            force_master_online,
         )
 
         self.reader = reader
@@ -1333,7 +1425,9 @@ class Self_intro_getter(util.Base_getter):
         await super().init(session, network_semaphore, file_semaphore)
 
         self.characterProfiles_json: list[dict[str, Any]] = (
-            await Fetch.fetch_url_json_simple(self.characterProfiles_url, self)
+            await Fetch.fetch_url_json_simple(
+                self.characterProfiles_url, self, force_online=self.force_master_online
+            )
         )
 
         self.characterProfiles_lookup = util.DictLookup(
@@ -1362,9 +1456,12 @@ class Self_intro_getter(util.Base_getter):
                     for url in self.self_asset_url
                 ],
                 self,
+                compress=self.compress_assets,
             ),
             Fetch.fetch_url_json_simple(
-                [url.format(scenarioId=scenarioId) for url in self.self_asset_url], self
+                [url.format(scenarioId=scenarioId) for url in self.self_asset_url],
+                self,
+                compress=self.compress_assets,
             ),
         )
 
@@ -1419,9 +1516,18 @@ class Special_story_getter(util.Base_getter):
         parse: bool = True,
         missing_download: bool = True,
         maxlen_sp: int = 3,
+        compress_assets: bool = False,
+        force_master_online: bool = False,
     ):
         super().__init__(
-            save_dir, assets_save_dir, online, save_assets, parse, missing_download
+            save_dir,
+            assets_save_dir,
+            online,
+            save_assets,
+            parse,
+            missing_download,
+            compress_assets,
+            force_master_online,
         )
 
         self.reader = reader
@@ -1443,7 +1549,9 @@ class Special_story_getter(util.Base_getter):
         await super().init(session, network_semaphore, file_semaphore)
 
         self.specialStories_json: list[dict[str, Any]] = (
-            await Fetch.fetch_url_json_simple(self.specialStories_url, self)
+            await Fetch.fetch_url_json_simple(
+                self.specialStories_url, self, force_online=self.force_master_online
+            )
         )
 
         self.specialStories_lookup = util.DictLookup(self.specialStories_json, 'id')
@@ -1480,6 +1588,7 @@ class Special_story_getter(util.Base_getter):
                     ],
                     self,
                     filename,
+                    compress=self.compress_assets,
                 )
             )
         episode_story_jsons = await asyncio.gather(*episode_tasks)

@@ -4,7 +4,7 @@ from enum import Enum
 from typing import Any
 from asyncio import Semaphore
 
-import aiohttp, aiofiles
+import aiohttp, aiofiles, brotli
 
 
 # https://github.com/EternalFlower/Project-Sekai-Story-Parser/blob/main/PJSekai%20Story%20parser.py
@@ -109,11 +109,15 @@ class Base_fetcher:
         online: bool,
         save_assets: bool,
         missing_download: bool,
+        compress_assets: bool,
+        force_master_online: bool,
     ):
         self.assets_save_dir = assets_save_dir
         self.online = online
         self.save_assets = save_assets
         self.missing_download = missing_download
+        self.compress_assets = compress_assets
+        self.force_master_online = force_master_online
 
     async def init(
         self,
@@ -143,8 +147,17 @@ class Base_getter(Base_fetcher):
         save_assets: bool,
         parse: bool,
         missing_download: bool,
+        compress_assets: bool,
+        force_master_online: bool,
     ):
-        super().__init__(assets_save_dir, online, save_assets, missing_download)
+        super().__init__(
+            assets_save_dir,
+            online,
+            save_assets,
+            missing_download,
+            compress_assets,
+            force_master_online,
+        )
 
         self.save_dir = save_dir
         self.parse = parse
@@ -192,6 +205,7 @@ async def save_json_to_url(
     save_dir: str,
     file_semaphore: Semaphore,
     append_save_path: str | None,
+    compress: bool,
 ) -> None:
     if append_save_path is None:
         path = url_to_path(url, save_dir)
@@ -200,8 +214,14 @@ async def save_json_to_url(
     os.makedirs(os.path.split(path)[0], exist_ok=True)
 
     async with file_semaphore:
-        async with aiofiles.open(path, 'w', encoding='utf8') as f:
-            await f.write(json.dumps(content, ensure_ascii=False))
+        if compress:
+            json_bytes = json.dumps(content, ensure_ascii=False).encode('utf-8')
+            compressed = brotli.compress(json_bytes, quality=11)
+            async with aiofiles.open(path + '.br', 'wb') as f:
+                await f.write(compressed)
+        else:
+            async with aiofiles.open(path, 'w', encoding='utf8') as f:
+                await f.write(json.dumps(content, ensure_ascii=False, indent=2))
 
 
 _file_locks = {}
@@ -234,6 +254,7 @@ async def read_json_from_url(
     network_semaphore: Semaphore,
     file_semaphore: Semaphore,
     append_save_path: str | None,
+    compress: bool,
 ) -> Any:
     # 第一步：按顺序尝试读取本地文件，返回第一个找到的
     for url in urls:
@@ -245,6 +266,13 @@ async def read_json_from_url(
             async with file_semaphore:
                 async with aiofiles.open(path, encoding='utf8') as f:
                     content = await f.read()
+                    return json.loads(content)
+        elif os.path.exists(path + '.br'):
+            async with file_semaphore:
+                async with aiofiles.open(path + '.br', 'rb') as f:
+                    compressed_bytes = await f.read()
+                    decompressed_bytes = brotli.decompress(compressed_bytes)
+                    content = decompressed_bytes.decode("utf-8")
                     return json.loads(content)
 
     # 第二步：所有本地文件均缺失
@@ -263,6 +291,7 @@ async def read_json_from_url(
             network_semaphore,
             file_semaphore,
             append_save_path=append_save_path,
+            compress=compress,
         )
     else:
         if missing_assets_file:
@@ -289,6 +318,7 @@ async def fetch_url_json(
     print_done: bool = False,
     append_save_path: str | None = None,
     max_retries: int = 5,
+    compress: bool = False,
 ) -> Any:
 
     if network_semaphore is None:
@@ -319,6 +349,7 @@ async def fetch_url_json(
                                     save_dir,
                                     file_semaphore,
                                     append_save_path,
+                                    compress,
                                 )
                             # 成功，直接跳出所有循环
                             last_error = None
@@ -364,6 +395,7 @@ async def fetch_url_json(
             network_semaphore,
             file_semaphore,
             append_save_path,
+            compress,
         )
         json_content = 'Unable to read json file' if result is _MISSING else result
 
@@ -379,10 +411,12 @@ async def fetch_url_json_simple(
     extra_record_msg: str = '',
     print_done: bool = False,
     append_save_path: str | None = None,
+    compress: bool = False,
+    force_online: bool = False,
 ) -> Any:
     return await fetch_url_json(
         url,
-        self.online,
+        self.online | force_online,
         self.save_assets,
         self.assets_save_dir,
         self.missing_download,
@@ -392,4 +426,5 @@ async def fetch_url_json_simple(
         file_semaphore=self.file_semaphore,
         print_done=print_done,
         append_save_path=append_save_path,
+        compress=compress,
     )

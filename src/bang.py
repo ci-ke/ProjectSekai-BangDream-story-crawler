@@ -37,8 +37,16 @@ class Story_reader(util.Base_fetcher):
         save_assets: bool = True,
         missing_download: bool = True,
         debug_parse: bool = False,
+        force_master_online: bool = False,
     ) -> None:
-        super().__init__(assets_save_dir, online, save_assets, missing_download)
+        super().__init__(
+            assets_save_dir,
+            online,
+            save_assets,
+            missing_download,
+            False,
+            force_master_online,
+        )
 
         self.debug_parse = debug_parse
 
@@ -54,8 +62,12 @@ class Story_reader(util.Base_fetcher):
         await super().init(session, network_semaphore, file_semaphore)
 
         self.characters_json, self.bands_json = await asyncio.gather(
-            util.fetch_url_json_simple(self.characters_main_url, self),
-            util.fetch_url_json_simple(self.bands_main_url, self),
+            util.fetch_url_json_simple(
+                self.characters_main_url, self, force_online=self.force_master_online
+            ),
+            util.fetch_url_json_simple(
+                self.bands_main_url, self, force_online=self.force_master_online
+            ),
         )
 
     def get_band_name(self, band_id: int, lang: str) -> str:
@@ -225,9 +237,18 @@ class Event_story_getter(util.Base_getter):
         parse: bool = True,
         missing_download: bool = True,
         maxlen_eventId: int = 3,
+        compress_assets: bool = False,
+        force_master_online: bool = False,
     ) -> None:
         super().__init__(
-            save_dir, assets_save_dir, online, save_assets, parse, missing_download
+            save_dir,
+            assets_save_dir,
+            online,
+            save_assets,
+            parse,
+            missing_download,
+            compress_assets,
+            force_master_online,
         )
 
         self.reader = reader
@@ -246,7 +267,9 @@ class Event_story_getter(util.Base_getter):
         await super().init(session, network_semaphore, file_semaphore)
 
         self.events_all_json: dict[str, dict[str, Any]] = (
-            await util.fetch_url_json_simple(self.events_all_url, self)
+            await util.fetch_url_json_simple(
+                self.events_all_url, self, force_online=self.force_master_online
+            )
         )
 
         self.events_ids: set[int] = {int(id) for id in self.events_all_json.keys()}
@@ -257,7 +280,10 @@ class Event_story_getter(util.Base_getter):
             return
 
         info_json: dict[str, Any] = await util.fetch_url_json_simple(
-            self.events_id_url.format(event_id=event_id), self
+            self.events_id_url.format(event_id=event_id),
+            self,
+            compress=self.compress_assets,
+            force_online=self.force_master_online,
         )
 
         event_name = info_json['eventName'][Constant.lang_index[lang]]
@@ -314,6 +340,7 @@ class Event_story_getter(util.Base_getter):
                 self.event_asset_url.format(lang=lang, event_id=event_id, id=id),
                 self,
                 filename,
+                compress=self.compress_assets,
             )
 
             if self.parse:
@@ -378,9 +405,18 @@ class Band_story_getter(util.Base_getter):
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
+        compress_assets: bool = False,
+        force_master_online: bool = False,
     ) -> None:
         super().__init__(
-            save_dir, assets_save_dir, online, save_assets, parse, missing_download
+            save_dir,
+            assets_save_dir,
+            online,
+            save_assets,
+            parse,
+            missing_download,
+            compress_assets,
+            force_master_online,
         )
 
         self.reader = reader
@@ -397,7 +433,7 @@ class Band_story_getter(util.Base_getter):
         await super().init(session, network_semaphore, file_semaphore)
 
         self.info_json: dict[str, dict[str, Any]] = await util.fetch_url_json_simple(
-            self.bandstories_5_url, self
+            self.bandstories_5_url, self, force_online=self.force_master_online
         )
 
     async def get(
@@ -475,6 +511,7 @@ class Band_story_getter(util.Base_getter):
             self.band_asset_url.format(lang=lang, band_id=band_id, id=id),
             self,
             filename,
+            compress=self.compress_assets,
         )
 
         if self.parse:
@@ -505,9 +542,18 @@ class Main_story_getter(util.Base_getter):
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
+        compress_assets: bool = False,
+        force_master_online: bool = False,
     ) -> None:
         super().__init__(
-            save_dir, assets_save_dir, online, save_assets, parse, missing_download
+            save_dir,
+            assets_save_dir,
+            online,
+            save_assets,
+            parse,
+            missing_download,
+            compress_assets,
+            force_master_online,
         )
 
         self.reader = reader
@@ -524,7 +570,7 @@ class Main_story_getter(util.Base_getter):
         await super().init(session, network_semaphore, file_semaphore)
 
         self.info_json: dict[str, dict[str, Any]] = await util.fetch_url_json_simple(
-            self.mainstories_5_url, self
+            self.mainstories_5_url, self, force_online=self.force_master_online
         )
 
     async def get(
@@ -568,7 +614,10 @@ class Main_story_getter(util.Base_getter):
         mark_lang: str,
     ) -> None:
         story_json: dict[str, dict[str, Any]] = await util.fetch_url_json_simple(
-            self.main_asset_url.format(lang=lang, id=id), self, filename
+            self.main_asset_url.format(lang=lang, id=id),
+            self,
+            filename,
+            compress=self.compress_assets,
         )
 
         if self.parse:
@@ -596,9 +645,18 @@ class Card_story_getter(util.Base_getter):
         parse: bool = True,
         missing_download: bool = True,
         maxlen_id: int = 4,
+        compress_assets: bool = False,
+        force_master_online: bool = False,
     ) -> None:
         super().__init__(
-            save_dir, assets_save_dir, online, save_assets, parse, missing_download
+            save_dir,
+            assets_save_dir,
+            online,
+            save_assets,
+            parse,
+            missing_download,
+            compress_assets,
+            force_master_online,
         )
 
         self.reader = reader
@@ -617,7 +675,9 @@ class Card_story_getter(util.Base_getter):
         await super().init(session, network_semaphore, file_semaphore)
 
         self.cards_all_json: dict[str, dict[str, Any]] = (
-            await util.fetch_url_json_simple(self.cards_all_5_url, self)
+            await util.fetch_url_json_simple(
+                self.cards_all_5_url, self, force_online=self.force_master_online
+            )
         )
 
         self.cards_ids: set[int] = {int(id) for id in self.cards_all_json.keys()}
@@ -628,7 +688,10 @@ class Card_story_getter(util.Base_getter):
             return
 
         card = await util.fetch_url_json_simple(
-            self.cards_id_url.format(id=card_id), self
+            self.cards_id_url.format(id=card_id),
+            self,
+            compress=self.compress_assets,
+            force_online=self.force_master_online,
         )
 
         if 'episodes' not in card:
@@ -675,6 +738,7 @@ class Card_story_getter(util.Base_getter):
                 ),
                 self,
                 card_story_filename,
+                compress=self.compress_assets,
             )
         else:
 
@@ -691,6 +755,7 @@ class Card_story_getter(util.Base_getter):
             ),
             self,
             card_story_filename,
+            compress=self.compress_assets,
         )
 
         story_1_json, story_2_json = await asyncio.gather(
