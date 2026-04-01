@@ -255,7 +255,7 @@ async def read_json_from_url(
     file_semaphore: Semaphore,
     append_save_path: str | None,
     compress: bool,
-    only_download: bool,
+    skip_read: bool,
 ) -> Any:
     # 第一步：按顺序尝试读取本地文件，返回第一个找到的
     for url in urls:
@@ -264,15 +264,15 @@ async def read_json_from_url(
         else:
             path = os.path.normpath(os.path.join(save_dir, append_save_path))
         if os.path.exists(path):
-            if only_download:
-                return 'Only download, skip read'
+            if skip_read:
+                return 'skip read'
             async with file_semaphore:
                 async with aiofiles.open(path, encoding='utf8') as f:
                     content = await f.read()
                     return json.loads(content)
         elif os.path.exists(path + '.br'):
-            if only_download:
-                return 'Only download, skip read'
+            if skip_read:
+                return 'skip read'
             async with file_semaphore:
                 async with aiofiles.open(path + '.br', 'rb') as f:
                     compressed_bytes = await f.read()
@@ -297,7 +297,7 @@ async def read_json_from_url(
             file_semaphore,
             append_save_path=append_save_path,
             compress=compress,
-            only_download=only_download,
+            skip_read=skip_read,
         )
     else:
         if missing_assets_file:
@@ -325,7 +325,7 @@ async def fetch_url_json(
     append_save_path: str | None = None,
     max_retries: int = 5,
     compress: bool = False,
-    only_download: bool = False,
+    skip_read: bool = False,
 ) -> Any:
 
     if network_semaphore is None:
@@ -403,7 +403,7 @@ async def fetch_url_json(
             file_semaphore,
             append_save_path,
             compress,
-            only_download,
+            skip_read,
         )
         json_content = 'Unable to read json file' if result is _MISSING else result
 
@@ -421,7 +421,7 @@ async def fetch_url_json_simple(
     append_save_path: str | None = None,
     compress: bool = False,
     force_online: bool = False,
-    only_download: bool = False,
+    skip_read: bool = False,
 ) -> Any:
     return await fetch_url_json(
         url,
@@ -436,5 +436,5 @@ async def fetch_url_json_simple(
         print_done=print_done,
         append_save_path=append_save_path,
         compress=compress,
-        only_download=only_download,
+        skip_read=skip_read,
     )
