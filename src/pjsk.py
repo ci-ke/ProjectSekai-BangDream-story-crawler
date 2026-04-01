@@ -1290,7 +1290,7 @@ class Area_talk_getter((util.Base_getter)):
 
         print(f'get talk {talk_id} done.')
 
-    def tell_categories(self) -> set[str]:
+    def tell_categories(self) -> set[str | int]:
         ret = set()
         for actionSet in self.actionSets_json:
             cate = self.__get_category(actionSet)
