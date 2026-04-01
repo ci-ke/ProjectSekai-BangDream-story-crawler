@@ -1,7 +1,6 @@
 # for github action
 
 import asyncio
-from datetime import datetime, timedelta, timezone
 
 from aiohttp import ClientSession, TCPConnector
 
@@ -48,11 +47,6 @@ async def main():
             special_getter_jp.init(session),
         )
 
-        now = datetime.now(timezone.utc)
-        future_time = now + timedelta(hours=4)
-        future_timestamp = future_time.timestamp()
-        timestamp13 = int(future_timestamp * 1000)
-
         tasks = []
 
         for i in unit_getter.tell_ids():
@@ -60,17 +54,11 @@ async def main():
         for i in unit_getter_jp.tell_ids():
             tasks.append(unit_getter_jp.get(i))
 
-        tasks.append(
-            event_getter.get_newest(0, area_getter=area_getter, timestamp13=timestamp13)
-        )
-        tasks.append(
-            event_getter_jp.get_newest(
-                0, area_getter=area_getter_jp, timestamp13=timestamp13
-            )
-        )
+        tasks.append(event_getter.get_newest(0, area_getter=area_getter))
+        tasks.append(event_getter_jp.get_newest(0, area_getter=area_getter_jp))
 
-        tasks.append(card_getter.get_newest(0, timestamp13=timestamp13))
-        tasks.append(card_getter_jp.get_newest(0, timestamp13=timestamp13))
+        tasks.append(card_getter.get_newest(0))
+        tasks.append(card_getter_jp.get_newest(0))
 
         for i in area_getter.tell_categories():
             if not isinstance(i, int):
