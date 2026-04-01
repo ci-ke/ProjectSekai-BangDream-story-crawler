@@ -1,4 +1,4 @@
-import os, math, asyncio, json, re, time
+import os, math, asyncio, json, re, time, logging
 from pathlib import Path
 from asyncio import Semaphore
 from typing import Any, Optional, cast
@@ -536,7 +536,7 @@ class Event_story_getter(util.Base_getter):
         eventStory_index = self.eventStories_lookup.find_index(event_id)
 
         if (event_index == -1) or (eventStory_index == -1):
-            print(f'event {event_id} does not exist.')
+            logging.info(f'event {event_id} does not exist.')
             return
 
         event = self.events_json[event_index]
@@ -648,7 +648,7 @@ class Event_story_getter(util.Base_getter):
                     await f.write(episode_name + '\n\n')
                     await f.write(text + '\n')
 
-        print(f'get event {event_id} {event_name} {episode_name} done.')
+        logging.info(f'get event {event_id} {event_name} {episode_name} done.')
 
     async def get_newest(
         self,
@@ -759,7 +759,7 @@ class Unit_story_getter(util.Base_getter):
                 unitCode = unitProfile['unit']
                 break
         else:
-            print(f'unit {unit_id} does not exist.')
+            logging.info(f'unit {unit_id} does not exist.')
             return
 
         for unitStory in self.unitStories_json:
@@ -768,7 +768,7 @@ class Unit_story_getter(util.Base_getter):
                 episodes = unitStory['chapters'][0]['episodes']
                 break
         else:
-            print(f'unit {unit_id} does not exist.')
+            logging.info(f'unit {unit_id} does not exist.')
             return
 
         save_folder_name = util.valid_filename(
@@ -846,7 +846,7 @@ class Unit_story_getter(util.Base_getter):
                     await f.write(episode_name + '\n\n')
                     await f.write(text + '\n')
 
-        print(f'get unit {unit_id} {unitName} {episode_name} done.')
+        logging.info(f'get unit {unit_id} {unitName} {episode_name} done.')
 
     def tell_ids(self) -> list[int]:
         ret = []
@@ -932,7 +932,7 @@ class Card_story_getter(util.Base_getter):
         cardEpisode_index = self.cardEpisodes_lookup.find_index(card_id)
 
         if (card_index == -1) or (cardEpisode_index == -1):
-            print(f'card {card_id} does not exist.')
+            logging.info(f'card {card_id} does not exist.')
             return
 
         card = self.cards_json[card_index]
@@ -1040,7 +1040,7 @@ class Card_story_getter(util.Base_getter):
                     )
                     await f.write(text_2 + '\n')
 
-        print(f'get card {card_story_name} done.')
+        logging.info(f'get card {card_story_name} done.')
 
     async def get_event(self, event_id: int) -> None:
         newest_event_id = self.eventCards_json[-1]['eventId']
@@ -1230,7 +1230,7 @@ class Area_talk_getter((util.Base_getter)):
         ]
 
         if len(actions) == 0:
-            print(f'talk {target} does not exist.')
+            logging.info(f'talk {target} does not exist.')
             return
 
         if self.parse:
@@ -1305,7 +1305,7 @@ class Area_talk_getter((util.Base_getter)):
                         )
                         await f.write(text + '\n\n\n')
 
-        print(f'get talk {target} done.')
+        logging.info(f'get talk {target} done.')
 
     # mainly for update new talk
     async def get_id_range(
@@ -1330,7 +1330,7 @@ class Area_talk_getter((util.Base_getter)):
     async def get_id_to_single_file(self, talk_id: int) -> None:
         actionSets_index = self.actionSets_json_lookup.find_index(talk_id)
         if actionSets_index == -1:
-            print(f'talk {talk_id} does not exist.')
+            logging.info(f'talk {talk_id} does not exist.')
             return
 
         actionSet = self.actionSets_json[actionSets_index]
@@ -1338,7 +1338,7 @@ class Area_talk_getter((util.Base_getter)):
         cate = self.__get_category(actionSet)
 
         if 'scenarioId' not in actionSet:
-            print(f'talk {talk_id} does have content.')
+            logging.info(f'talk {talk_id} does have content.')
             return
 
         if self.parse:
@@ -1381,7 +1381,7 @@ class Area_talk_getter((util.Base_getter)):
                     )
                     await f.write(text + '\n')
 
-        print(f'get talk {talk_id} done.')
+        logging.info(f'get talk {talk_id} done.')
 
     def tell_categories(self) -> set[str | int]:
         ret = set()
@@ -1447,7 +1447,7 @@ class Self_intro_getter(util.Base_getter):
     async def get(self, chara_id: int) -> None:
         profile_index = self.characterProfiles_lookup.find_index(chara_id)
         if profile_index == -1:
-            print(f'character {chara_id} does not exist.')
+            logging.info(f'character {chara_id} does not exist.')
             return
 
         chara_unit_name = '_'.join(self.reader.get_chara_unitAbbr_names(chara_id)[:2])
@@ -1507,7 +1507,7 @@ class Self_intro_getter(util.Base_getter):
                     )
                     await f.write(text_2 + '\n')
 
-        print(f'get self intro {filename} done.')
+        logging.info(f'get self intro {filename} done.')
 
     def tell_ids(self) -> list[int]:
         ret = []
@@ -1571,7 +1571,7 @@ class Special_story_getter(util.Base_getter):
     async def get(self, id: int) -> None:
         story_index = self.specialStories_lookup.find_index(id)
         if story_index == -1 or id == 2:  # special case id2
-            print(f'special story {id} does not exist.')
+            logging.info(f'special story {id} does not exist.')
             return
 
         story = self.specialStories_json[story_index]
@@ -1637,7 +1637,7 @@ class Special_story_getter(util.Base_getter):
                         )
                         await f.write(text + '\n\n\n')
 
-        print(f'get special {filename} done.')
+        logging.info(f'get special {filename} done.')
 
     def tell_ids(self):
         ret = []
@@ -1647,6 +1647,8 @@ class Special_story_getter(util.Base_getter):
 
 
 async def main():
+
+    logging.basicConfig(level=logging.INFO)
 
     net_connect_limit = 20
 

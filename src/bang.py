@@ -1,4 +1,4 @@
-import os, asyncio, json, time
+import os, asyncio, json, time, logging
 from pathlib import Path
 from typing import Any
 from asyncio import Semaphore
@@ -276,7 +276,7 @@ class Event_story_getter(util.Base_getter):
 
     async def get(self, event_id: int, lang: str = 'cn', mark_lang: str = 'cn') -> None:
         if event_id not in self.events_ids:
-            print(f'event {event_id} does not exist.')
+            logging.info(f'event {event_id} does not exist.')
             return
 
         info_json: dict[str, Any] = await util.fetch_url_json_simple(
@@ -288,10 +288,10 @@ class Event_story_getter(util.Base_getter):
 
         event_name = info_json['eventName'][Constant.lang_index[lang]]
         if event_name is None:
-            print(f'event {event_id} has no {lang.upper()}.')
+            logging.info(f'event {event_id} has no {lang.upper()}.')
             return
         if len(info_json['stories']) == 0:
-            print(f'event {event_id} has no story.')
+            logging.info(f'event {event_id} has no story.')
             return
 
         event_filename = util.valid_filename(event_name)
@@ -364,7 +364,7 @@ class Event_story_getter(util.Base_getter):
                     await f.write(f'{synopsis}' + '\n\n')
                     await f.write(text + '\n')
 
-        print(f'get event {event_id} {event_name} {name} done.')
+        logging.info(f'get event {event_id} {event_name} {name} done.')
 
     async def get_newest(
         self,
@@ -463,7 +463,7 @@ class Band_story_getter(util.Base_getter):
             band_name = self.reader.get_band_name(band_id, lang)
 
             if band_story['mainTitle'][Constant.lang_index[lang]] == None:
-                print(
+                logging.info(
                     f'band story {band_name} {band_story["mainTitle"][0]} {band_story["subTitle"][0]} has no {lang.upper()}.'
                 )
                 continue
@@ -529,7 +529,7 @@ class Band_story_getter(util.Base_getter):
                     await f.write(synopsis + '\n\n')
                     await f.write(text + '\n')
 
-        print(
+        logging.info(
             f'get band story {band_name} {band_story["mainTitle"][Constant.lang_index[lang]]} {name} done.'
         )
 
@@ -587,7 +587,7 @@ class Main_story_getter(util.Base_getter):
                 continue
 
             if main_story['title'][Constant.lang_index[lang]] == None:
-                print(
+                logging.info(
                     f'main story {main_story["caption"][0]} {main_story["title"][0]} has no {lang.upper()}.'
                 )
                 continue
@@ -634,7 +634,7 @@ class Main_story_getter(util.Base_getter):
                     await f.write(synopsis + '\n\n')
                     await f.write(text + '\n')
 
-        print(f'get main story {name} done.')
+        logging.info(f'get main story {name} done.')
 
 
 class Card_story_getter(util.Base_getter):
@@ -687,7 +687,7 @@ class Card_story_getter(util.Base_getter):
 
     async def get(self, card_id: int, lang: str = 'cn', mark_lang: str = 'cn') -> None:
         if card_id not in self.cards_ids:
-            print(f'card {card_id} does not exist.')
+            logging.info(f'card {card_id} does not exist.')
             return
 
         card = await util.fetch_url_json_simple(
@@ -698,7 +698,7 @@ class Card_story_getter(util.Base_getter):
         )
 
         if 'episodes' not in card:
-            print(f'card {card_id} does not have story.')
+            logging.info(f'card {card_id} does not have story.')
             return
 
         chara_bandAbbr, chara_name, _ = self.reader.get_chara_bandAbbr_and_names(
@@ -712,7 +712,7 @@ class Card_story_getter(util.Base_getter):
             card_gachaText = card_gachaText.replace('\n', ' ')
 
         if card_name is None:
-            print(f'card {card_id} has no {lang.upper()}.')
+            logging.info(f'card {card_id} has no {lang.upper()}.')
             return
 
         resourceSetName: str = card['resourceSetName']
@@ -807,7 +807,7 @@ class Card_story_getter(util.Base_getter):
                     )
                     await f.write(text_2 + '\n')
 
-        print(f'get card {card_story_filename} done.')
+        logging.info(f'get card {card_story_filename} done.')
 
     async def get_newest(
         self,
@@ -843,6 +843,8 @@ class Card_story_getter(util.Base_getter):
 
 
 async def main():
+
+    logging.basicConfig(level=logging.INFO)
 
     net_connect_limit = 10
 

@@ -1,5 +1,4 @@
-import bisect
-import os, json, asyncio, traceback
+import os, json, asyncio, traceback, bisect, logging
 from enum import Enum
 from typing import Any
 from asyncio import Semaphore
@@ -370,7 +369,7 @@ async def fetch_url_json(
                                 and 400 <= e.status < 500
                             )
                             if no_retry or attempt + 1 == max_retries:
-                                print(last_error)
+                                logging.warning(last_error)
                             if no_retry:
                                 break
 
@@ -408,7 +407,7 @@ async def fetch_url_json(
         json_content = 'Unable to read json file' if result is _MISSING else result
 
     if print_done:
-        print('fetch ' + (urls[0] if len(urls) == 1 else str(urls)) + ' done.')
+        logging.info('fetch ' + (urls[0] if len(urls) == 1 else str(urls)) + ' done.')
 
     return json_content
 
