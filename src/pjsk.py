@@ -1121,6 +1121,7 @@ class Area_talk_getter((util.Base_getter)):
         parse: bool = True,
         missing_download: bool = True,
         maxlen_eventId_areaID: tuple[int, int] = (3, 2),
+        print_fetch_detial: bool = False,
         compress_assets: bool = False,
         force_master_online: bool = False,
     ) -> None:
@@ -1138,6 +1139,7 @@ class Area_talk_getter((util.Base_getter)):
 
         self.reader = reader
         self.maxlen_eventId_areaID = maxlen_eventId_areaID
+        self.print_fetch_detial = print_fetch_detial
 
         self.areas_url = Constant.get_srcs_url(self.reader.lang, src, 'master', 'areas')
         self.actionSets_url = Constant.get_srcs_url(
@@ -1240,7 +1242,7 @@ class Area_talk_getter((util.Base_getter)):
                         for url in self.talk_asset_url
                     ],
                     self,
-                    print_done=True,
+                    print_done=self.print_fetch_detial,
                     compress=self.compress_assets,
                 )
             )
