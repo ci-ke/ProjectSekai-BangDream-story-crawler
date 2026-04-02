@@ -1,0 +1,42 @@
+name: Common Update Template
+
+on:
+  workflow_call:
+    inputs:
+      run_command:
+        required: true
+        type: string
+      commit_message:
+        required: true
+        type: string
+
+jobs:
+  common-execute:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Clone crawler project
+        run: git clone https://github.com/ci-ke/ProjectSekai-BangDream-story-crawler.git crawler
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Execute command
+        working-directory: ./crawler
+        run: ${{ inputs.run_command }}
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "${{ inputs.commit_message }}" || echo "No changes to commit"
+          git push
