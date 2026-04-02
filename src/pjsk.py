@@ -1649,7 +1649,9 @@ class Special_story_getter(util.Base_getter):
 
 async def main():
 
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s - %(message)s", datefmt="%H:%M:%S"
+    )
 
     net_connect_limit = 20
 
