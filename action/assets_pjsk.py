@@ -20,7 +20,7 @@ def fast_call():
     }
 
 
-reader = pjsk.Story_reader('cn', assets_save_dir='../assets')
+reader = pjsk.Story_reader('cn', **fast_call())
 event_getter = pjsk.Event_story_getter(reader, **fast_call())
 card_getter = pjsk.Card_story_getter(reader, **fast_call())
 area_getter = pjsk.Area_talk_getter(reader, **fast_call())
@@ -29,7 +29,7 @@ self_getter = pjsk.Self_intro_getter(reader, **fast_call())
 special_getter = pjsk.Special_story_getter(reader, **fast_call())
 
 
-reader_jp = pjsk.Story_reader('jp', mark_lang='en')
+reader_jp = pjsk.Story_reader('jp', mark_lang='en', **fast_call())
 event_getter_jp = pjsk.Event_story_getter(reader_jp, **fast_call())
 card_getter_jp = pjsk.Card_story_getter(reader_jp, **fast_call())
 area_getter_jp = pjsk.Area_talk_getter(reader_jp, **fast_call())

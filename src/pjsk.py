@@ -139,6 +139,7 @@ class Story_reader(util.Base_fetcher):
         debug_parse: bool = False,
         cg_add_link: bool = True,
         force_master_online: bool = False,
+        **args,
     ) -> None:
         super().__init__(
             assets_save_dir,

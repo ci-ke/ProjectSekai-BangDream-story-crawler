@@ -38,6 +38,7 @@ class Story_reader(util.Base_fetcher):
         missing_download: bool = True,
         debug_parse: bool = False,
         force_master_online: bool = False,
+        **args,
     ) -> None:
         super().__init__(
             assets_save_dir,

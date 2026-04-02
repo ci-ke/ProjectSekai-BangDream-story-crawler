@@ -20,7 +20,7 @@ def fast_call():
     }
 
 
-reader = bang.Story_reader(assets_save_dir='../assets')
+reader = bang.Story_reader(**fast_call())
 main_getter = bang.Main_story_getter(reader, **fast_call())
 band_getter = bang.Band_story_getter(reader, **fast_call())
 event_getter = bang.Event_story_getter(reader, **fast_call())
