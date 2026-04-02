@@ -1,4 +1,4 @@
-# ProjectSekai-BangDream-story-crawler
+# ProjectSekai & BangDream story crawler
 
 ## Usage
 
