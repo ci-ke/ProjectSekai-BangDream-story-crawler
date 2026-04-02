@@ -6,7 +6,7 @@ from aiohttp import ClientSession, TCPConnector
 
 import src.bang as bang
 
-assert sys.argv[1] in ('full', 'increment')
+assert sys.argv[1] in ('full', 'incremental')
 online = True if sys.argv[1] == 'full' else False
 
 
