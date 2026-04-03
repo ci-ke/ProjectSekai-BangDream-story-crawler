@@ -635,7 +635,7 @@ class Event_story_getter(util.Base_getter):
             skip_read=not self.parse,
         )
 
-        if self.parse:
+        if self.parse and not util.judge_need_skip(story_json):
             text = self.reader.read_story_in_json(story_json)
 
             async with self.file_semaphore:
@@ -833,7 +833,7 @@ class Unit_story_getter(util.Base_getter):
             skip_read=not self.parse,
         )
 
-        if self.parse:
+        if self.parse and not util.judge_need_skip(story_json):
             text = self.reader.read_story_in_json(story_json)
 
             async with self.file_semaphore:
@@ -1009,7 +1009,7 @@ class Card_story_getter(util.Base_getter):
             ),
         )
 
-        if self.parse:
+        if self.parse and not util.judge_need_skip(story_1_json, story_2_json):
             text_1 = self.reader.read_story_in_json(story_1_json)
             text_2 = self.reader.read_story_in_json(story_2_json)
 
@@ -1257,7 +1257,7 @@ class Area_talk_getter((util.Base_getter)):
 
         talk_jsons = await asyncio.gather(*tasks)
 
-        if self.parse:
+        if self.parse and not util.judge_need_skip(talk_jsons):
             texts = [
                 self.reader.read_story_in_json(talk_json) for talk_json in talk_jsons
             ]
@@ -1357,7 +1357,7 @@ class Area_talk_getter((util.Base_getter)):
             skip_read=not self.parse,
         )
 
-        if self.parse:
+        if self.parse and not util.judge_need_skip(talk_json):
             text = self.reader.read_story_in_json(talk_json)
 
             filename = f'talk_{talk_id}'
@@ -1478,7 +1478,7 @@ class Self_intro_getter(util.Base_getter):
             ),
         )
 
-        if self.parse:
+        if self.parse and not util.judge_need_skip(grade1_json, grade2_json):
             os.makedirs(self.save_dir, exist_ok=True)
 
             text_1 = self.reader.read_story_in_json(grade1_json)
@@ -1607,7 +1607,7 @@ class Special_story_getter(util.Base_getter):
             )
         episode_story_jsons = await asyncio.gather(*episode_tasks)
 
-        if self.parse:
+        if self.parse and not util.judge_need_skip(episode_story_jsons):
             os.makedirs(self.save_dir, exist_ok=True)
 
             texts = [

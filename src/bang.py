@@ -354,7 +354,7 @@ class Event_story_getter(util.Base_getter):
         else:
             text = Mark_multi_lang['see band story'][mark_lang]
 
-        if self.parse:
+        if self.parse and not util.judge_need_skip(story_json):
             async with self.file_semaphore:
                 async with aiofiles.open(
                     os.path.join(event_save_dir, filename) + '.txt',
@@ -517,7 +517,7 @@ class Band_story_getter(util.Base_getter):
             skip_read=not self.parse,
         )
 
-        if self.parse:
+        if self.parse and not util.judge_need_skip(story_json):
             text = self.reader.read_story_in_json(story_json, lang, mark_lang)
 
             async with self.file_semaphore:
@@ -624,7 +624,7 @@ class Main_story_getter(util.Base_getter):
             skip_read=not self.parse,
         )
 
-        if self.parse:
+        if self.parse and not util.judge_need_skip(story_json):
             text = self.reader.read_story_in_json(story_json, lang, mark_lang)
 
             async with self.file_semaphore:
@@ -775,7 +775,7 @@ class Card_story_getter(util.Base_getter):
             text_1 = ''
             text_2 = ''
 
-        if self.parse:
+        if self.parse and not util.judge_need_skip(story_1_json, story_2_json):
             card_save_dir = os.path.join(self.save_dir, chara_band_and_name)
 
             os.makedirs(card_save_dir, exist_ok=True)

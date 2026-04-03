@@ -5,6 +5,8 @@ from asyncio import Semaphore
 
 import aiohttp, aiofiles, brotli
 
+SKIP_FETCH_ERROR = True
+
 
 # https://github.com/EternalFlower/Project-Sekai-Story-Parser/blob/main/PJSekai%20Story%20parser.py
 class SnippetAction(int, Enum):
@@ -436,4 +438,11 @@ async def fetch_url_json_simple(
         append_save_path=append_save_path,
         compress=compress,
         skip_read=skip_read,
+    )
+
+
+def judge_need_skip(*story_jsons: Any) -> bool:
+    return SKIP_FETCH_ERROR and any(
+        isinstance(json_str, str) and json_str.startswith("Fetch json error")
+        for json_str in story_jsons
     )
