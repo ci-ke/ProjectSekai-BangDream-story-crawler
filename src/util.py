@@ -100,7 +100,7 @@ Mark_multi_lang = {
 
 _net_semaphore = asyncio.Semaphore(20)
 _file_semaphore = asyncio.Semaphore(20)
-_MISSING = object()  # 哨兵，用于区分"文件不存在"与"文件内容为 null"
+_MISSING_FILE = object()
 
 
 class Base_fetcher:
@@ -258,7 +258,6 @@ async def read_json_from_url(
     compress: bool,
     skip_read: bool,
 ) -> Any:
-    # 第一步：按顺序尝试读取本地文件，返回第一个找到的
     for url in urls:
         if append_save_path is None:
             path = url_to_path(url, save_dir)
@@ -281,9 +280,7 @@ async def read_json_from_url(
                     content = decompressed_bytes.decode("utf-8")
                     return json.loads(content)
 
-    # 第二步：所有本地文件均缺失
     if missing_download:
-        # 把全部 url 交给 online 模式按顺序重试下载
         return await fetch_url_json(
             urls,
             True,
@@ -292,7 +289,7 @@ async def read_json_from_url(
             False,
             extra_record_msg,
             error_assets_file,
-            None,
+            missing_assets_file,
             session,
             network_semaphore,
             file_semaphore,
@@ -307,7 +304,7 @@ async def read_json_from_url(
                 f"{extra_record_msg}{': ' if extra_record_msg else ''}{', '.join(urls)}",
                 file_semaphore,
             )
-        return _MISSING
+        return _MISSING_FILE
 
 
 async def fetch_url_json(
@@ -334,7 +331,6 @@ async def fetch_url_json(
     if file_semaphore is None:
         file_semaphore = _file_semaphore
 
-    # 统一转为列表
     urls = [url] if isinstance(url, str) else url
 
     if online:
@@ -359,7 +355,7 @@ async def fetch_url_json(
                                     append_save_path,
                                     compress,
                                 )
-                            # 成功，直接跳出所有循环
+
                             last_error = None
                             break
 
@@ -374,11 +370,9 @@ async def fetch_url_json(
                             if no_retry:
                                 break
 
-            # 内层 for 循环正常结束（所有尝试均失败）则更换url，若被 break 则 last_error 为 None
             if last_error is None:
                 break
 
-        # 全部url尝试后仍失败
         if last_error is not None:
             json_content = last_error
             if error_assets_file:
@@ -389,8 +383,7 @@ async def fetch_url_json(
                     file_semaphore,
                 )
 
-    else:
-        # offline 模式：交由 read_json_from_url 统一处理本地遍历与按需下载
+    else:  # offline
         result = await read_json_from_url(
             urls,
             missing_download,
@@ -405,7 +398,7 @@ async def fetch_url_json(
             compress,
             skip_read,
         )
-        json_content = 'Unable to read json file' if result is _MISSING else result
+        json_content = 'Unable to read json file' if result is _MISSING_FILE else result
 
     if print_done:
         logging.info('fetch ' + (urls[0] if len(urls) == 1 else str(urls)) + ' done.')
