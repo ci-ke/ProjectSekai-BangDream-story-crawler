@@ -266,14 +266,14 @@ async def read_json_from_url(
             path = os.path.normpath(os.path.join(save_dir, append_save_path))
         if os.path.exists(path):
             if skip_read:
-                return 'skip read'
+                return 'ERROR: skip read'
             async with file_semaphore:
                 async with aiofiles.open(path, encoding='utf8') as f:
                     content = await f.read()
                     return json.loads(content)
         elif os.path.exists(path + '.br'):
             if skip_read:
-                return 'skip read'
+                return 'ERROR: skip read'
             async with file_semaphore:
                 async with aiofiles.open(path + '.br', 'rb') as f:
                     compressed_bytes = await f.read()
@@ -364,8 +364,7 @@ async def fetch_url_json(
                             break
 
                         except Exception as e:
-                            # if encounter "Can not decode content-encoding: br", pip install -U brotli
-                            last_error = f'Fetch json error (attempt {attempt + 1}/{max_retries}, url: {current_url}):\n{traceback.format_exc()}'
+                            last_error = f'ERROR: Fetch json error, attempt {attempt + 1}/{max_retries}, url: {current_url}, {traceback.format_exc()}'
                             no_retry = (
                                 isinstance(e, aiohttp.ClientResponseError)
                                 and 400 <= e.status < 500
@@ -443,6 +442,6 @@ async def fetch_url_json_simple(
 
 def judge_need_skip(*story_jsons: Any) -> bool:
     return SKIP_FETCH_ERROR and any(
-        isinstance(json_str, str) and json_str.startswith("Fetch json error")
+        isinstance(json_str, str) and json_str.startswith('ERROR:')
         for json_str in story_jsons
     )
