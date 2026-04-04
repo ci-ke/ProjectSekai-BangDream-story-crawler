@@ -283,7 +283,6 @@ class Event_story_getter(util.Base_getter):
         info_json: dict[str, Any] = await util.fetch_url_json_simple(
             self.events_id_url.format(event_id=event_id),
             self,
-            compress=self.compress_assets,
             force_online=self.force_master_online,
         )
 
@@ -694,7 +693,6 @@ class Card_story_getter(util.Base_getter):
         card = await util.fetch_url_json_simple(
             self.cards_id_url.format(id=card_id),
             self,
-            compress=self.compress_assets,
             force_online=self.force_master_online,
         )
 
