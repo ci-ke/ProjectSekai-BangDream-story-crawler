@@ -243,6 +243,9 @@ class Story_reader(util.Base_fetcher):
         ret = ''
         for snippet in snippets:
             snippet_index = snippet['Index']
+            if self.debug_parse:
+                ret += f"{snippet_index},{snippet['ReferenceIndex']},"
+
             if snippet['Action'] == util.SnippetAction.SpecialEffect:
                 specialEffect = specialEffects[snippet['ReferenceIndex']]
                 if specialEffect['EffectType'] == util.SpecialEffectType.Telop:
@@ -303,11 +306,7 @@ class Story_reader(util.Base_fetcher):
                     else:
                         ret += (
                             Mark_multi_lang['background'][self.mark_lang]
-                            + (
-                                (Mark_multi_lang[':'][self.mark_lang] + pic_name)
-                                if self.debug_parse
-                                else ''
-                            )
+                            + (f': {pic_name}' if self.debug_parse else '')
                             + '\n'
                         )
                     next_talk_need_newline = False
@@ -335,7 +334,7 @@ class Story_reader(util.Base_fetcher):
                             ).name
                         except ValueError:
                             effect_name = specialEffect['EffectType']
-                        ret += f"SpecialEffectType: {effect_name}, {snippet_index}, {specialEffect['StringVal']}\n"
+                        ret += f"SpecialEffect-{effect_name}: {specialEffect}\n"
 
             elif snippet['Action'] == util.SnippetAction.Talk:
                 talk = talks[snippet['ReferenceIndex']]
@@ -390,7 +389,7 @@ class Story_reader(util.Base_fetcher):
                         snippet_name = util.SnippetAction(snippet['Action']).name
                     except ValueError:
                         snippet_name = snippet['Action']
-                    ret += f"SnippetAction: {snippet_name}, {snippet_index}\n"
+                    ret += f"{snippet_name}\n"
 
         return (ret0 + '\n\n' + ret.strip()).strip()
 

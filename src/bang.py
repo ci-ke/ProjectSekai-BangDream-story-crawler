@@ -129,6 +129,9 @@ class Story_reader(util.Base_fetcher):
         index = -1
         for snippet in snippets:
             index += 1
+            if self.debug_parse:
+                ret += f"{index},{snippet['referenceIndex']},"
+
             if snippet['actionType'] == util.SnippetAction.SpecialEffect:
                 specialEffect = specialEffects[snippet['referenceIndex']]
                 if specialEffect['effectType'] == util.SpecialEffectType.Telop:
@@ -148,11 +151,7 @@ class Story_reader(util.Base_fetcher):
                         ret += '\n'
                     ret += (
                         Mark_multi_lang['background'][mark_lang]
-                        + (
-                            f": {specialEffect['stringVal']}, {specialEffect['stringValSub']}"
-                            if self.debug_parse
-                            else ''
-                        )
+                        + (f": {specialEffect}" if self.debug_parse else '')
                         + '\n'
                     )
                     next_talk_need_newline = False
@@ -180,7 +179,7 @@ class Story_reader(util.Base_fetcher):
                             ).name
                         except ValueError:
                             effect_name = specialEffect['effectType']
-                        ret += f"SpecialEffectType: {effect_name}, {index}, {specialEffect['stringVal']}\n"
+                        ret += f"SpecialEffect-{effect_name}: {specialEffect}\n"
             elif snippet['actionType'] == util.SnippetAction.Talk:
                 talk = talks[snippet['referenceIndex']]
 
@@ -219,7 +218,7 @@ class Story_reader(util.Base_fetcher):
                         snippet_name = util.SnippetAction(snippet['actionType']).name
                     except ValueError:
                         snippet_name = snippet['actionType']
-                    ret += f'SnippetAction: {snippet_name}, {index}\n'
+                    ret += f"{snippet_name}\n"
 
         return (ret0 + '\n\n' + ret.strip()).strip()
 
