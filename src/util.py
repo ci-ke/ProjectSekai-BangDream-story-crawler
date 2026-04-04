@@ -1,6 +1,6 @@
 import os, json, asyncio, traceback, bisect, logging
 from enum import Enum
-from typing import Any
+from typing import Any, Callable
 from asyncio import Semaphore
 
 import aiohttp, aiofiles, brotli
@@ -207,12 +207,16 @@ async def save_json_to_url(
     file_semaphore: Semaphore,
     append_save_path: str | None,
     compress: bool,
+    content_edit: Callable | None,
 ) -> None:
     if append_save_path is None:
         path = url_to_path(url, save_dir)
     else:
         path = os.path.normpath(os.path.join(save_dir, append_save_path))
     os.makedirs(os.path.split(path)[0], exist_ok=True)
+
+    if content_edit is not None:
+        content = content_edit(content)
 
     async with file_semaphore:
         if compress:
@@ -324,6 +328,7 @@ async def fetch_url_json(
     max_retries: int = 5,
     compress: bool = False,
     skip_read: bool = False,
+    content_save_edit: Callable | None = None,
 ) -> Any:
 
     if network_semaphore is None:
@@ -354,6 +359,7 @@ async def fetch_url_json(
                                     file_semaphore,
                                     append_save_path,
                                     compress,
+                                    content_save_edit,
                                 )
 
                             last_error = None
@@ -415,6 +421,7 @@ async def fetch_url_json_simple(
     compress: bool = False,
     force_online: bool = False,
     skip_read: bool = False,
+    content_save_edit: Callable | None = None,
 ) -> Any:
     return await fetch_url_json(
         url,
@@ -430,6 +437,7 @@ async def fetch_url_json_simple(
         append_save_path=append_save_path,
         compress=compress,
         skip_read=skip_read,
+        content_save_edit=content_save_edit,
     )
 
 

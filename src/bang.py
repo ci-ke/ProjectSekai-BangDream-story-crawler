@@ -1,4 +1,4 @@
-import os, asyncio, json, time, logging
+import os, asyncio, json, time, logging, copy
 from pathlib import Path
 from typing import Any
 from asyncio import Semaphore
@@ -685,6 +685,13 @@ class Card_story_getter(util.Base_getter):
 
         self.cards_ids: set[int] = {int(id) for id in self.cards_all_json.keys()}
 
+    @staticmethod
+    def __card_info_cut(content: dict[str, Any]) -> dict[str, Any]:
+        if 'source' in content:
+            content = copy.deepcopy(content)
+            content['source'] = None
+        return content
+
     async def get(self, card_id: int, lang: str = 'cn', mark_lang: str = 'cn') -> None:
         if card_id not in self.cards_ids:
             logging.info(f'card {card_id} does not exist.')
@@ -694,6 +701,7 @@ class Card_story_getter(util.Base_getter):
             self.cards_id_url.format(id=card_id),
             self,
             force_online=self.force_master_online,
+            content_save_edit=Card_story_getter.__card_info_cut,
         )
 
         if 'episodes' not in card:
