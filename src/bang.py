@@ -349,8 +349,10 @@ class Event_story_getter(util.Base_getter):
                 text = ''
         elif event_id in Event_story_getter.event_is_main:
             text = Mark_multi_lang['see main story'][mark_lang]
+            story_json = ''
         else:
             text = Mark_multi_lang['see band story'][mark_lang]
+            story_json = ''
 
         if self.parse and not util.judge_need_skip(story_json):
             async with self.file_semaphore:
