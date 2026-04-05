@@ -63,11 +63,11 @@ class Story_reader(util.Base_fetcher):
         await super().init(session, network_semaphore, file_semaphore)
 
         self.characters_json, self.bands_json = await asyncio.gather(
-            util.fetch_url_json_simple(
-                self.characters_main_url, self, force_online=self.force_master_online
+            self.fetch_url_json(
+                self.characters_main_url, force_online=self.force_master_online
             ),
-            util.fetch_url_json_simple(
-                self.bands_main_url, self, force_online=self.force_master_online
+            self.fetch_url_json(
+                self.bands_main_url, force_online=self.force_master_online
             ),
         )
 
@@ -266,10 +266,8 @@ class Event_story_getter(util.Base_getter):
     ) -> None:
         await super().init(session, network_semaphore, file_semaphore)
 
-        self.events_all_json: dict[str, dict[str, Any]] = (
-            await util.fetch_url_json_simple(
-                self.events_all_url, self, force_online=self.force_master_online
-            )
+        self.events_all_json: dict[str, dict[str, Any]] = await self.fetch_url_json(
+            self.events_all_url, force_online=self.force_master_online
         )
 
         self.events_ids: set[int] = {int(id) for id in self.events_all_json.keys()}
@@ -279,9 +277,8 @@ class Event_story_getter(util.Base_getter):
             logging.info(f'event {event_id} does not exist.')
             return
 
-        info_json: dict[str, Any] = await util.fetch_url_json_simple(
+        info_json: dict[str, Any] = await self.fetch_url_json(
             self.events_id_url.format(event_id=event_id),
-            self,
             force_online=self.force_master_online,
         )
 
@@ -335,9 +332,8 @@ class Event_story_getter(util.Base_getter):
         if ('bandStoryId' not in story) and (
             event_id not in Event_story_getter.event_is_main
         ):
-            story_json: dict[str, dict[str, Any]] = await util.fetch_url_json_simple(
+            story_json = await self.fetch_url_json(
                 self.event_asset_url.format(lang=lang, event_id=event_id, id=id),
-                self,
                 filename,
                 compress=self.compress_assets,
                 skip_read=not self.parse,
@@ -434,8 +430,8 @@ class Band_story_getter(util.Base_getter):
     ) -> None:
         await super().init(session, network_semaphore, file_semaphore)
 
-        self.info_json: dict[str, dict[str, Any]] = await util.fetch_url_json_simple(
-            self.bandstories_5_url, self, force_online=self.force_master_online
+        self.info_json: dict[str, dict[str, Any]] = await self.fetch_url_json(
+            self.bandstories_5_url, force_online=self.force_master_online
         )
 
     async def get(
@@ -509,9 +505,8 @@ class Band_story_getter(util.Base_getter):
 
         filename = util.valid_filename(name)
 
-        story_json: dict[str, dict[str, Any]] = await util.fetch_url_json_simple(
+        story_json: dict[str, dict[str, Any]] = await self.fetch_url_json(
             self.band_asset_url.format(lang=lang, band_id=band_id, id=id),
-            self,
             filename,
             compress=self.compress_assets,
             skip_read=not self.parse,
@@ -572,8 +567,8 @@ class Main_story_getter(util.Base_getter):
     ) -> None:
         await super().init(session, network_semaphore, file_semaphore)
 
-        self.info_json: dict[str, dict[str, Any]] = await util.fetch_url_json_simple(
-            self.mainstories_5_url, self, force_online=self.force_master_online
+        self.info_json: dict[str, dict[str, Any]] = await self.fetch_url_json(
+            self.mainstories_5_url, force_online=self.force_master_online
         )
 
     async def get(
@@ -616,9 +611,8 @@ class Main_story_getter(util.Base_getter):
         synopsis: str,
         mark_lang: str,
     ) -> None:
-        story_json: dict[str, dict[str, Any]] = await util.fetch_url_json_simple(
+        story_json: dict[str, dict[str, Any]] = await self.fetch_url_json(
             self.main_asset_url.format(lang=lang, id=id),
-            self,
             filename,
             compress=self.compress_assets,
             skip_read=not self.parse,
@@ -678,10 +672,8 @@ class Card_story_getter(util.Base_getter):
     ) -> None:
         await super().init(session, network_semaphore, file_semaphore)
 
-        self.cards_all_json: dict[str, dict[str, Any]] = (
-            await util.fetch_url_json_simple(
-                self.cards_all_5_url, self, force_online=self.force_master_online
-            )
+        self.cards_all_json: dict[str, dict[str, Any]] = await self.fetch_url_json(
+            self.cards_all_5_url, force_online=self.force_master_online
         )
 
         self.cards_ids: set[int] = {int(id) for id in self.cards_all_json.keys()}
@@ -698,9 +690,8 @@ class Card_story_getter(util.Base_getter):
             logging.info(f'card {card_id} does not exist.')
             return
 
-        card = await util.fetch_url_json_simple(
+        card = await self.fetch_url_json(
             self.cards_id_url.format(id=card_id),
-            self,
             force_online=self.force_master_online,
             content_save_edit=Card_story_getter.__card_info_cut,
         )
@@ -743,11 +734,10 @@ class Card_story_getter(util.Base_getter):
 
         if story_1_type != 'animation':
             scenarioId_1 = card['episodes']['entries'][0]['scenarioId']
-            story_1_json_task = util.fetch_url_json_simple(
+            story_1_json_task = self.fetch_url_json(
                 self.card_asset_url.format(
                     lang=lang, res_id=resourceSetName, scenarioId=scenarioId_1
                 ),
-                self,
                 card_story_filename,
                 compress=self.compress_assets,
                 skip_read=not self.parse,
@@ -761,11 +751,10 @@ class Card_story_getter(util.Base_getter):
 
         scenarioId_2 = card['episodes']['entries'][1]['scenarioId']
 
-        story_2_json_task = util.fetch_url_json_simple(
+        story_2_json_task = self.fetch_url_json(
             self.card_asset_url.format(
                 lang=lang, res_id=resourceSetName, scenarioId=scenarioId_2
             ),
-            self,
             card_story_filename,
             compress=self.compress_assets,
             skip_read=not self.parse,

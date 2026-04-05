@@ -138,6 +138,34 @@ class Base_fetcher:
         else:
             self.file_semaphore = file_semaphore
 
+    async def fetch_url_json(
+        self,
+        url: str | list[str],
+        extra_record_msg: str = '',
+        print_done: bool = False,
+        append_save_path: str | None = None,
+        compress: bool = False,
+        force_online: bool = False,
+        skip_read: bool = False,
+        content_save_edit: Callable | None = None,
+    ) -> Any:
+        return await fetch_url_json(
+            url,
+            self.online | force_online,
+            self.save_assets,
+            self.assets_save_dir,
+            self.missing_download,
+            extra_record_msg=extra_record_msg,
+            session=self.session,
+            network_semaphore=self.network_semaphore,
+            file_semaphore=self.file_semaphore,
+            print_done=print_done,
+            append_save_path=append_save_path,
+            compress=compress,
+            skip_read=skip_read,
+            content_save_edit=content_save_edit,
+        )
+
 
 class Base_getter(Base_fetcher):
     def __init__(
@@ -200,6 +228,25 @@ def url_to_path(url: str, save_dir: str) -> str:
     return os.path.normpath(os.path.join(save_dir, url_path))
 
 
+_file_locks = {}
+
+
+def _get_lock(file_path: str) -> asyncio.Lock:
+    if file_path not in _file_locks:
+        _file_locks[file_path] = asyncio.Lock()
+    return _file_locks[file_path]
+
+
+async def write_to_file(
+    file_path: str, content: str, file_semaphore: Semaphore
+) -> None:
+    async with file_semaphore:
+        lock = _get_lock(file_path)
+        async with lock:
+            async with aiofiles.open(file_path, 'a', encoding='utf-8') as f:
+                await f.write(f"{content}\n")
+
+
 async def save_json_to_url(
     url: str,
     content: Any,
@@ -227,25 +274,6 @@ async def save_json_to_url(
         else:
             async with aiofiles.open(path, 'w', encoding='utf8') as f:
                 await f.write(json.dumps(content, ensure_ascii=False, indent=2))
-
-
-_file_locks = {}
-
-
-def _get_lock(file_path: str) -> asyncio.Lock:
-    if file_path not in _file_locks:
-        _file_locks[file_path] = asyncio.Lock()
-    return _file_locks[file_path]
-
-
-async def write_to_file(
-    file_path: str, content: str, file_semaphore: Semaphore
-) -> None:
-    async with file_semaphore:
-        lock = _get_lock(file_path)
-        async with lock:
-            async with aiofiles.open(file_path, 'a', encoding='utf-8') as f:
-                await f.write(f"{content}\n")
 
 
 async def read_json_from_url(
@@ -347,8 +375,8 @@ async def fetch_url_json(
         for current_url in urls:
             for attempt in range(max_retries):
                 async with network_semaphore:
-                    async with session.get(current_url) as res:
-                        try:
+                    try:
+                        async with session.get(current_url) as res:
                             res.raise_for_status()
                             json_content = await res.json(content_type=None)
                             if save:
@@ -365,16 +393,16 @@ async def fetch_url_json(
                             last_error = None
                             break
 
-                        except Exception as e:
-                            last_error = f'ERROR: Fetch json error, attempt {attempt + 1}/{max_retries}, url: {current_url}, {traceback.format_exc()}'
-                            no_retry = (
-                                isinstance(e, aiohttp.ClientResponseError)
-                                and 400 <= e.status < 500
-                            )
-                            if no_retry or attempt + 1 == max_retries:
-                                logging.warning(last_error)
-                            if no_retry:
-                                break
+                    except Exception as e:
+                        last_error = f'ERROR: Fetch json error, attempt {attempt + 1}/{max_retries}, url: {current_url}, {traceback.format_exc()}'
+                        no_retry = (
+                            isinstance(e, aiohttp.ClientResponseError)
+                            and 400 <= e.status < 500
+                        )
+                        if no_retry or attempt + 1 == max_retries:
+                            logging.warning(last_error)
+                        if no_retry:
+                            break
 
             if last_error is None:
                 break
@@ -410,35 +438,6 @@ async def fetch_url_json(
         logging.info('fetch ' + (urls[0] if len(urls) == 1 else str(urls)) + ' done.')
 
     return json_content
-
-
-async def fetch_url_json_simple(
-    url: str | list[str],
-    self: Base_fetcher,
-    extra_record_msg: str = '',
-    print_done: bool = False,
-    append_save_path: str | None = None,
-    compress: bool = False,
-    force_online: bool = False,
-    skip_read: bool = False,
-    content_save_edit: Callable | None = None,
-) -> Any:
-    return await fetch_url_json(
-        url,
-        self.online | force_online,
-        self.save_assets,
-        self.assets_save_dir,
-        self.missing_download,
-        extra_record_msg=extra_record_msg,
-        session=self.session,
-        network_semaphore=self.network_semaphore,
-        file_semaphore=self.file_semaphore,
-        print_done=print_done,
-        append_save_path=append_save_path,
-        compress=compress,
-        skip_read=skip_read,
-        content_save_edit=content_save_edit,
-    )
 
 
 def judge_need_skip(*story_jsons: Any) -> bool:

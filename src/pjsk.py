@@ -1,7 +1,7 @@
 import os, math, asyncio, json, re, time, logging
 from pathlib import Path
 from asyncio import Semaphore
-from typing import Any, Optional, cast
+from typing import Any, Callable, Optional, cast
 
 import aiofiles
 from aiohttp import ClientSession, TCPConnector
@@ -69,9 +69,9 @@ class Constant:
         return base_urls
 
 
-class Fetch:
+class Pjsk_fetcher(util.Base_fetcher):
     @staticmethod
-    def url_to_apd_path_master(url: str, lang: str) -> str:
+    def __url_to_apd_path_master(url: str, lang: str) -> str:
         master_name_match = re.search(r'master.*/(\w+\.json)', url)
         if master_name_match:
             master_name = master_name_match.group(1)
@@ -80,7 +80,7 @@ class Fetch:
         return os.path.normpath(os.path.join(f'pjsk-{lang}-master', master_name))
 
     @staticmethod
-    def url_to_apd_path_asset(url: str, lang: str) -> str:
+    def __url_to_apd_path_asset(url: str, lang: str) -> str:
         asset_name_match = re.search(r'(ondemand|startapp|sekai-\w+-assets)/(.*)', url)
         if asset_name_match:
             asset_name = asset_name_match.group(2)
@@ -88,45 +88,56 @@ class Fetch:
             raise RuntimeError(url)
         return os.path.normpath(os.path.join(f'pjsk-{lang}-assets', asset_name))
 
-    @staticmethod
-    async def fetch_url_json_simple(
+    async def fetch_url_json(
+        self,
         url: str | list[str],
-        self: Any,
         extra_record_msg: str = '',
         print_done: bool = False,
-        lang_for_path: str | None = None,
+        append_save_path: str | None = None,
         compress: bool = False,
         force_online: bool = False,
         skip_read: bool = False,
+        content_save_edit: Callable | None = None,
+        lang_for_path: str | None = None,
     ) -> Any:
-        if lang_for_path is None:
-            try:
-                lang_for_path = self.reader.lang
-            except AttributeError:
-                lang_for_path = self.lang
+        assert append_save_path is None
+
+        lang_for_path = (
+            lang_for_path
+            or getattr(getattr(self, 'reader', None), 'lang', None)
+            or getattr(self, 'lang', None)
+        )
         assert lang_for_path is not None
 
         urls = [url] if isinstance(url, str) else url
 
         master_name_match = re.search(r'master.*/(\w+\.json)', urls[0])
         if master_name_match:
-            append_save_path = Fetch.url_to_apd_path_master(urls[0], lang_for_path)
+            append_save_path = Pjsk_fetcher.__url_to_apd_path_master(
+                urls[0], lang_for_path
+            )
         else:
-            append_save_path = Fetch.url_to_apd_path_asset(urls[0], lang_for_path)
+            append_save_path = Pjsk_fetcher.__url_to_apd_path_asset(
+                urls[0], lang_for_path
+            )
 
-        return await util.fetch_url_json_simple(
+        return await super().fetch_url_json(
             url,
-            self,
             extra_record_msg,
             print_done,
             append_save_path=append_save_path,
             compress=compress,
             force_online=force_online,
             skip_read=skip_read,
+            content_save_edit=content_save_edit,
         )
 
 
-class Story_reader(util.Base_fetcher):
+class Pjsk_getter(Pjsk_fetcher, util.Base_getter):
+    pass
+
+
+class Story_reader(Pjsk_fetcher):
     def __init__(
         self,
         lang: str = 'cn',
@@ -173,11 +184,11 @@ class Story_reader(util.Base_fetcher):
         await super().init(session, network_semaphore, file_semaphore)
 
         self.gameCharacters, self.character2ds = await asyncio.gather(
-            Fetch.fetch_url_json_simple(
-                self.gameCharacters_url, self, force_online=self.force_master_online
+            self.fetch_url_json(
+                self.gameCharacters_url, force_online=self.force_master_online
             ),
-            Fetch.fetch_url_json_simple(
-                self.character2ds_url, self, force_online=self.force_master_online
+            self.fetch_url_json(
+                self.character2ds_url, force_online=self.force_master_online
             ),
         )
 
@@ -394,7 +405,7 @@ class Story_reader(util.Base_fetcher):
         return (ret0 + '\n\n' + ret.strip()).strip()
 
 
-class Event_story_getter(util.Base_getter):
+class Event_story_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
@@ -460,18 +471,15 @@ class Event_story_getter(util.Base_getter):
             self.gameCharacterUnits,
             actionSets,
         ) = await asyncio.gather(
-            Fetch.fetch_url_json_simple(
-                self.events_url, self, force_online=self.force_master_online
+            self.fetch_url_json(self.events_url, force_online=self.force_master_online),
+            self.fetch_url_json(
+                self.eventStories_url, force_online=self.force_master_online
             ),
-            Fetch.fetch_url_json_simple(
-                self.eventStories_url, self, force_online=self.force_master_online
+            self.fetch_url_json(
+                self.gameCharacterUnits_url, force_online=self.force_master_online
             ),
-            Fetch.fetch_url_json_simple(
-                self.gameCharacterUnits_url, self, force_online=self.force_master_online
-            ),
-            Fetch.fetch_url_json_simple(
+            self.fetch_url_json(
                 self.actionSets_url,
-                self,
                 lang_for_path='jp',
                 force_online=self.force_master_online,
             ),
@@ -624,12 +632,11 @@ class Event_story_getter(util.Base_getter):
 
         scenarioId = episode['scenarioId']
 
-        story_json: dict[str, Any] = await Fetch.fetch_url_json_simple(
+        story_json: dict[str, Any] = await self.fetch_url_json(
             [
                 url.format(assetbundleName=assetbundleName, scenarioId=scenarioId)
                 for url in self.event_asset_url
             ],
-            self,
             compress=self.compress_assets,
             skip_read=not self.parse,
         )
@@ -679,7 +686,7 @@ class Event_story_getter(util.Base_getter):
         await asyncio.gather(*tasks)
 
 
-class Unit_story_getter(util.Base_getter):
+class Unit_story_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
@@ -735,16 +742,14 @@ class Unit_story_getter(util.Base_getter):
             self.unitStoryEpisodeGroups_json,
             self.unitStories_json,
         ) = await asyncio.gather(
-            Fetch.fetch_url_json_simple(
-                self.unitProfiles_url, self, force_online=self.force_master_online
+            self.fetch_url_json(
+                self.unitProfiles_url, force_online=self.force_master_online
             ),
-            Fetch.fetch_url_json_simple(
-                self.unitStoryEpisodeGroups_url,
-                self,
-                force_online=self.force_master_online,
+            self.fetch_url_json(
+                self.unitStoryEpisodeGroups_url, force_online=self.force_master_online
             ),
-            Fetch.fetch_url_json_simple(
-                self.unitStories_url, self, force_online=self.force_master_online
+            self.fetch_url_json(
+                self.unitStories_url, force_online=self.force_master_online
             ),
         )
 
@@ -822,12 +827,11 @@ class Unit_story_getter(util.Base_getter):
 
         episode_save_name = util.valid_filename(episode_name)
 
-        story_json: dict[str, Any] = await Fetch.fetch_url_json_simple(
+        story_json: dict[str, Any] = await self.fetch_url_json(
             [
                 url.format(assetbundleName=assetbundleName, scenarioId=scenarioId)
                 for url in self.unit_asset_url
             ],
-            self,
             compress=self.compress_assets,
             skip_read=not self.parse,
         )
@@ -855,7 +859,7 @@ class Unit_story_getter(util.Base_getter):
         return ret
 
 
-class Card_story_getter(util.Base_getter):
+class Card_story_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
@@ -906,14 +910,14 @@ class Card_story_getter(util.Base_getter):
 
         self.cards_json, self.cardEpisodes_json, ori_eventCards_json = (
             await asyncio.gather(
-                Fetch.fetch_url_json_simple(
-                    self.cards_url, self, force_online=self.force_master_online
+                self.fetch_url_json(
+                    self.cards_url, force_online=self.force_master_online
                 ),
-                Fetch.fetch_url_json_simple(
-                    self.cardEpisodes_url, self, force_online=self.force_master_online
+                self.fetch_url_json(
+                    self.cardEpisodes_url, force_online=self.force_master_online
                 ),
-                Fetch.fetch_url_json_simple(
-                    self.eventCards_url, self, force_online=self.force_master_online
+                self.fetch_url_json(
+                    self.eventCards_url, force_online=self.force_master_online
                 ),
             )
         )
@@ -982,26 +986,24 @@ class Card_story_getter(util.Base_getter):
         )
 
         story_1_json, story_2_json = await asyncio.gather(
-            Fetch.fetch_url_json_simple(
+            self.fetch_url_json(
                 [
                     url.format(
                         assetbundleName=assetbundleName, scenarioId=story_1_scenarioId
                     )
                     for url in self.card_asset_url
                 ],
-                self,
                 card_story_name + ' part1',
                 compress=self.compress_assets,
                 skip_read=not self.parse,
             ),
-            Fetch.fetch_url_json_simple(
+            self.fetch_url_json(
                 [
                     url.format(
                         assetbundleName=assetbundleName, scenarioId=story_2_scenarioId
                     )
                     for url in self.card_asset_url
                 ],
-                self,
                 card_story_name + ' part2',
                 compress=self.compress_assets,
                 skip_read=not self.parse,
@@ -1115,7 +1117,7 @@ class Card_story_getter(util.Base_getter):
         await asyncio.gather(*tasks)
 
 
-class Area_talk_getter((util.Base_getter)):
+class Area_talk_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
@@ -1164,11 +1166,9 @@ class Area_talk_getter((util.Base_getter)):
         await super().init(session, network_semaphore, file_semaphore)
 
         self.area_name_json, self.actionSets_json = await asyncio.gather(
-            Fetch.fetch_url_json_simple(
-                self.areas_url, self, force_online=self.force_master_online
-            ),
-            Fetch.fetch_url_json_simple(
-                self.actionSets_url, self, force_online=self.force_master_online
+            self.fetch_url_json(self.areas_url, force_online=self.force_master_online),
+            self.fetch_url_json(
+                self.actionSets_url, force_online=self.force_master_online
             ),
         )
 
@@ -1239,7 +1239,7 @@ class Area_talk_getter((util.Base_getter)):
         tasks = []
         for action in actions:
             tasks.append(
-                Fetch.fetch_url_json_simple(
+                self.fetch_url_json(
                     [
                         url.format(
                             group=math.floor(action['id'] / 100),
@@ -1247,7 +1247,6 @@ class Area_talk_getter((util.Base_getter)):
                         )
                         for url in self.talk_asset_url
                     ],
-                    self,
                     print_done=self.print_fetch_detial,
                     compress=self.compress_assets,
                     skip_read=not self.parse,
@@ -1344,14 +1343,13 @@ class Area_talk_getter((util.Base_getter)):
         if self.parse:
             os.makedirs(self.save_dir, exist_ok=True)
 
-        talk_json = await Fetch.fetch_url_json_simple(
+        talk_json = await self.fetch_url_json(
             [
                 url.format(
                     group=math.floor(talk_id / 100), scenarioId=actionSet['scenarioId']
                 )
                 for url in self.talk_asset_url
             ],
-            self,
             compress=self.compress_assets,
             skip_read=not self.parse,
         )
@@ -1392,7 +1390,7 @@ class Area_talk_getter((util.Base_getter)):
         return ret
 
 
-class Self_intro_getter(util.Base_getter):
+class Self_intro_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
@@ -1434,10 +1432,8 @@ class Self_intro_getter(util.Base_getter):
     ) -> None:
         await super().init(session, network_semaphore, file_semaphore)
 
-        self.characterProfiles_json: list[dict[str, Any]] = (
-            await Fetch.fetch_url_json_simple(
-                self.characterProfiles_url, self, force_online=self.force_master_online
-            )
+        self.characterProfiles_json: list[dict[str, Any]] = await self.fetch_url_json(
+            self.characterProfiles_url, force_online=self.force_master_online
         )
 
         self.characterProfiles_lookup = util.DictLookup(
@@ -1460,18 +1456,16 @@ class Self_intro_getter(util.Base_getter):
         scenarioId_common = scenarioId[: scenarioId.rindex('_')]
 
         grade1_json, grade2_json = await asyncio.gather(
-            Fetch.fetch_url_json_simple(
+            self.fetch_url_json(
                 [
                     url.format(scenarioId=scenarioId_common)
                     for url in self.self_asset_url
                 ],
-                self,
                 compress=self.compress_assets,
                 skip_read=not self.parse,
             ),
-            Fetch.fetch_url_json_simple(
+            self.fetch_url_json(
                 [url.format(scenarioId=scenarioId) for url in self.self_asset_url],
-                self,
                 compress=self.compress_assets,
                 skip_read=not self.parse,
             ),
@@ -1516,7 +1510,7 @@ class Self_intro_getter(util.Base_getter):
         return ret
 
 
-class Special_story_getter(util.Base_getter):
+class Special_story_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
@@ -1560,10 +1554,8 @@ class Special_story_getter(util.Base_getter):
     ) -> None:
         await super().init(session, network_semaphore, file_semaphore)
 
-        self.specialStories_json: list[dict[str, Any]] = (
-            await Fetch.fetch_url_json_simple(
-                self.specialStories_url, self, force_online=self.force_master_online
-            )
+        self.specialStories_json: list[dict[str, Any]] = await self.fetch_url_json(
+            self.specialStories_url, force_online=self.force_master_online
         )
 
         self.specialStories_lookup = util.DictLookup(self.specialStories_json, 'id')
@@ -1590,7 +1582,7 @@ class Special_story_getter(util.Base_getter):
         episode_tasks = []
         for episode in episodes:
             episode_tasks.append(
-                Fetch.fetch_url_json_simple(
+                self.fetch_url_json(
                     [
                         url.format(
                             assetbundleName=episode['assetbundleName'],
@@ -1598,7 +1590,6 @@ class Special_story_getter(util.Base_getter):
                         )
                         for url in self.special_asset_url
                     ],
-                    self,
                     filename,
                     compress=self.compress_assets,
                     skip_read=not self.parse,
