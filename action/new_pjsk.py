@@ -36,7 +36,7 @@ async def main():
         )
 
         now = datetime.now(timezone.utc)
-        future_time = now + timedelta(hours=4)
+        future_time = now + timedelta(hours=12)
         future_timestamp = future_time.timestamp()
         timestamp13 = int(future_timestamp * 1000)
 
