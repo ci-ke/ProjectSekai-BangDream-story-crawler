@@ -1,6 +1,7 @@
 # for github action
 
 import asyncio
+from datetime import datetime, timedelta, timezone
 
 from aiohttp import ClientSession, TCPConnector
 
@@ -23,13 +24,24 @@ async def main():
             card_getter.init(session),
         )
 
+        now = datetime.now(timezone.utc)
+        future_time = now + timedelta(hours=24)
+        future_timestamp = future_time.timestamp()
+        timestamp13 = int(future_timestamp * 1000)
+
         tasks = []
 
-        tasks.append(event_getter.get_newest('cn', quantity=10))
-        tasks.append(event_getter.get_newest('jp', 'en', quantity=10))
+        tasks.append(
+            event_getter.get_newest('cn', quantity=10, timestamp13=timestamp13)
+        )
+        tasks.append(
+            event_getter.get_newest('jp', 'en', quantity=10, timestamp13=timestamp13)
+        )
 
-        tasks.append(card_getter.get_newest('cn', quantity=50))
-        tasks.append(card_getter.get_newest('jp', 'en', quantity=50))
+        tasks.append(card_getter.get_newest('cn', quantity=50, timestamp13=timestamp13))
+        tasks.append(
+            card_getter.get_newest('jp', 'en', quantity=50, timestamp13=timestamp13)
+        )
 
         await asyncio.gather(*tasks)
 
