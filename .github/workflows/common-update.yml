@@ -15,6 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      UV_INDEX_URL: https://pypi.org/simple/
 
     steps:
       - name: Checkout main branch
@@ -28,6 +30,8 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
 
       - name: Execute command
         working-directory: ./crawler
