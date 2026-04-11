@@ -380,7 +380,7 @@ class Event_story_getter(util.Base_getter):
 
         for str_id, event in self.events_all_json.items():
             if (
-                startAt := event['startAt'][Constant.lang_index[lang]] is not None
+                (startAt := event['startAt'][Constant.lang_index[lang]]) is not None
             ) and int(startAt) <= timestamp13:
                 old_events.append((int(startAt), int(str_id)))
 
