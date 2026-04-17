@@ -688,6 +688,12 @@ class Event_story_getter(Pjsk_getter):
                 tasks.append(area_getter.get(i))
         await asyncio.gather(*tasks)
 
+    def tell_ids(self) -> list[int]:
+        ret = []
+        for event in self.events_json:
+            ret.append(event['id'])
+        return ret
+
 
 class Unit_story_getter(Pjsk_getter):
     def __init__(
@@ -1118,6 +1124,12 @@ class Card_story_getter(Pjsk_getter):
         for i in new_cardids:
             tasks.append(self.get(i))
         await asyncio.gather(*tasks)
+
+    def tell_ids(self) -> list[int]:
+        ret = []
+        for card in self.cards_json:
+            ret.append(card['id'])
+        return ret
 
 
 class Area_talk_getter(Pjsk_getter):

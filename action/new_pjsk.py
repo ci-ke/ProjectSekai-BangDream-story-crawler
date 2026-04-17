@@ -47,14 +47,15 @@ async def main():
                 10, area_getter=area_getter, timestamp13=timestamp13
             )
         )
-        tasks.append(
-            event_getter_jp.get_newest(
-                10, area_getter=area_getter_jp, timestamp13=timestamp13
-            )
-        )
+
+        for i in event_getter_jp.tell_ids()[-10:]:
+            tasks.append(event_getter_jp.get(i))
+            tasks.append(area_getter_jp.get(i))
 
         tasks.append(card_getter.get_newest(50, timestamp13=timestamp13))
-        tasks.append(card_getter_jp.get_newest(50, timestamp13=timestamp13))
+
+        for i in card_getter_jp.tell_ids()[-50:]:
+            tasks.append(card_getter_jp.get(i))
 
         await asyncio.gather(*tasks)
 
