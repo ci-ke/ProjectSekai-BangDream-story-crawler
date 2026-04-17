@@ -557,6 +557,9 @@ class Event_story_getter(Pjsk_getter):
         banner_chara_unit_id = eventStory.get('bannerGameCharacterUnitId')
         event_outline = eventStory['outline'].replace('\n', ' ')
 
+        if event_id == 97:  # special case
+            banner_chara_unit_id = 10
+
         event_unit_abbr = self.get_event_unit_abbr(event_id)
 
         if event_type == 'world_bloom':
