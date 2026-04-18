@@ -69,10 +69,13 @@ async def main():
             tasks.append(unit_getter_jp.get(i))
 
         tasks.append(event_getter.get_newest(0, area_getter=area_getter))
-        tasks.append(event_getter_jp.get_newest(0, area_getter=area_getter_jp))
+        for i in event_getter_jp.tell_ids():
+            tasks.append(event_getter_jp.get(i))
+            tasks.append(area_getter_jp.get(i))
 
         tasks.append(card_getter.get_newest(0))
-        tasks.append(card_getter_jp.get_newest(0))
+        for i in card_getter_jp.tell_ids():
+            tasks.append(card_getter_jp.get(i))
 
         for i in area_getter.tell_categories():
             if not isinstance(i, int):
