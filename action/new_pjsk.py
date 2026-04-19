@@ -1,23 +1,19 @@
-# for github action
-
 import asyncio
-from datetime import datetime, timedelta, timezone
 
 from aiohttp import ClientSession, TCPConnector
 
-import src.pjsk as pjsk
-
-reader = pjsk.Story_reader('cn')
-event_getter = pjsk.Event_story_getter(reader, save_dir='../story_event')
-card_getter = pjsk.Card_story_getter(reader, save_dir='../story_card')
-area_getter = pjsk.Area_talk_getter(reader, save_dir='../story_area')
-
-reader_jp = pjsk.Story_reader('jp', mark_lang='en')
-event_getter_jp = pjsk.Event_story_getter(reader_jp, save_dir='../story_event')
-card_getter_jp = pjsk.Card_story_getter(reader_jp, save_dir='../story_card')
-area_getter_jp = pjsk.Area_talk_getter(reader_jp, save_dir='../story_area')
-
-net_connect_limit = 20
+from .all_pjsk import (
+    reader,
+    event_getter,
+    card_getter,
+    area_getter,
+    reader_jp,
+    event_getter_jp,
+    card_getter_jp,
+    area_getter_jp,
+    net_connect_limit,
+    timestamp13,
+)
 
 
 async def main():
@@ -34,11 +30,6 @@ async def main():
             card_getter_jp.init(session),
             area_getter_jp.init(session),
         )
-
-        now = datetime.now(timezone.utc)
-        future_time = now + timedelta(hours=48)
-        future_timestamp = future_time.timestamp()
-        timestamp13 = int(future_timestamp * 1000)
 
         tasks = []
 
@@ -58,4 +49,5 @@ async def main():
         await asyncio.gather(*tasks)
 
 
-asyncio.run(main())
+if __name__ == '__main__':
+    asyncio.run(main())

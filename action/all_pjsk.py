@@ -1,6 +1,5 @@
-# for github action
-
 import asyncio
+from datetime import datetime, timedelta, timezone
 
 from aiohttp import ClientSession, TCPConnector
 
@@ -24,6 +23,11 @@ self_getter_jp = pjsk.Self_intro_getter(reader_jp, save_dir='../story_self')
 special_getter_jp = pjsk.Special_story_getter(reader_jp, save_dir='../story_special')
 
 net_connect_limit = 20
+
+now = datetime.now(timezone.utc)
+future_time = now + timedelta(hours=48)
+future_timestamp = future_time.timestamp()
+timestamp13 = int(future_timestamp * 1000)
 
 
 async def main():
@@ -54,21 +58,18 @@ async def main():
         for i in unit_getter_jp.tell_ids():
             tasks.append(unit_getter_jp.get(i))
 
-        tasks.append(event_getter.get_newest(0, area_getter=area_getter))
+        tasks.append(event_getter.get_newest(0, timestamp13=timestamp13))
         for i in event_getter_jp.tell_ids():
             tasks.append(event_getter_jp.get(i))
-            tasks.append(area_getter_jp.get(i))
 
-        tasks.append(card_getter.get_newest(0))
+        tasks.append(card_getter.get_newest(0, timestamp13=timestamp13))
         for i in card_getter_jp.tell_ids():
             tasks.append(card_getter_jp.get(i))
 
         for i in area_getter.tell_categories():
-            if not isinstance(i, int):
-                tasks.append(area_getter.get(i))
+            tasks.append(area_getter.get(i))
         for i in area_getter_jp.tell_categories():
-            if not isinstance(i, int):
-                tasks.append(area_getter_jp.get(i))
+            tasks.append(area_getter_jp.get(i))
 
         for i in self_getter.tell_ids():
             tasks.append(self_getter.get(i))
@@ -83,4 +84,5 @@ async def main():
         await asyncio.gather(*tasks)
 
 
-asyncio.run(main())
+if __name__ == '__main__':
+    asyncio.run(main())

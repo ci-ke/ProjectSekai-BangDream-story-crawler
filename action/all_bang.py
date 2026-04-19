@@ -1,6 +1,5 @@
-# for github action
-
 import asyncio
+from datetime import datetime, timedelta, timezone
 
 from aiohttp import ClientSession, TCPConnector
 
@@ -13,6 +12,11 @@ event_getter = bang.Event_story_getter(reader, save_dir='../story_event')
 card_getter = bang.Card_story_getter(reader, save_dir='../story_card')
 
 net_connect_limit = 10
+
+now = datetime.now(timezone.utc)
+future_time = now + timedelta(hours=48)
+future_timestamp = future_time.timestamp()
+timestamp13 = int(future_timestamp * 1000)
 
 
 async def main():
@@ -35,13 +39,18 @@ async def main():
         tasks.append(band_getter.get(None, None, 'cn'))
         tasks.append(band_getter.get(None, None, 'jp', 'en'))
 
-        tasks.append(event_getter.get_newest('cn', quantity=0))
-        tasks.append(event_getter.get_newest('jp', 'en', quantity=0))
+        tasks.append(event_getter.get_newest('cn', quantity=0, timestamp13=timestamp13))
+        tasks.append(
+            event_getter.get_newest('jp', 'en', quantity=0, timestamp13=timestamp13)
+        )
 
-        tasks.append(card_getter.get_newest('cn', quantity=0))
-        tasks.append(card_getter.get_newest('jp', 'en', quantity=0))
+        tasks.append(card_getter.get_newest('cn', quantity=0, timestamp13=timestamp13))
+        tasks.append(
+            card_getter.get_newest('jp', 'en', quantity=0, timestamp13=timestamp13)
+        )
 
         await asyncio.gather(*tasks)
 
 
-asyncio.run(main())
+if __name__ == '__main__':
+    asyncio.run(main())

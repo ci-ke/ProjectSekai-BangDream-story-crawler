@@ -1,17 +1,8 @@
-# for github action
-
 import asyncio
-from datetime import datetime, timedelta, timezone
 
 from aiohttp import ClientSession, TCPConnector
 
-import src.bang as bang
-
-reader = bang.Story_reader()
-event_getter = bang.Event_story_getter(reader, save_dir='../story_event')
-card_getter = bang.Card_story_getter(reader, save_dir='../story_card')
-
-net_connect_limit = 10
+from .all_bang import reader, event_getter, card_getter, net_connect_limit, timestamp13
 
 
 async def main():
@@ -23,12 +14,6 @@ async def main():
             event_getter.init(session),
             card_getter.init(session),
         )
-
-        now = datetime.now(timezone.utc)
-        future_time = now + timedelta(hours=48)
-        future_timestamp = future_time.timestamp()
-        timestamp13 = int(future_timestamp * 1000)
-
         tasks = []
 
         tasks.append(
@@ -46,4 +31,5 @@ async def main():
         await asyncio.gather(*tasks)
 
 
-asyncio.run(main())
+if __name__ == '__main__':
+    asyncio.run(main())
