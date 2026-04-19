@@ -6,10 +6,10 @@ from aiohttp import ClientSession, TCPConnector
 import src.bang as bang
 
 reader = bang.Story_reader()
-main_getter = bang.Main_story_getter(reader, save_dir='../story_main')
-band_getter = bang.Band_story_getter(reader, save_dir='../story_band')
-event_getter = bang.Event_story_getter(reader, save_dir='../story_event')
-card_getter = bang.Card_story_getter(reader, save_dir='../story_card')
+main_getter = bang.Main_story_getter(reader, save_dir='../story_{lang}/main')
+band_getter = bang.Band_story_getter(reader, save_dir='../story_{lang}/band')
+event_getter = bang.Event_story_getter(reader, save_dir='../story_{lang}/event')
+card_getter = bang.Card_story_getter(reader, save_dir='../story_{lang}/card')
 
 net_connect_limit = 10
 

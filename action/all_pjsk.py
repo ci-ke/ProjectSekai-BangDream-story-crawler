@@ -6,21 +6,21 @@ from aiohttp import ClientSession, TCPConnector
 import src.pjsk as pjsk
 
 reader = pjsk.Story_reader('cn')
-event_getter = pjsk.Event_story_getter(reader, save_dir='../story_event')
-card_getter = pjsk.Card_story_getter(reader, save_dir='../story_card')
-area_getter = pjsk.Area_talk_getter(reader, save_dir='../story_area')
-unit_getter = pjsk.Unit_story_getter(reader, save_dir='../story_unit')
-self_getter = pjsk.Self_intro_getter(reader, save_dir='../story_self')
-special_getter = pjsk.Special_story_getter(reader, save_dir='../story_special')
+event_getter = pjsk.Event_story_getter(reader, save_dir='../story_{lang}/event')
+card_getter = pjsk.Card_story_getter(reader, save_dir='../story_{lang}/card')
+area_getter = pjsk.Area_talk_getter(reader, save_dir='../story_{lang}/area')
+unit_getter = pjsk.Unit_story_getter(reader, save_dir='../story_{lang}/main')
+self_getter = pjsk.Self_intro_getter(reader, save_dir='../story_{lang}/self')
+special_getter = pjsk.Special_story_getter(reader, save_dir='../story_{lang}/special')
 
 
 reader_jp = pjsk.Story_reader('jp', mark_lang='en')
-event_getter_jp = pjsk.Event_story_getter(reader_jp, save_dir='../story_event')
-card_getter_jp = pjsk.Card_story_getter(reader_jp, save_dir='../story_card')
-area_getter_jp = pjsk.Area_talk_getter(reader_jp, save_dir='../story_area')
-unit_getter_jp = pjsk.Unit_story_getter(reader_jp, save_dir='../story_unit')
-self_getter_jp = pjsk.Self_intro_getter(reader_jp, save_dir='../story_self')
-special_getter_jp = pjsk.Special_story_getter(reader_jp, save_dir='../story_special')
+event_getter_jp = pjsk.Event_story_getter(reader_jp, save_dir='../story_{lang}/event')
+card_getter_jp = pjsk.Card_story_getter(reader_jp, save_dir='../story_{lang}/card')
+area_getter_jp = pjsk.Area_talk_getter(reader_jp, save_dir='../story_{lang}/area')
+unit_getter_jp = pjsk.Unit_story_getter(reader_jp, save_dir='../story_{lang}/main')
+self_getter_jp = pjsk.Self_intro_getter(reader_jp, save_dir='../story_{lang}/self')
+special_getter_jp = pjsk.Special_story_getter(reader_jp, save_dir='../story_{lang}/special')
 
 net_connect_limit = 20
 

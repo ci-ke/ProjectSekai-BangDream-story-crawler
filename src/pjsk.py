@@ -410,7 +410,7 @@ class Event_story_getter(Pjsk_getter):
         self,
         reader: Story_reader,
         src: list[str] = ['haruki', 'sekai.best'],
-        save_dir: str = './story_event',
+        save_dir: str = './story_{lang}/event',
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
@@ -420,10 +420,6 @@ class Event_story_getter(Pjsk_getter):
         compress_assets: bool = False,
         force_master_online: bool = False,
     ) -> None:
-        '''
-        src: sekai.best or pjsk.moe
-        '''
-
         super().__init__(
             save_dir,
             assets_save_dir,
@@ -436,6 +432,7 @@ class Event_story_getter(Pjsk_getter):
         )
 
         self.reader = reader
+        self.save_dir = self.save_dir.format(lang=self.reader.lang)
 
         self.maxlen_eventId_episode = maxlen_eventId_episode
 
@@ -586,8 +583,6 @@ class Event_story_getter(Pjsk_getter):
             f'{event_id:0{self.maxlen_eventId_episode[0]}} {event_name} ({banner_name})'
         )
 
-        save_folder_name = self.reader.lang + '-' + save_folder_name
-
         event_save_dir = os.path.join(self.save_dir, save_folder_name)
         if self.parse:
             os.makedirs(event_save_dir, exist_ok=True)
@@ -700,7 +695,7 @@ class Unit_story_getter(Pjsk_getter):
         self,
         reader: Story_reader,
         src: list[str] = ['haruki', 'sekai.best'],
-        save_dir: str = './story_unit',
+        save_dir: str = './story_{lang}/main',
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
@@ -709,7 +704,6 @@ class Unit_story_getter(Pjsk_getter):
         compress_assets: bool = False,
         force_master_online: bool = False,
     ) -> None:
-
         super().__init__(
             save_dir,
             assets_save_dir,
@@ -722,6 +716,7 @@ class Unit_story_getter(Pjsk_getter):
         )
 
         self.reader = reader
+        self.save_dir = self.save_dir.format(lang=self.reader.lang)
 
         self.unitProfiles_url = Constant.get_srcs_url(
             self.reader.lang, src, 'master', 'unitProfiles'
@@ -785,9 +780,7 @@ class Unit_story_getter(Pjsk_getter):
             logging.info(f'unit {unit_id} does not exist.')
             return
 
-        save_folder_name = util.valid_filename(
-            self.reader.lang + '-' + f'{unit_id} {unitName}'
-        )
+        save_folder_name = util.valid_filename(f'{unit_id} {unitName}')
 
         unit_save_dir = os.path.join(self.save_dir, save_folder_name)
         if self.parse:
@@ -873,7 +866,7 @@ class Card_story_getter(Pjsk_getter):
         self,
         reader: Story_reader,
         src: list[str] = ['haruki', 'sekai.best'],
-        save_dir: str = './story_card',
+        save_dir: str = './story_{lang}/card',
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
@@ -883,7 +876,6 @@ class Card_story_getter(Pjsk_getter):
         compress_assets: bool = False,
         force_master_online: bool = False,
     ) -> None:
-
         super().__init__(
             save_dir,
             assets_save_dir,
@@ -896,6 +888,7 @@ class Card_story_getter(Pjsk_getter):
         )
 
         self.reader = reader
+        self.save_dir = self.save_dir.format(lang=self.reader.lang)
         self.maxlen_id = maxlen_id
 
         self.cards_url = Constant.get_srcs_url(self.reader.lang, src, 'master', 'cards')
@@ -968,8 +961,7 @@ class Card_story_getter(Pjsk_getter):
         story_2_scenarioId = cardEpisode_2['scenarioId']
 
         card_save_dir = os.path.join(
-            self.save_dir,
-            util.valid_filename(self.reader.lang + '-' + chara_unit_and_name),
+            self.save_dir, util.valid_filename(chara_unit_and_name)
         )
 
         if self.parse:
@@ -1137,7 +1129,7 @@ class Area_talk_getter(Pjsk_getter):
         self,
         reader: Story_reader,
         src: list[str] = ['haruki', 'sekai.best'],
-        save_dir: str = './story_area',
+        save_dir: str = './story_{lang}/area',
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
@@ -1148,7 +1140,6 @@ class Area_talk_getter(Pjsk_getter):
         compress_assets: bool = False,
         force_master_online: bool = False,
     ) -> None:
-
         super().__init__(
             save_dir,
             assets_save_dir,
@@ -1161,6 +1152,7 @@ class Area_talk_getter(Pjsk_getter):
         )
 
         self.reader = reader
+        self.save_dir = self.save_dir.format(lang=self.reader.lang)
         self.maxlen_eventId_areaID = maxlen_eventId_areaID
         self.print_fetch_detial = print_fetch_detial
 
@@ -1282,7 +1274,7 @@ class Area_talk_getter(Pjsk_getter):
             else:
                 filename = f'talk_{target}'
 
-            filename = util.valid_filename(self.reader.lang + '-' + filename)
+            filename = util.valid_filename(filename)
 
             async with self.file_semaphore:
                 async with aiofiles.open(
@@ -1360,7 +1352,6 @@ class Area_talk_getter(Pjsk_getter):
             text = self.reader.read_story_in_json(talk_json)
 
             filename = f'talk_{talk_id}'
-            filename = self.reader.lang + '-' + filename
 
             area_name_index = self.area_name_lookup.find_index(actionSet['areaId'])
             area_name = self.area_name_json[area_name_index]['name']
@@ -1397,7 +1388,7 @@ class Self_intro_getter(Pjsk_getter):
         self,
         reader: Story_reader,
         src: list[str] = ['haruki', 'sekai.best'],
-        save_dir: str = './story_self',
+        save_dir: str = './story_{lang}/self',
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
@@ -1418,6 +1409,7 @@ class Self_intro_getter(Pjsk_getter):
         )
 
         self.reader = reader
+        self.save_dir = self.save_dir.format(lang=self.reader.lang)
 
         self.characterProfiles_url = Constant.get_srcs_url(
             self.reader.lang, src, 'master', 'characterProfiles'
@@ -1450,7 +1442,7 @@ class Self_intro_getter(Pjsk_getter):
 
         chara_unit_name = '_'.join(self.reader.get_chara_unitAbbr_names(chara_id)[:2])
 
-        filename = util.valid_filename(self.reader.lang + '-' + chara_unit_name)
+        filename = util.valid_filename(chara_unit_name)
 
         profile = self.characterProfiles_json[profile_index]
         scenarioId: str = profile['scenarioId']
@@ -1517,7 +1509,7 @@ class Special_story_getter(Pjsk_getter):
         self,
         reader: Story_reader,
         src: list[str] = ['haruki', 'sekai.best'],
-        save_dir: str = './story_special',
+        save_dir: str = './story_{lang}/special',
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
@@ -1539,6 +1531,7 @@ class Special_story_getter(Pjsk_getter):
         )
 
         self.reader = reader
+        self.save_dir = self.save_dir.format(lang=self.reader.lang)
         self.maxlen_sp = maxlen_sp
 
         self.specialStories_url = Constant.get_srcs_url(
@@ -1577,9 +1570,7 @@ class Special_story_getter(Pjsk_getter):
 
         story_name = f'sp{id}_{title}'
 
-        filename = util.valid_filename(
-            self.reader.lang + '-' f'sp{id:0{self.maxlen_sp}}_{title}'
-        )
+        filename = util.valid_filename(f'sp{id:0{self.maxlen_sp}}_{title}')
 
         episode_tasks = []
         for episode in episodes:

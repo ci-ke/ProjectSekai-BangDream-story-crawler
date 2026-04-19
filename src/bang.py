@@ -230,7 +230,7 @@ class Event_story_getter(util.Base_getter):
     def __init__(
         self,
         reader: Story_reader,
-        save_dir: str = './story_event',
+        save_dir: str = './story_{lang}/event',
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
@@ -294,9 +294,7 @@ class Event_story_getter(util.Base_getter):
 
         save_folder_name = f'{event_id:0{self.maxlen_eventId}} {event_filename}'
 
-        save_folder_name = lang + '-' + save_folder_name
-
-        event_save_dir = os.path.join(self.save_dir, save_folder_name)
+        event_save_dir = os.path.join(self.save_dir.format(lang=lang), save_folder_name)
 
         if self.parse:
             os.makedirs(event_save_dir, exist_ok=True)
@@ -397,7 +395,7 @@ class Band_story_getter(util.Base_getter):
     def __init__(
         self,
         reader: Story_reader,
-        save_dir: str = './story_band',
+        save_dir: str = './story_{lang}/band',
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
@@ -470,7 +468,7 @@ class Band_story_getter(util.Base_getter):
             )
 
             band_save_dir = os.path.join(
-                self.save_dir, lang + '-' + band_name, save_folder_name
+                self.save_dir.format(lang=lang), band_name, save_folder_name
             )
             if self.parse:
                 os.makedirs(band_save_dir, exist_ok=True)
@@ -534,7 +532,7 @@ class Main_story_getter(util.Base_getter):
     def __init__(
         self,
         reader: Story_reader,
-        save_dir: str = './story_main',
+        save_dir: str = './story_{lang}/main',
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
@@ -575,7 +573,7 @@ class Main_story_getter(util.Base_getter):
         self, id_range: list[int] | None = None, lang: str = 'cn', mark_lang: str = 'cn'
     ) -> None:
         if self.parse:
-            os.makedirs(self.save_dir, exist_ok=True)
+            os.makedirs(self.save_dir.format(lang=lang), exist_ok=True)
 
         tasks = []
         for strId, main_story in self.info_json.items():
@@ -590,7 +588,7 @@ class Main_story_getter(util.Base_getter):
 
             name = f"{main_story['scenarioId']} {main_story['caption'][Constant.lang_index[lang]]} {main_story['title'][Constant.lang_index[lang]]}"
 
-            filename = util.valid_filename(lang + '-' + name)
+            filename = util.valid_filename(name)
 
             synopsis = main_story['synopsis'][Constant.lang_index[lang]].replace(
                 '\n', ' '
@@ -623,7 +621,9 @@ class Main_story_getter(util.Base_getter):
 
             async with self.file_semaphore:
                 async with aiofiles.open(
-                    os.path.join(self.save_dir, filename) + '.txt', 'w', encoding='utf8'
+                    os.path.join(self.save_dir.format(lang=lang), filename) + '.txt',
+                    'w',
+                    encoding='utf8',
                 ) as f:
                     await f.write(name + '\n\n')
                     await f.write(synopsis + '\n\n')
@@ -636,7 +636,7 @@ class Card_story_getter(util.Base_getter):
     def __init__(
         self,
         reader: Story_reader,
-        save_dir: str = './story_card',
+        save_dir: str = './story_{lang}/card',
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
@@ -703,7 +703,7 @@ class Card_story_getter(util.Base_getter):
         chara_bandAbbr, chara_name, _ = self.reader.get_chara_bandAbbr_and_names(
             card['characterId'], lang
         )
-        chara_band_and_name = lang + '-' + '_'.join((chara_bandAbbr, chara_name))
+        chara_band_and_name = '_'.join((chara_bandAbbr, chara_name))
         cardRarityType = card['rarity']
         card_name = card['prefix'][Constant.lang_index[lang]]
         card_gachaText: str | None = card['gachaText'][Constant.lang_index[lang]]
@@ -772,7 +772,9 @@ class Card_story_getter(util.Base_getter):
             text_2 = ''
 
         if self.parse and not util.judge_need_skip(story_1_json, story_2_json):
-            card_save_dir = os.path.join(self.save_dir, chara_band_and_name)
+            card_save_dir = os.path.join(
+                self.save_dir.format(lang=lang), chara_band_and_name
+            )
 
             os.makedirs(card_save_dir, exist_ok=True)
 
