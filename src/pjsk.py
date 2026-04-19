@@ -1290,7 +1290,7 @@ class Area_talk_getter(Pjsk_getter):
                     'w',
                     encoding='utf8',
                 ) as f:
-                    for index, (action, text) in enumerate(zip(actions, texts)):
+                    for action, text in zip(actions, texts):
                         area_name_index = self.area_name_lookup.find_index(
                             action['areaId']
                         )
@@ -1299,23 +1299,10 @@ class Area_talk_getter(Pjsk_getter):
                         if sub_name is not None:
                             area_name += ' - ' + sub_name
 
-                        talk_type = ''
-                        if isinstance(target, int):
-                            if '_ev_' in action['scenarioId']:
-                                talk_type = ' event'
-                            elif '_wl_' in action['scenarioId']:
-                                talk_type = ' wl'
-                            elif '_monthly' in action['scenarioId']:
-                                talk_type = ' monthly'
-                            elif '_add_' in action['scenarioId']:
-                                talk_type = ' add'
-                            else:
-                                assert action['id'] == 618  # special case
-
                         left = Mark_multi_lang['['][self.reader.mark_lang]
                         right = Mark_multi_lang[']'][self.reader.mark_lang]
                         await f.write(
-                            f"{index+1} {action['id']}{talk_type} {left}{area_name}{right}\n\n"
+                            f"{action['id']} {action['scenarioId']}\n\n{left}{area_name}{right}\n\n"
                         )
                         await f.write(text + '\n\n\n')
 
@@ -1390,7 +1377,7 @@ class Area_talk_getter(Pjsk_getter):
                     left = Mark_multi_lang['['][self.reader.mark_lang]
                     right = Mark_multi_lang[']'][self.reader.mark_lang]
                     await f.write(
-                        f"{actionSet['id']} {cate} {left}{area_name}{right}\n\n"
+                        f"{actionSet['id']} {actionSet['scenarioId']} {cate}\n\n{left}{area_name}{right}\n\n"
                     )
                     await f.write(text + '\n')
 
