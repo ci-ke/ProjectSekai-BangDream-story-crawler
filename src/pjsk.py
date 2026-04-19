@@ -1270,7 +1270,7 @@ class Area_talk_getter(Pjsk_getter):
 
         talk_jsons = await asyncio.gather(*tasks)
 
-        if self.parse and not util.judge_need_skip(talk_jsons):
+        if self.parse and not util.judge_need_skip(*talk_jsons):
             texts = [
                 self.reader.read_story_in_json(talk_json) for talk_json in talk_jsons
             ]
@@ -1612,7 +1612,7 @@ class Special_story_getter(Pjsk_getter):
             )
         episode_story_jsons = await asyncio.gather(*episode_tasks)
 
-        if self.parse and not util.judge_need_skip(episode_story_jsons):
+        if self.parse and not util.judge_need_skip(*episode_story_jsons):
             os.makedirs(self.save_dir, exist_ok=True)
 
             texts = [

@@ -440,8 +440,8 @@ async def fetch_url_json(
     return json_content
 
 
-def judge_need_skip(*story_jsons: Any) -> bool:
+def judge_need_skip(*story_json: dict | str) -> bool:
     return SKIP_FETCH_ERROR and any(
         isinstance(json_str, str) and json_str.startswith('ERROR:')
-        for json_str in story_jsons
+        for json_str in story_json
     )
