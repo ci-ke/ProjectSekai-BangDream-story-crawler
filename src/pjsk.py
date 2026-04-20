@@ -951,7 +951,7 @@ class Card_story_getter(Pjsk_getter):
         chara_name = self.reader.get_chara_unitAbbr_names(card['characterId'])[1]
         cardRarityType = Constant.rarity_name[card['cardRarityType']]
         card_name = card['prefix']
-        card_gachaPhrase = card['gachaPhrase'].replace('\n', ' ')
+        card_gachaPhrase = card.get('gachaPhrase', '-').replace('\n', ' ')
         sub_unit = card['supportUnit']
         assetbundleName: str = card['assetbundleName']
 
