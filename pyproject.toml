@@ -4,7 +4,6 @@ version = "0.1.0"
 
 requires-python = ">=3.12"
 dependencies = [
-    "aiofiles>=25.1.0",
     "aiohttp>=3.13.3",
     "brotli>=1.2.0",
 ]
@@ -12,5 +11,4 @@ dependencies = [
 [dependency-groups]
 dev = [
     "brotli-stubs>=1.2.0",
-    "types-aiofiles>=25.1.0.20251011",
 ]

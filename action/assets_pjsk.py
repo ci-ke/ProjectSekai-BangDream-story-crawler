@@ -64,6 +64,13 @@ async def main():
             unit_getter_jp.init(session),
             self_getter_jp.init(session),
             special_getter_jp.init(session),
+            reader_tw.init(session),
+            event_getter_tw.init(session),
+            card_getter_tw.init(session),
+            area_getter_tw.init(session),
+            unit_getter_tw.init(session),
+            self_getter_tw.init(session),
+            special_getter_tw.init(session),
         )
 
         tasks = []

@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Any, Callable
 from asyncio import Semaphore
 
-import aiohttp, aiofiles, brotli
+import aiohttp, brotli
 
 SKIP_FETCH_ERROR = True
 
@@ -99,7 +99,6 @@ Mark_multi_lang = {
 
 
 _net_semaphore = asyncio.Semaphore(20)
-_file_semaphore = asyncio.Semaphore(20)
 _MISSING_FILE = object()
 
 
@@ -124,7 +123,6 @@ class Base_fetcher:
         self,
         session: aiohttp.ClientSession | None = None,
         network_semaphore: Semaphore | None = None,
-        file_semaphore: Semaphore | None = None,
     ) -> None:
         self.session = session
 
@@ -132,11 +130,6 @@ class Base_fetcher:
             self.network_semaphore = _net_semaphore
         else:
             self.network_semaphore = network_semaphore
-
-        if file_semaphore is None:
-            self.file_semaphore = _file_semaphore
-        else:
-            self.file_semaphore = file_semaphore
 
     async def fetch_url_json(
         self,
@@ -158,7 +151,6 @@ class Base_fetcher:
             extra_record_msg=extra_record_msg,
             session=self.session,
             network_semaphore=self.network_semaphore,
-            file_semaphore=self.file_semaphore,
             print_done=print_done,
             append_save_path=append_save_path,
             compress=compress,
@@ -228,30 +220,15 @@ def url_to_path(url: str, save_dir: str) -> str:
     return os.path.normpath(os.path.join(save_dir, url_path))
 
 
-_file_locks = {}
-
-
-def _get_lock(file_path: str) -> asyncio.Lock:
-    if file_path not in _file_locks:
-        _file_locks[file_path] = asyncio.Lock()
-    return _file_locks[file_path]
-
-
-async def write_to_file(
-    file_path: str, content: str, file_semaphore: Semaphore
-) -> None:
-    async with file_semaphore:
-        lock = _get_lock(file_path)
-        async with lock:
-            async with aiofiles.open(file_path, 'a', encoding='utf-8') as f:
-                await f.write(f"{content}\n")
+def write_to_file(file_path: str, content: str) -> None:
+    with open(file_path, 'a', encoding='utf-8') as f:
+        f.write(f"{content}\n")
 
 
 async def save_json_to_url(
     url: str,
     content: Any,
     save_dir: str,
-    file_semaphore: Semaphore,
     append_save_path: str | None,
     compress: bool,
     content_edit: Callable | None,
@@ -265,15 +242,14 @@ async def save_json_to_url(
     if content_edit is not None:
         content = content_edit(content)
 
-    async with file_semaphore:
-        if compress:
-            json_bytes = json.dumps(content, ensure_ascii=False).encode('utf-8')
-            compressed = brotli.compress(json_bytes, quality=11)
-            async with aiofiles.open(path + '.br', 'wb') as f:
-                await f.write(compressed)
-        else:
-            async with aiofiles.open(path, 'w', encoding='utf8') as f:
-                await f.write(json.dumps(content, ensure_ascii=False, indent=2))
+    if compress:
+        json_bytes = json.dumps(content, ensure_ascii=False).encode('utf-8')
+        compressed = brotli.compress(json_bytes, quality=11)
+        with open(path + '.br', 'wb') as f:
+            f.write(compressed)
+    else:
+        with open(path, 'w', encoding='utf8') as f:
+            f.write(json.dumps(content, ensure_ascii=False, indent=2))
 
 
 async def read_json_from_url(
@@ -285,7 +261,6 @@ async def read_json_from_url(
     missing_assets_file: str | None,
     session: aiohttp.ClientSession | None,
     network_semaphore: Semaphore,
-    file_semaphore: Semaphore,
     append_save_path: str | None,
     compress: bool,
     skip_read: bool,
@@ -298,19 +273,17 @@ async def read_json_from_url(
         if os.path.exists(path):
             if skip_read:
                 return 'ERROR: skip read'
-            async with file_semaphore:
-                async with aiofiles.open(path, encoding='utf8') as f:
-                    content = await f.read()
-                    return json.loads(content)
+            with open(path, encoding='utf8') as f:
+                content = f.read()
+                return json.loads(content)
         elif os.path.exists(path + '.br'):
             if skip_read:
                 return 'ERROR: skip read'
-            async with file_semaphore:
-                async with aiofiles.open(path + '.br', 'rb') as f:
-                    compressed_bytes = await f.read()
-                    decompressed_bytes = brotli.decompress(compressed_bytes)
-                    content = decompressed_bytes.decode("utf-8")
-                    return json.loads(content)
+            with open(path + '.br', 'rb') as f:
+                compressed_bytes = f.read()
+                decompressed_bytes = brotli.decompress(compressed_bytes)
+                content = decompressed_bytes.decode("utf-8")
+                return json.loads(content)
 
     if missing_download:
         return await fetch_url_json(
@@ -324,17 +297,15 @@ async def read_json_from_url(
             missing_assets_file,
             session,
             network_semaphore,
-            file_semaphore,
             append_save_path=append_save_path,
             compress=compress,
             skip_read=skip_read,
         )
     else:
         if missing_assets_file:
-            await write_to_file(
+            write_to_file(
                 missing_assets_file,
                 f"{extra_record_msg}{': ' if extra_record_msg else ''}{', '.join(urls)}",
-                file_semaphore,
             )
         return _MISSING_FILE
 
@@ -350,7 +321,6 @@ async def fetch_url_json(
     missing_assets_file: str | None = 'assets_missing.log',
     session: aiohttp.ClientSession | None = None,
     network_semaphore: Semaphore | None = None,
-    file_semaphore: Semaphore | None = None,
     print_done: bool = False,
     append_save_path: str | None = None,
     max_retries: int = 5,
@@ -361,8 +331,6 @@ async def fetch_url_json(
 
     if network_semaphore is None:
         network_semaphore = _net_semaphore
-    if file_semaphore is None:
-        file_semaphore = _file_semaphore
 
     urls = [url] if isinstance(url, str) else url
 
@@ -379,17 +347,6 @@ async def fetch_url_json(
                         async with session.get(current_url) as res:
                             res.raise_for_status()
                             json_content = await res.json(content_type=None)
-                            if save:
-                                await save_json_to_url(
-                                    current_url,
-                                    json_content,
-                                    save_dir,
-                                    file_semaphore,
-                                    append_save_path,
-                                    compress,
-                                    content_save_edit,
-                                )
-
                             last_error = None
                             break
 
@@ -405,16 +362,24 @@ async def fetch_url_json(
                             break
 
             if last_error is None:
+                if save:
+                    await save_json_to_url(
+                        current_url,
+                        json_content,
+                        save_dir,
+                        append_save_path,
+                        compress,
+                        content_save_edit,
+                    )
                 break
 
         if last_error is not None:
             json_content = last_error
             if error_assets_file:
                 failed_urls = ', '.join(urls)
-                await write_to_file(
+                write_to_file(
                     error_assets_file,
                     f"{extra_record_msg}{': ' if extra_record_msg else ''}{failed_urls}",
-                    file_semaphore,
                 )
 
     else:  # offline
@@ -427,7 +392,6 @@ async def fetch_url_json(
             missing_assets_file,
             session,
             network_semaphore,
-            file_semaphore,
             append_save_path,
             compress,
             skip_read,

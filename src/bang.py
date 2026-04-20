@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Any
 from asyncio import Semaphore
 
-import aiofiles
 from aiohttp import ClientSession, TCPConnector
 
 from . import util
@@ -58,9 +57,8 @@ class Story_reader(util.Base_fetcher):
         self,
         session: ClientSession | None = None,
         network_semaphore: Semaphore | None = None,
-        file_semaphore: Semaphore | None = None,
     ) -> None:
-        await super().init(session, network_semaphore, file_semaphore)
+        await super().init(session, network_semaphore)
 
         self.characters_json, self.bands_json = await asyncio.gather(
             self.fetch_url_json(
@@ -262,9 +260,8 @@ class Event_story_getter(util.Base_getter):
         self,
         session: ClientSession | None = None,
         network_semaphore: Semaphore | None = None,
-        file_semaphore: Semaphore | None = None,
     ) -> None:
-        await super().init(session, network_semaphore, file_semaphore)
+        await super().init(session, network_semaphore)
 
         self.events_all_json: dict[str, dict[str, Any]] = await self.fetch_url_json(
             self.events_all_url, force_online=self.force_master_online
@@ -349,15 +346,14 @@ class Event_story_getter(util.Base_getter):
             story_json = ''
 
         if self.parse and not util.judge_need_skip(story_json):
-            async with self.file_semaphore:
-                async with aiofiles.open(
-                    os.path.join(event_save_dir, filename) + '.txt',
-                    'w',
-                    encoding='utf8',
-                ) as f:
-                    await f.write(name + '\n\n')
-                    await f.write(f'{synopsis}' + '\n\n')
-                    await f.write(text + '\n')
+            with open(
+                os.path.join(event_save_dir, filename) + '.txt',
+                'w',
+                encoding='utf8',
+            ) as f:
+                f.write(name + '\n\n')
+                f.write(f'{synopsis}' + '\n\n')
+                f.write(text + '\n')
 
         logging.info(f'get event {event_id} {event_name} {name} done.')
 
@@ -424,9 +420,8 @@ class Band_story_getter(util.Base_getter):
         self,
         session: ClientSession | None = None,
         network_semaphore: Semaphore | None = None,
-        file_semaphore: Semaphore | None = None,
     ) -> None:
-        await super().init(session, network_semaphore, file_semaphore)
+        await super().init(session, network_semaphore)
 
         self.info_json: dict[str, dict[str, Any]] = await self.fetch_url_json(
             self.bandstories_5_url, force_online=self.force_master_online
@@ -513,15 +508,14 @@ class Band_story_getter(util.Base_getter):
         if self.parse and not util.judge_need_skip(story_json):
             text = self.reader.read_story_in_json(story_json, lang, mark_lang)
 
-            async with self.file_semaphore:
-                async with aiofiles.open(
-                    os.path.join(band_save_dir, filename) + '.txt',
-                    'w',
-                    encoding='utf8',
-                ) as f:
-                    await f.write(name + '\n\n')
-                    await f.write(synopsis + '\n\n')
-                    await f.write(text + '\n')
+            with open(
+                os.path.join(band_save_dir, filename) + '.txt',
+                'w',
+                encoding='utf8',
+            ) as f:
+                f.write(name + '\n\n')
+                f.write(synopsis + '\n\n')
+                f.write(text + '\n')
 
         logging.info(
             f'get band story {band_name} {band_story["mainTitle"][Constant.lang_index[lang]]} {name} done.'
@@ -561,9 +555,8 @@ class Main_story_getter(util.Base_getter):
         self,
         session: ClientSession | None = None,
         network_semaphore: Semaphore | None = None,
-        file_semaphore: Semaphore | None = None,
     ) -> None:
-        await super().init(session, network_semaphore, file_semaphore)
+        await super().init(session, network_semaphore)
 
         self.info_json: dict[str, dict[str, Any]] = await self.fetch_url_json(
             self.mainstories_5_url, force_online=self.force_master_online
@@ -619,15 +612,14 @@ class Main_story_getter(util.Base_getter):
         if self.parse and not util.judge_need_skip(story_json):
             text = self.reader.read_story_in_json(story_json, lang, mark_lang)
 
-            async with self.file_semaphore:
-                async with aiofiles.open(
-                    os.path.join(self.save_dir.format(lang=lang), filename) + '.txt',
-                    'w',
-                    encoding='utf8',
-                ) as f:
-                    await f.write(name + '\n\n')
-                    await f.write(synopsis + '\n\n')
-                    await f.write(text + '\n')
+            with open(
+                os.path.join(self.save_dir.format(lang=lang), filename) + '.txt',
+                'w',
+                encoding='utf8',
+            ) as f:
+                f.write(name + '\n\n')
+                f.write(synopsis + '\n\n')
+                f.write(text + '\n')
 
         logging.info(f'get main story {name} done.')
 
@@ -668,9 +660,8 @@ class Card_story_getter(util.Base_getter):
         self,
         session: ClientSession | None = None,
         network_semaphore: Semaphore | None = None,
-        file_semaphore: Semaphore | None = None,
     ) -> None:
-        await super().init(session, network_semaphore, file_semaphore)
+        await super().init(session, network_semaphore)
 
         self.cards_all_json: dict[str, dict[str, Any]] = await self.fetch_url_json(
             self.cards_all_5_url, force_online=self.force_master_online
@@ -778,33 +769,32 @@ class Card_story_getter(util.Base_getter):
 
             os.makedirs(card_save_dir, exist_ok=True)
 
-            async with self.file_semaphore:
-                async with aiofiles.open(
-                    os.path.join(card_save_dir, card_story_filename) + '.txt',
-                    'w',
-                    encoding='utf8',
-                ) as f:
-                    await f.write(card_story_name + '\n\n')
-                    if card_gachaText:
-                        await f.write(
-                            Mark_multi_lang['gacha phrase'][mark_lang]
-                            + card_gachaText
-                            + '\n\n'
-                        )
-                    await f.write(
-                        Mark_multi_lang['<'][mark_lang]
-                        + str(story_1_name)
-                        + Mark_multi_lang['>'][mark_lang]
+            with open(
+                os.path.join(card_save_dir, card_story_filename) + '.txt',
+                'w',
+                encoding='utf8',
+            ) as f:
+                f.write(card_story_name + '\n\n')
+                if card_gachaText:
+                    f.write(
+                        Mark_multi_lang['gacha phrase'][mark_lang]
+                        + card_gachaText
                         + '\n\n'
                     )
-                    await f.write(text_1 + '\n\n\n')
-                    await f.write(
-                        Mark_multi_lang['<'][mark_lang]
-                        + str(story_2_name)
-                        + Mark_multi_lang['>'][mark_lang]
-                        + '\n\n'
-                    )
-                    await f.write(text_2 + '\n')
+                f.write(
+                    Mark_multi_lang['<'][mark_lang]
+                    + str(story_1_name)
+                    + Mark_multi_lang['>'][mark_lang]
+                    + '\n\n'
+                )
+                f.write(text_1 + '\n\n\n')
+                f.write(
+                    Mark_multi_lang['<'][mark_lang]
+                    + str(story_2_name)
+                    + Mark_multi_lang['>'][mark_lang]
+                    + '\n\n'
+                )
+                f.write(text_2 + '\n')
 
         logging.info(f'get card {card_story_filename} done.')
 

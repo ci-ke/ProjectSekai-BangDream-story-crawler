@@ -3,7 +3,6 @@ from pathlib import Path
 from asyncio import Semaphore
 from typing import Any, Callable, Optional, cast
 
-import aiofiles
 from aiohttp import ClientSession, TCPConnector
 
 from . import util
@@ -179,9 +178,8 @@ class Story_reader(Pjsk_fetcher):
         self,
         session: ClientSession | None = None,
         network_semaphore: Semaphore | None = None,
-        file_semaphore: Semaphore | None = None,
     ) -> None:
-        await super().init(session, network_semaphore, file_semaphore)
+        await super().init(session, network_semaphore)
 
         self.gameCharacters, self.character2ds = await asyncio.gather(
             self.fetch_url_json(
@@ -458,9 +456,8 @@ class Event_story_getter(Pjsk_getter):
         self,
         session: ClientSession | None = None,
         network_semaphore: Semaphore | None = None,
-        file_semaphore: Semaphore | None = None,
     ) -> None:
-        await super().init(session, network_semaphore, file_semaphore)
+        await super().init(session, network_semaphore)
 
         (
             self.events_json,
@@ -642,16 +639,15 @@ class Event_story_getter(Pjsk_getter):
         if self.parse and not util.judge_need_skip(story_json):
             text = self.reader.read_story_in_json(story_json)
 
-            async with self.file_semaphore:
-                async with aiofiles.open(
-                    os.path.join(event_save_dir, episode_save_name) + '.txt',
-                    'w',
-                    encoding='utf8',
-                ) as f:
-                    if episode['episodeNo'] == 1:
-                        await f.write(event_outline + '\n\n')
-                    await f.write(episode_name + '\n\n')
-                    await f.write(text + '\n')
+            with open(
+                os.path.join(event_save_dir, episode_save_name) + '.txt',
+                'w',
+                encoding='utf8',
+            ) as f:
+                if episode['episodeNo'] == 1:
+                    f.write(event_outline + '\n\n')
+                f.write(episode_name + '\n\n')
+                f.write(text + '\n')
 
         logging.info(f'get event {event_id} {event_name} {episode_name} done.')
 
@@ -737,9 +733,8 @@ class Unit_story_getter(Pjsk_getter):
         self,
         session: ClientSession | None = None,
         network_semaphore: Semaphore | None = None,
-        file_semaphore: Semaphore | None = None,
     ) -> None:
-        await super().init(session, network_semaphore, file_semaphore)
+        await super().init(session, network_semaphore)
 
         (
             self.unitProfiles_json,
@@ -841,16 +836,15 @@ class Unit_story_getter(Pjsk_getter):
         if self.parse and not util.judge_need_skip(story_json):
             text = self.reader.read_story_in_json(story_json)
 
-            async with self.file_semaphore:
-                async with aiofiles.open(
-                    os.path.join(unit_save_dir, episode_save_name) + '.txt',
-                    'w',
-                    encoding='utf8',
-                ) as f:
-                    if unit_outline is not None:
-                        await f.write(unit_outline + '\n\n')
-                    await f.write(episode_name + '\n\n')
-                    await f.write(text + '\n')
+            with open(
+                os.path.join(unit_save_dir, episode_save_name) + '.txt',
+                'w',
+                encoding='utf8',
+            ) as f:
+                if unit_outline is not None:
+                    f.write(unit_outline + '\n\n')
+                f.write(episode_name + '\n\n')
+                f.write(text + '\n')
 
         logging.info(f'get unit {unit_id} {unitName} {episode_name} done.')
 
@@ -906,9 +900,8 @@ class Card_story_getter(Pjsk_getter):
         self,
         session: ClientSession | None = None,
         network_semaphore: Semaphore | None = None,
-        file_semaphore: Semaphore | None = None,
     ) -> None:
-        await super().init(session, network_semaphore, file_semaphore)
+        await super().init(session, network_semaphore)
 
         self.cards_json, self.cardEpisodes_json, ori_eventCards_json = (
             await asyncio.gather(
@@ -1015,33 +1008,32 @@ class Card_story_getter(Pjsk_getter):
             text_1 = self.reader.read_story_in_json(story_1_json)
             text_2 = self.reader.read_story_in_json(story_2_json)
 
-            async with self.file_semaphore:
-                async with aiofiles.open(
-                    os.path.join(card_save_dir, card_story_filename) + '.txt',
-                    'w',
-                    encoding='utf8',
-                ) as f:
-                    await f.write(card_story_name + '\n\n')
-                    if card_gachaPhrase != '-':
-                        await f.write(
-                            Mark_multi_lang['gacha phrase'][self.reader.mark_lang]
-                            + card_gachaPhrase
-                            + '\n\n'
-                        )
-                    await f.write(
-                        Mark_multi_lang['<'][self.reader.mark_lang]
-                        + story_1_name
-                        + Mark_multi_lang['>'][self.reader.mark_lang]
+            with open(
+                os.path.join(card_save_dir, card_story_filename) + '.txt',
+                'w',
+                encoding='utf8',
+            ) as f:
+                f.write(card_story_name + '\n\n')
+                if card_gachaPhrase != '-':
+                    f.write(
+                        Mark_multi_lang['gacha phrase'][self.reader.mark_lang]
+                        + card_gachaPhrase
                         + '\n\n'
                     )
-                    await f.write(text_1 + '\n\n\n')
-                    await f.write(
-                        Mark_multi_lang['<'][self.reader.mark_lang]
-                        + story_2_name
-                        + Mark_multi_lang['>'][self.reader.mark_lang]
-                        + '\n\n'
-                    )
-                    await f.write(text_2 + '\n')
+                f.write(
+                    Mark_multi_lang['<'][self.reader.mark_lang]
+                    + story_1_name
+                    + Mark_multi_lang['>'][self.reader.mark_lang]
+                    + '\n\n'
+                )
+                f.write(text_1 + '\n\n\n')
+                f.write(
+                    Mark_multi_lang['<'][self.reader.mark_lang]
+                    + story_2_name
+                    + Mark_multi_lang['>'][self.reader.mark_lang]
+                    + '\n\n'
+                )
+                f.write(text_2 + '\n')
 
         logging.info(f'get card {card_story_name} done.')
 
@@ -1168,9 +1160,8 @@ class Area_talk_getter(Pjsk_getter):
         self,
         session: ClientSession | None = None,
         network_semaphore: Semaphore | None = None,
-        file_semaphore: Semaphore | None = None,
     ) -> None:
-        await super().init(session, network_semaphore, file_semaphore)
+        await super().init(session, network_semaphore)
 
         self.area_name_json, self.actionSets_json = await asyncio.gather(
             self.fetch_url_json(self.areas_url, force_online=self.force_master_online),
@@ -1276,27 +1267,24 @@ class Area_talk_getter(Pjsk_getter):
 
             filename = util.valid_filename(filename)
 
-            async with self.file_semaphore:
-                async with aiofiles.open(
-                    os.path.join(self.save_dir, filename) + '.txt',
-                    'w',
-                    encoding='utf8',
-                ) as f:
-                    for action, text in zip(actions, texts):
-                        area_name_index = self.area_name_lookup.find_index(
-                            action['areaId']
-                        )
-                        area_name = self.area_name_json[area_name_index]['name']
-                        sub_name = self.area_name_json[area_name_index].get('subName')
-                        if sub_name is not None:
-                            area_name += ' - ' + sub_name
+            with open(
+                os.path.join(self.save_dir, filename) + '.txt',
+                'w',
+                encoding='utf8',
+            ) as f:
+                for action, text in zip(actions, texts):
+                    area_name_index = self.area_name_lookup.find_index(action['areaId'])
+                    area_name = self.area_name_json[area_name_index]['name']
+                    sub_name = self.area_name_json[area_name_index].get('subName')
+                    if sub_name is not None:
+                        area_name += ' - ' + sub_name
 
-                        left = Mark_multi_lang['['][self.reader.mark_lang]
-                        right = Mark_multi_lang[']'][self.reader.mark_lang]
-                        await f.write(
-                            f"{action['id']} {action['scenarioId']}\n\n{left}{area_name}{right}\n\n"
-                        )
-                        await f.write(text + '\n\n\n')
+                    left = Mark_multi_lang['['][self.reader.mark_lang]
+                    right = Mark_multi_lang[']'][self.reader.mark_lang]
+                    f.write(
+                        f"{action['id']} {action['scenarioId']}\n\n{left}{area_name}{right}\n\n"
+                    )
+                    f.write(text + '\n\n\n')
 
         logging.info(f'get talk {target} done.')
 
@@ -1359,18 +1347,17 @@ class Area_talk_getter(Pjsk_getter):
             if sub_name is not None:
                 area_name += ' - ' + sub_name
 
-            async with self.file_semaphore:
-                async with aiofiles.open(
-                    os.path.join(self.save_dir, filename) + '.txt',
-                    'w',
-                    encoding='utf8',
-                ) as f:
-                    left = Mark_multi_lang['['][self.reader.mark_lang]
-                    right = Mark_multi_lang[']'][self.reader.mark_lang]
-                    await f.write(
-                        f"{actionSet['id']} {actionSet['scenarioId']} {cate}\n\n{left}{area_name}{right}\n\n"
-                    )
-                    await f.write(text + '\n')
+            with open(
+                os.path.join(self.save_dir, filename) + '.txt',
+                'w',
+                encoding='utf8',
+            ) as f:
+                left = Mark_multi_lang['['][self.reader.mark_lang]
+                right = Mark_multi_lang[']'][self.reader.mark_lang]
+                f.write(
+                    f"{actionSet['id']} {actionSet['scenarioId']} {cate}\n\n{left}{area_name}{right}\n\n"
+                )
+                f.write(text + '\n')
 
         logging.info(f'get talk {talk_id} done.')
 
@@ -1422,9 +1409,8 @@ class Self_intro_getter(Pjsk_getter):
         self,
         session: ClientSession | None = None,
         network_semaphore: Semaphore | None = None,
-        file_semaphore: Semaphore | None = None,
     ) -> None:
-        await super().init(session, network_semaphore, file_semaphore)
+        await super().init(session, network_semaphore)
 
         self.characterProfiles_json: list[dict[str, Any]] = await self.fetch_url_json(
             self.characterProfiles_url, force_online=self.force_master_online
@@ -1471,29 +1457,28 @@ class Self_intro_getter(Pjsk_getter):
             text_1 = self.reader.read_story_in_json(grade1_json)
             text_2 = self.reader.read_story_in_json(grade2_json)
 
-            async with self.file_semaphore:
-                async with aiofiles.open(
-                    os.path.join(self.save_dir, filename) + '.txt',
-                    'w',
-                    encoding='utf8',
-                ) as f:
-                    await f.write(
-                        f"{Mark_multi_lang['self intro'][self.reader.mark_lang]}{chara_unit_name.split('_')[1]}\n\n"
-                    )
-                    await f.write(
-                        Mark_multi_lang['<'][self.reader.mark_lang]
-                        + 'YEAR 1'
-                        + Mark_multi_lang['>'][self.reader.mark_lang]
-                        + '\n\n'
-                    )
-                    await f.write(text_1 + '\n\n\n')
-                    await f.write(
-                        Mark_multi_lang['<'][self.reader.mark_lang]
-                        + 'YEAR 2'
-                        + Mark_multi_lang['>'][self.reader.mark_lang]
-                        + '\n\n'
-                    )
-                    await f.write(text_2 + '\n')
+            with open(
+                os.path.join(self.save_dir, filename) + '.txt',
+                'w',
+                encoding='utf8',
+            ) as f:
+                f.write(
+                    f"{Mark_multi_lang['self intro'][self.reader.mark_lang]}{chara_unit_name.split('_')[1]}\n\n"
+                )
+                f.write(
+                    Mark_multi_lang['<'][self.reader.mark_lang]
+                    + 'YEAR 1'
+                    + Mark_multi_lang['>'][self.reader.mark_lang]
+                    + '\n\n'
+                )
+                f.write(text_1 + '\n\n\n')
+                f.write(
+                    Mark_multi_lang['<'][self.reader.mark_lang]
+                    + 'YEAR 2'
+                    + Mark_multi_lang['>'][self.reader.mark_lang]
+                    + '\n\n'
+                )
+                f.write(text_2 + '\n')
 
         logging.info(f'get self intro {filename} done.')
 
@@ -1545,9 +1530,8 @@ class Special_story_getter(Pjsk_getter):
         self,
         session: ClientSession | None = None,
         network_semaphore: Semaphore | None = None,
-        file_semaphore: Semaphore | None = None,
     ) -> None:
-        await super().init(session, network_semaphore, file_semaphore)
+        await super().init(session, network_semaphore)
 
         self.specialStories_json: list[dict[str, Any]] = await self.fetch_url_json(
             self.specialStories_url, force_online=self.force_master_online
@@ -1603,23 +1587,22 @@ class Special_story_getter(Pjsk_getter):
             else:
                 record_No = False
 
-            async with self.file_semaphore:
-                async with aiofiles.open(
-                    os.path.join(self.save_dir, filename) + '.txt',
-                    'w',
-                    encoding='utf8',
-                ) as f:
-                    await f.write(story_name + '\n\n')
-                    for episode, text in zip(episodes, texts):
-                        if record_No:
-                            await f.write(str(episode['episodeNo']) + ' ')
-                        await f.write(
-                            Mark_multi_lang['<'][self.reader.mark_lang]
-                            + episode['title']
-                            + Mark_multi_lang['>'][self.reader.mark_lang]
-                            + '\n\n'
-                        )
-                        await f.write(text + '\n\n\n')
+            with open(
+                os.path.join(self.save_dir, filename) + '.txt',
+                'w',
+                encoding='utf8',
+            ) as f:
+                f.write(story_name + '\n\n')
+                for episode, text in zip(episodes, texts):
+                    if record_No:
+                        f.write(str(episode['episodeNo']) + ' ')
+                    f.write(
+                        Mark_multi_lang['<'][self.reader.mark_lang]
+                        + episode['title']
+                        + Mark_multi_lang['>'][self.reader.mark_lang]
+                        + '\n\n'
+                    )
+                    f.write(text + '\n\n\n')
 
         logging.info(f'get special {filename} done.')
 

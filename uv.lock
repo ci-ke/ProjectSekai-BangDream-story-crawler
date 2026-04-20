@@ -3,15 +3,6 @@ revision = 3
 requires-python = ">=3.12"
 
 [[package]]
-name = "aiofiles"
-version = "25.1.0"
-source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
-sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/41/c3/534eac40372d8ee36ef40df62ec129bee4fdb5ad9706e58a29be53b2c970/aiofiles-25.1.0.tar.gz", hash = "sha256:a8d728f0a29de45dc521f18f07297428d56992a742f0cd2701ba86e44d23d5b2", size = 46354, upload-time = "2025-10-09T20:51:04.358Z" }
-wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/bc/8a/340a1555ae33d7354dbca4faa54948d76d89a27ceef032c8c3bc661d003e/aiofiles-25.1.0-py3-none-any.whl", hash = "sha256:abe311e527c862958650f9438e859c1fa7568a141b22abcd015e120e86a85695", size = 14668, upload-time = "2025-10-09T20:51:03.174Z" },
-]
-
-[[package]]
 name = "aiohappyeyeballs"
 version = "2.6.1"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
@@ -463,7 +454,6 @@ name = "story-crawler"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "aiofiles" },
     { name = "aiohttp" },
     { name = "brotli" },
 ]
@@ -471,30 +461,16 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "brotli-stubs" },
-    { name = "types-aiofiles" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "aiofiles", specifier = ">=25.1.0" },
     { name = "aiohttp", specifier = ">=3.13.3" },
     { name = "brotli", specifier = ">=1.2.0" },
 ]
 
 [package.metadata.requires-dev]
-dev = [
-    { name = "brotli-stubs", specifier = ">=1.2.0" },
-    { name = "types-aiofiles", specifier = ">=25.1.0.20251011" },
-]
-
-[[package]]
-name = "types-aiofiles"
-version = "25.1.0.20251011"
-source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
-sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/84/6c/6d23908a8217e36704aa9c79d99a620f2fdd388b66a4b7f72fbc6b6ff6c6/types_aiofiles-25.1.0.20251011.tar.gz", hash = "sha256:1c2b8ab260cb3cd40c15f9d10efdc05a6e1e6b02899304d80dfa0410e028d3ff", size = 14535, upload-time = "2025-10-11T02:44:51.237Z" }
-wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/71/0f/76917bab27e270bb6c32addd5968d69e558e5b6f7fb4ac4cbfa282996a96/types_aiofiles-25.1.0.20251011-py3-none-any.whl", hash = "sha256:8ff8de7f9d42739d8f0dadcceeb781ce27cd8d8c4152d4a7c52f6b20edb8149c", size = 14338, upload-time = "2025-10-11T02:44:50.054Z" },
-]
+dev = [{ name = "brotli-stubs", specifier = ">=1.2.0" }]
 
 [[package]]
 name = "typing-extensions"
