@@ -1272,7 +1272,7 @@ class Area_talk_getter(Pjsk_getter):
                 'w',
                 encoding='utf8',
             ) as f:
-                for action, text in zip(actions, texts):
+                for index, (action, text) in enumerate(zip(actions, texts)):
                     area_name_index = self.area_name_lookup.find_index(action['areaId'])
                     area_name = self.area_name_json[area_name_index]['name']
                     sub_name = self.area_name_json[area_name_index].get('subName')
@@ -1282,7 +1282,7 @@ class Area_talk_getter(Pjsk_getter):
                     left = Mark_multi_lang['['][self.reader.mark_lang]
                     right = Mark_multi_lang[']'][self.reader.mark_lang]
                     f.write(
-                        f"{action['id']} {action['scenarioId']}\n\n{left}{area_name}{right}\n\n"
+                        f"{index+1} {action['id']}:{action['scenarioId']}\n\n{left}{area_name}{right}\n\n"
                     )
                     f.write(text + '\n\n\n')
 
@@ -1355,7 +1355,7 @@ class Area_talk_getter(Pjsk_getter):
                 left = Mark_multi_lang['['][self.reader.mark_lang]
                 right = Mark_multi_lang[']'][self.reader.mark_lang]
                 f.write(
-                    f"{actionSet['id']} {actionSet['scenarioId']} {cate}\n\n{left}{area_name}{right}\n\n"
+                    f"{actionSet['id']}:{actionSet['scenarioId']} {cate}\n\n{left}{area_name}{right}\n\n"
                 )
                 f.write(text + '\n')
 
