@@ -1,4 +1,5 @@
 import asyncio, sys
+from typing import Any
 
 from aiohttp import ClientSession, TCPConnector
 
@@ -7,40 +8,38 @@ import src.pjsk as pjsk
 assert sys.argv[1] in ('full', 'incremental')
 online = True if sys.argv[1] == 'full' else False
 
-
-def fast_call():
-    return {
-        'online': online,
-        'parse': False,
-        'assets_save_dir': '../assets',
-        'compress_assets': True,
-        'force_master_online': True,
-    }
+args: dict[str, Any] = {
+    'online': online,
+    'parse': False,
+    'assets_save_dir': '../assets',
+    'compress_assets': True,
+    'force_master_online': True,
+}
 
 
-reader = pjsk.Story_reader('cn', **fast_call())
-event_getter = pjsk.Event_story_getter(reader, **fast_call())
-card_getter = pjsk.Card_story_getter(reader, **fast_call())
-area_getter = pjsk.Area_talk_getter(reader, **fast_call())
-unit_getter = pjsk.Unit_story_getter(reader, **fast_call())
-self_getter = pjsk.Self_intro_getter(reader, **fast_call())
-special_getter = pjsk.Special_story_getter(reader, **fast_call())
+reader = pjsk.Story_reader('cn', **args)
+event_getter = pjsk.Event_story_getter(reader, **args)
+card_getter = pjsk.Card_story_getter(reader, **args)
+area_getter = pjsk.Area_talk_getter(reader, **args)
+unit_getter = pjsk.Unit_story_getter(reader, **args)
+self_getter = pjsk.Self_intro_getter(reader, **args)
+special_getter = pjsk.Special_story_getter(reader, **args)
 
-reader_jp = pjsk.Story_reader('jp', mark_lang='en', **fast_call())
-event_getter_jp = pjsk.Event_story_getter(reader_jp, **fast_call())
-card_getter_jp = pjsk.Card_story_getter(reader_jp, **fast_call())
-area_getter_jp = pjsk.Area_talk_getter(reader_jp, **fast_call())
-unit_getter_jp = pjsk.Unit_story_getter(reader_jp, **fast_call())
-self_getter_jp = pjsk.Self_intro_getter(reader_jp, **fast_call())
-special_getter_jp = pjsk.Special_story_getter(reader_jp, **fast_call())
+reader_jp = pjsk.Story_reader('jp', mark_lang='en', **args)
+event_getter_jp = pjsk.Event_story_getter(reader_jp, **args)
+card_getter_jp = pjsk.Card_story_getter(reader_jp, **args)
+area_getter_jp = pjsk.Area_talk_getter(reader_jp, **args)
+unit_getter_jp = pjsk.Unit_story_getter(reader_jp, **args)
+self_getter_jp = pjsk.Self_intro_getter(reader_jp, **args)
+special_getter_jp = pjsk.Special_story_getter(reader_jp, **args)
 
-reader_tw = pjsk.Story_reader('tw', **fast_call())
-event_getter_tw = pjsk.Event_story_getter(reader_tw, **fast_call())
-card_getter_tw = pjsk.Card_story_getter(reader_tw, **fast_call())
-area_getter_tw = pjsk.Area_talk_getter(reader_tw, **fast_call())
-unit_getter_tw = pjsk.Unit_story_getter(reader_tw, **fast_call())
-self_getter_tw = pjsk.Self_intro_getter(reader_tw, **fast_call())
-special_getter_tw = pjsk.Special_story_getter(reader_tw, **fast_call())
+reader_tw = pjsk.Story_reader('tw', **args)
+event_getter_tw = pjsk.Event_story_getter(reader_tw, **args)
+card_getter_tw = pjsk.Card_story_getter(reader_tw, **args)
+area_getter_tw = pjsk.Area_talk_getter(reader_tw, **args)
+unit_getter_tw = pjsk.Unit_story_getter(reader_tw, **args)
+self_getter_tw = pjsk.Self_intro_getter(reader_tw, **args)
+special_getter_tw = pjsk.Special_story_getter(reader_tw, **args)
 
 net_connect_limit = 20
 

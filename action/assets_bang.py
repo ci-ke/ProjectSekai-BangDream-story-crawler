@@ -1,4 +1,5 @@
 import asyncio, sys
+from typing import Any
 
 from aiohttp import ClientSession, TCPConnector
 
@@ -7,22 +8,19 @@ import src.bang as bang
 assert sys.argv[1] in ('full', 'incremental')
 online = True if sys.argv[1] == 'full' else False
 
+args: dict[str, Any] = {
+    'online': online,
+    'parse': False,
+    'assets_save_dir': '../assets',
+    'compress_assets': True,
+    'force_master_online': True,
+}
 
-def fast_call():
-    return {
-        'online': online,
-        'parse': False,
-        'assets_save_dir': '../assets',
-        'compress_assets': True,
-        'force_master_online': True,
-    }
-
-
-reader = bang.Story_reader(**fast_call())
-main_getter = bang.Main_story_getter(reader, **fast_call())
-band_getter = bang.Band_story_getter(reader, **fast_call())
-event_getter = bang.Event_story_getter(reader, **fast_call())
-card_getter = bang.Card_story_getter(reader, **fast_call())
+reader = bang.Story_reader(**args)
+main_getter = bang.Main_story_getter(reader, **args)
+band_getter = bang.Band_story_getter(reader, **args)
+event_getter = bang.Event_story_getter(reader, **args)
+card_getter = bang.Card_story_getter(reader, **args)
 
 net_connect_limit = 20
 
