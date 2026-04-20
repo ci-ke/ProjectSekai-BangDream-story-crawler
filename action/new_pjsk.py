@@ -33,6 +33,10 @@ async def main():
             event_getter_jp.init(session),
             card_getter_jp.init(session),
             area_getter_jp.init(session),
+            reader_tw.init(session),
+            event_getter_tw.init(session),
+            card_getter_tw.init(session),
+            area_getter_tw.init(session),
         )
 
         tasks = []

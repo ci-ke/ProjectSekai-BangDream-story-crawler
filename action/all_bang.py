@@ -11,7 +11,7 @@ band_getter = bang.Band_story_getter(reader, save_dir='../story_{lang}/band')
 event_getter = bang.Event_story_getter(reader, save_dir='../story_{lang}/event')
 card_getter = bang.Card_story_getter(reader, save_dir='../story_{lang}/card')
 
-net_connect_limit = 10
+net_connect_limit = 20
 
 now = datetime.now(timezone.utc)
 future_time = now + timedelta(hours=48)

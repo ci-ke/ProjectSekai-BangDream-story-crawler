@@ -24,7 +24,7 @@ band_getter = bang.Band_story_getter(reader, **fast_call())
 event_getter = bang.Event_story_getter(reader, **fast_call())
 card_getter = bang.Card_story_getter(reader, **fast_call())
 
-net_connect_limit = 10
+net_connect_limit = 20
 
 
 async def main():
