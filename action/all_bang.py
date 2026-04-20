@@ -35,19 +35,23 @@ async def main():
 
         tasks.append(main_getter.get(None, 'cn'))
         tasks.append(main_getter.get(None, 'jp', 'en'))
+        tasks.append(main_getter.get(None, 'tw'))
 
         tasks.append(band_getter.get(None, None, 'cn'))
         tasks.append(band_getter.get(None, None, 'jp', 'en'))
+        tasks.append(band_getter.get(None, None, 'tw'))
 
         tasks.append(event_getter.get_newest('cn', quantity=0, timestamp13=timestamp13))
         tasks.append(
             event_getter.get_newest('jp', 'en', quantity=0, timestamp13=timestamp13)
         )
+        tasks.append(event_getter.get_newest('tw', quantity=0, timestamp13=timestamp13))
 
         tasks.append(card_getter.get_newest('cn', quantity=0, timestamp13=timestamp13))
         tasks.append(
             card_getter.get_newest('jp', 'en', quantity=0, timestamp13=timestamp13)
         )
+        tasks.append(card_getter.get_newest('tw', quantity=0, timestamp13=timestamp13))
 
         await asyncio.gather(*tasks)
 

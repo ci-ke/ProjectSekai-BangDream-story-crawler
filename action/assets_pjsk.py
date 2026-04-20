@@ -26,7 +26,6 @@ unit_getter = pjsk.Unit_story_getter(reader, **fast_call())
 self_getter = pjsk.Self_intro_getter(reader, **fast_call())
 special_getter = pjsk.Special_story_getter(reader, **fast_call())
 
-
 reader_jp = pjsk.Story_reader('jp', mark_lang='en', **fast_call())
 event_getter_jp = pjsk.Event_story_getter(reader_jp, **fast_call())
 card_getter_jp = pjsk.Card_story_getter(reader_jp, **fast_call())
@@ -34,6 +33,14 @@ area_getter_jp = pjsk.Area_talk_getter(reader_jp, **fast_call())
 unit_getter_jp = pjsk.Unit_story_getter(reader_jp, **fast_call())
 self_getter_jp = pjsk.Self_intro_getter(reader_jp, **fast_call())
 special_getter_jp = pjsk.Special_story_getter(reader_jp, **fast_call())
+
+reader_tw = pjsk.Story_reader('tw', **fast_call())
+event_getter_tw = pjsk.Event_story_getter(reader_tw, **fast_call())
+card_getter_tw = pjsk.Card_story_getter(reader_tw, **fast_call())
+area_getter_tw = pjsk.Area_talk_getter(reader_tw, **fast_call())
+unit_getter_tw = pjsk.Unit_story_getter(reader_tw, **fast_call())
+self_getter_tw = pjsk.Self_intro_getter(reader_tw, **fast_call())
+special_getter_tw = pjsk.Special_story_getter(reader_tw, **fast_call())
 
 net_connect_limit = 20
 
@@ -61,36 +68,51 @@ async def main():
 
         tasks = []
 
+        # main
         for i in unit_getter.tell_ids():
             tasks.append(unit_getter.get(i))
         for i in unit_getter_jp.tell_ids():
             tasks.append(unit_getter_jp.get(i))
+        for i in unit_getter_tw.tell_ids():
+            tasks.append(unit_getter_tw.get(i))
 
+        # event
         tasks.append(event_getter.get_newest(0, area_getter=area_getter))
         for i in event_getter_jp.tell_ids():
             tasks.append(event_getter_jp.get(i))
-            tasks.append(area_getter_jp.get(i))
+        tasks.append(event_getter_tw.get_newest(0, area_getter=area_getter_tw))
 
+        # card
         tasks.append(card_getter.get_newest(0))
         for i in card_getter_jp.tell_ids():
             tasks.append(card_getter_jp.get(i))
+        tasks.append(card_getter_tw.get_newest(0))
 
+        # area
         for i in area_getter.tell_categories():
             if not isinstance(i, int):
                 tasks.append(area_getter.get(i))
         for i in area_getter_jp.tell_categories():
+            tasks.append(area_getter_jp.get(i))
+        for i in area_getter_tw.tell_categories():
             if not isinstance(i, int):
-                tasks.append(area_getter_jp.get(i))
+                tasks.append(area_getter_tw.get(i))
 
+        # self
         for i in self_getter.tell_ids():
             tasks.append(self_getter.get(i))
         for i in self_getter_jp.tell_ids():
             tasks.append(self_getter_jp.get(i))
+        for i in self_getter_tw.tell_ids():
+            tasks.append(self_getter_tw.get(i))
 
+        # special
         for i in special_getter.tell_ids():
             tasks.append(special_getter.get(i))
         for i in special_getter_jp.tell_ids():
             tasks.append(special_getter_jp.get(i))
+        for i in special_getter_tw.tell_ids():
+            tasks.append(special_getter_tw.get(i))
 
         await asyncio.gather(*tasks)
 
