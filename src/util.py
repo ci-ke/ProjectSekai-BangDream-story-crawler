@@ -225,7 +225,7 @@ def write_to_file(file_path: str, content: str) -> None:
         f.write(f"{content}\n")
 
 
-async def save_json_to_url(
+def save_json_to_url(
     url: str,
     content: Any,
     save_dir: str,
@@ -363,7 +363,7 @@ async def fetch_url_json(
 
             if last_error is None:
                 if save:
-                    await save_json_to_url(
+                    save_json_to_url(
                         current_url,
                         json_content,
                         save_dir,

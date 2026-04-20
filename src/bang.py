@@ -837,7 +837,7 @@ async def main():
         level=logging.INFO, format="%(asctime)s - %(message)s", datefmt="%H:%M:%S"
     )
 
-    net_connect_limit = 10
+    net_connect_limit = 20
 
     online = False
 
