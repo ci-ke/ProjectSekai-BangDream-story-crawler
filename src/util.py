@@ -2,6 +2,7 @@ import os, json, asyncio, traceback, bisect, logging
 from enum import Enum
 from typing import Any, Callable
 from asyncio import Semaphore
+from concurrent.futures import ThreadPoolExecutor
 
 import aiohttp, brotli
 
@@ -100,6 +101,16 @@ Mark_multi_lang = {
 
 _net_semaphore = asyncio.Semaphore(20)
 _MISSING_FILE = object()
+
+_compress_executor = ThreadPoolExecutor(max_workers=min(8, (os.cpu_count() or 4)))
+
+
+def _compress_sync(json_bytes: bytes, quality: int) -> bytes:
+    return brotli.compress(json_bytes, quality=quality)
+
+
+def _decompress_sync(compressed_bytes: bytes) -> bytes:
+    return brotli.decompress(compressed_bytes)
 
 
 class Base_fetcher:
@@ -225,7 +236,7 @@ def write_to_file(file_path: str, content: str) -> None:
         f.write(f"{content}\n")
 
 
-def save_json_to_url(
+async def save_json_to_url(
     url: str,
     content: Any,
     save_dir: str,
@@ -244,7 +255,10 @@ def save_json_to_url(
 
     if compress:
         json_bytes = json.dumps(content, ensure_ascii=False).encode('utf-8')
-        compressed = brotli.compress(json_bytes, quality=11)
+        loop = asyncio.get_event_loop()
+        compressed = await loop.run_in_executor(
+            _compress_executor, _compress_sync, json_bytes, 11
+        )
         with open(path + '.br', 'wb') as f:
             f.write(compressed)
     else:
@@ -281,7 +295,10 @@ async def read_json_from_url(
                 return 'ERROR: skip read'
             with open(path + '.br', 'rb') as f:
                 compressed_bytes = f.read()
-                decompressed_bytes = brotli.decompress(compressed_bytes)
+                loop = asyncio.get_event_loop()
+                decompressed_bytes = await loop.run_in_executor(
+                    _compress_executor, _decompress_sync, compressed_bytes
+                )
                 content = decompressed_bytes.decode("utf-8")
                 return json.loads(content)
 
@@ -363,7 +380,7 @@ async def fetch_url_json(
 
             if last_error is None:
                 if save:
-                    save_json_to_url(
+                    await save_json_to_url(
                         current_url,
                         json_content,
                         save_dir,
