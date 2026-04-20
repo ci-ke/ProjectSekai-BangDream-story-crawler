@@ -273,7 +273,7 @@ class Event_story_getter(util.Base_getter):
         self.events_ids: set[int] = {int(id) for id in self.events_all_json.keys()}
 
     async def get(self, event_id: int, lang: str = 'cn', mark_lang: str = 'cn') -> None:
-        if event_id not in self.events_ids:
+        if event_id not in self.events_ids or event_id == 5001:  # special case for tw
             logging.info(f'event {event_id} does not exist.')
             return
 
@@ -793,14 +793,14 @@ class Card_story_getter(util.Base_getter):
                         )
                     await f.write(
                         Mark_multi_lang['<'][mark_lang]
-                        + story_1_name
+                        + str(story_1_name)
                         + Mark_multi_lang['>'][mark_lang]
                         + '\n\n'
                     )
                     await f.write(text_1 + '\n\n\n')
                     await f.write(
                         Mark_multi_lang['<'][mark_lang]
-                        + story_2_name
+                        + str(story_2_name)
                         + Mark_multi_lang['>'][mark_lang]
                         + '\n\n'
                     )
