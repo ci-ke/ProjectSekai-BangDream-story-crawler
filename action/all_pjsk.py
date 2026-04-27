@@ -36,7 +36,7 @@ special_getter_tw = pjsk.Special_story_getter(
 net_connect_limit = 20
 
 now = datetime.now(timezone.utc)
-future_time = now + timedelta(hours=48)
+future_time = now + timedelta(hours=36)
 future_timestamp = future_time.timestamp()
 timestamp13 = int(future_timestamp * 1000)
 

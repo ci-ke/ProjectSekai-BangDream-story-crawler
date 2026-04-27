@@ -14,7 +14,7 @@ card_getter = bang.Card_story_getter(reader, save_dir='../story_{lang}/card')
 net_connect_limit = 20
 
 now = datetime.now(timezone.utc)
-future_time = now + timedelta(hours=48)
+future_time = now + timedelta(hours=24)
 future_timestamp = future_time.timestamp()
 timestamp13 = int(future_timestamp * 1000)
 
