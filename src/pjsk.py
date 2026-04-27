@@ -1434,6 +1434,7 @@ class Self_intro_getter(Pjsk_getter):
         scenarioId: str = profile['scenarioId']
 
         scenarioId_common = scenarioId[: scenarioId.rindex('_')]
+        scenarioId_2nd = scenarioId_common + '_2nd'
 
         grade1_json, grade2_json = await asyncio.gather(
             self.fetch_url_json(
@@ -1445,7 +1446,7 @@ class Self_intro_getter(Pjsk_getter):
                 skip_read=not self.parse,
             ),
             self.fetch_url_json(
-                [url.format(scenarioId=scenarioId) for url in self.self_asset_url],
+                [url.format(scenarioId=scenarioId_2nd) for url in self.self_asset_url],
                 compress=self.compress_assets,
                 skip_read=not self.parse,
             ),
