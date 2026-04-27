@@ -1600,6 +1600,7 @@ class Special_story_getter(Pjsk_getter):
                         Mark_multi_lang['<'][self.reader.mark_lang]
                         + episode['title']
                         + Mark_multi_lang['>'][self.reader.mark_lang]
+                        + f" {episode['scenarioId']}"
                         + '\n\n'
                     )
                     f.write(text + '\n\n\n')
