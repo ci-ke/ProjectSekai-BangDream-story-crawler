@@ -1548,63 +1548,47 @@ class Special_story_getter(Pjsk_getter):
 
         story = self.specialStories_json[story_index]
         episodes = story['episodes']
-        title = story.get('title')
 
-        if title is None:
-            title = episodes[0]['title']
-
-        story_name = f'sp{id}_{title}'
-
-        filename = util.valid_filename(f'sp{id:0{self.maxlen_sp}}_{title}')
-
-        episode_tasks = []
-        for episode in episodes:
-            episode_tasks.append(
-                self.fetch_url_json(
-                    [
-                        url.format(
-                            assetbundleName=episode['assetbundleName'],
-                            scenarioId=episode['scenarioId'],
-                        )
-                        for url in self.special_asset_url
-                    ],
-                    filename,
-                    compress=self.compress_assets,
-                    skip_read=not self.parse,
-                )
-            )
-        episode_story_jsons = await asyncio.gather(*episode_tasks)
-
-        if self.parse and not util.judge_need_skip(*episode_story_jsons):
+        if self.parse:
             os.makedirs(self.save_dir, exist_ok=True)
 
-            texts = [
-                self.reader.read_story_in_json(episode_story_json)
-                for episode_story_json in episode_story_jsons
-            ]
+        tasks = []
+        for episode in episodes:
+            tasks.append(self.__get_episode(id, episode))
+        await asyncio.gather(*tasks)
 
-            if len(episodes) > 1:
-                record_No = True
-            else:
-                record_No = False
+    async def __get_episode(self, id: int, episode: dict[str, Any]) -> None:
+        episodeNo = episode['episodeNo']
+        if episodeNo == 1:
+            index_str = ''
+        else:
+            index_str = f'-{episodeNo}'
 
+        story_name = f"sp{id}{index_str} {episode['title']} ({episode['scenarioId']})"
+        filename = util.valid_filename(
+            f"sp{id:0{self.maxlen_sp}}{index_str} {episode['title']}"
+        )
+
+        episode_story_json = await self.fetch_url_json(
+            [
+                url.format(
+                    assetbundleName=episode['assetbundleName'],
+                    scenarioId=episode['scenarioId'],
+                )
+                for url in self.special_asset_url
+            ],
+            compress=self.compress_assets,
+            skip_read=not self.parse,
+        )
+
+        text = self.reader.read_story_in_json(episode_story_json)
+
+        if self.parse and not util.judge_need_skip(episode_story_json):
             with open(
-                os.path.join(self.save_dir, filename) + '.txt',
-                'w',
-                encoding='utf8',
+                os.path.join(self.save_dir, filename) + '.txt', 'w', encoding='utf8'
             ) as f:
                 f.write(story_name + '\n\n')
-                for episode, text in zip(episodes, texts):
-                    if record_No:
-                        f.write(str(episode['episodeNo']) + ' ')
-                    f.write(
-                        Mark_multi_lang['<'][self.reader.mark_lang]
-                        + episode['title']
-                        + Mark_multi_lang['>'][self.reader.mark_lang]
-                        + f" {episode['scenarioId']}"
-                        + '\n\n'
-                    )
-                    f.write(text + '\n\n\n')
+                f.write(text + '\n')
 
         logging.info(f'get special {filename} done.')
 
