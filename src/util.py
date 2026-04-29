@@ -400,19 +400,20 @@ async def fetch_url_json(
                 )
 
     else:  # offline
-        result = await read_json_from_url(
-            urls,
-            missing_download,
-            save_dir,
-            extra_record_msg,
-            error_assets_file,
-            missing_assets_file,
-            session,
-            network_semaphore,
-            append_save_path,
-            compress,
-            skip_read,
-        )
+        async with network_semaphore:
+            result = await read_json_from_url(
+                urls,
+                missing_download,
+                save_dir,
+                extra_record_msg,
+                error_assets_file,
+                missing_assets_file,
+                session,
+                network_semaphore,
+                append_save_path,
+                compress,
+                skip_read,
+            )
         json_content = 'Unable to read json file' if result is _MISSING_FILE else result
 
     if print_done:
