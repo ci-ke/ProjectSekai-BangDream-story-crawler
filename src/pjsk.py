@@ -957,9 +957,6 @@ class Card_story_getter(Pjsk_getter):
             self.save_dir, util.valid_filename(chara_unit_and_name)
         )
 
-        if self.parse:
-            os.makedirs(card_save_dir, exist_ok=True)
-
         if sub_unit != 'none':
             sub_unit_name = f' ({Constant.unit_code_abbr[sub_unit]})'
         else:
@@ -1005,6 +1002,8 @@ class Card_story_getter(Pjsk_getter):
         )
 
         if self.parse and not util.judge_need_skip(story_1_json, story_2_json):
+            os.makedirs(card_save_dir, exist_ok=True)
+
             text_1 = self.reader.read_story_in_json(story_1_json)
             text_2 = self.reader.read_story_in_json(story_2_json)
 
@@ -1231,9 +1230,6 @@ class Area_talk_getter(Pjsk_getter):
             logging.info(f'talk {target} does not exist.')
             return
 
-        if self.parse:
-            os.makedirs(self.save_dir, exist_ok=True)
-
         tasks = []
         for action in actions:
             tasks.append(
@@ -1254,6 +1250,8 @@ class Area_talk_getter(Pjsk_getter):
         talk_jsons = await asyncio.gather(*tasks)
 
         if self.parse and not util.judge_need_skip(*talk_jsons):
+            os.makedirs(self.save_dir, exist_ok=True)
+
             texts = [
                 self.reader.read_story_in_json(talk_json) for talk_json in talk_jsons
             ]
@@ -1549,48 +1547,51 @@ class Special_story_getter(Pjsk_getter):
         story = self.specialStories_json[story_index]
         episodes = story['episodes']
 
-        if self.parse:
-            os.makedirs(self.save_dir, exist_ok=True)
-
         tasks = []
         for episode in episodes:
-            tasks.append(self.__get_episode(id, episode))
-        await asyncio.gather(*tasks)
-
-    async def __get_episode(self, id: int, episode: dict[str, Any]) -> None:
-        episodeNo = episode['episodeNo']
-        if episodeNo == 1:
-            index_str = ''
-        else:
-            index_str = f'-{episodeNo}'
-
-        story_name = f"sp{id}{index_str} {episode['title']} ({episode['scenarioId']})"
-        filename = util.valid_filename(
-            f"sp{id:0{self.maxlen_sp}}{index_str} {episode['title']}"
-        )
-
-        episode_story_json = await self.fetch_url_json(
-            [
-                url.format(
-                    assetbundleName=episode['assetbundleName'],
-                    scenarioId=episode['scenarioId'],
+            tasks.append(
+                self.fetch_url_json(
+                    [
+                        url.format(
+                            assetbundleName=episode['assetbundleName'],
+                            scenarioId=episode['scenarioId'],
+                        )
+                        for url in self.special_asset_url
+                    ],
+                    f"sp{id}-{episode['episodeNo']}",
+                    compress=self.compress_assets,
+                    skip_read=not self.parse,
                 )
-                for url in self.special_asset_url
-            ],
-            compress=self.compress_assets,
-            skip_read=not self.parse,
-        )
+            )
+        episode_story_jsons = await asyncio.gather(*tasks)
 
-        text = self.reader.read_story_in_json(episode_story_json)
+        if self.parse and not util.judge_need_skip(*episode_story_jsons):
+            os.makedirs(self.save_dir, exist_ok=True)
 
-        if self.parse and not util.judge_need_skip(episode_story_json):
+            texts = [
+                self.reader.read_story_in_json(episode_story_json)
+                for episode_story_json in episode_story_jsons
+            ]
+
+            story_name = f"sp{id} {episodes[0]['title']} ({episodes[0]['scenarioId']})"
+            filename = util.valid_filename(
+                f"sp{id:0{self.maxlen_sp}} {episodes[0]['title']}"
+            )
+
             with open(
                 os.path.join(self.save_dir, filename) + '.txt', 'w', encoding='utf8'
             ) as f:
                 f.write(story_name + '\n\n')
-                f.write(text + '\n')
+                if len(episodes) == 1:
+                    f.write(texts[0] + '\n')
+                else:
+                    for episode, text in zip(episodes, texts):
+                        f.write(
+                            f"{episode['episodeNo']} {episode['title']} ({episode['scenarioId']})\n\n"
+                        )
+                        f.write(text + '\n\n\n')
 
-        logging.info(f'get special {filename} done.')
+            logging.info(f'get special {filename} done.')
 
     def tell_ids(self):
         ret = []
