@@ -287,20 +287,22 @@ async def read_json_from_url(
         if os.path.exists(path):
             if skip_read:
                 return 'ERROR: skip read'
-            with open(path, encoding='utf8') as f:
-                content = f.read()
-                return json.loads(content)
+            async with network_semaphore:
+                with open(path, encoding='utf8') as f:
+                    content = f.read()
+                    return json.loads(content)
         elif os.path.exists(path + '.br'):
             if skip_read:
                 return 'ERROR: skip read'
-            with open(path + '.br', 'rb') as f:
-                compressed_bytes = f.read()
-                loop = asyncio.get_event_loop()
-                decompressed_bytes = await loop.run_in_executor(
-                    _compress_executor, _decompress_sync, compressed_bytes
-                )
-                content = decompressed_bytes.decode("utf-8")
-                return json.loads(content)
+            async with network_semaphore:
+                with open(path + '.br', 'rb') as f:
+                    compressed_bytes = f.read()
+                    loop = asyncio.get_event_loop()
+                    decompressed_bytes = await loop.run_in_executor(
+                        _compress_executor, _decompress_sync, compressed_bytes
+                    )
+                    content = decompressed_bytes.decode("utf-8")
+                    return json.loads(content)
 
     if missing_download:
         return await fetch_url_json(
@@ -400,20 +402,19 @@ async def fetch_url_json(
                 )
 
     else:  # offline
-        async with network_semaphore:
-            result = await read_json_from_url(
-                urls,
-                missing_download,
-                save_dir,
-                extra_record_msg,
-                error_assets_file,
-                missing_assets_file,
-                session,
-                network_semaphore,
-                append_save_path,
-                compress,
-                skip_read,
-            )
+        result = await read_json_from_url(
+            urls,
+            missing_download,
+            save_dir,
+            extra_record_msg,
+            error_assets_file,
+            missing_assets_file,
+            session,
+            network_semaphore,
+            append_save_path,
+            compress,
+            skip_read,
+        )
         json_content = 'Unable to read json file' if result is _MISSING_FILE else result
 
     if print_done:
