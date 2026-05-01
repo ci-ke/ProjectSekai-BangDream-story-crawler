@@ -582,6 +582,8 @@ class Event_story_getter(Pjsk_getter):
 
         event_save_dir = os.path.join(self.save_dir, save_folder_name)
         if self.parse:
+            os.makedirs(Path(event_save_dir).parent, exist_ok=True)
+            util.remove_olds_or_rename_old(event_save_dir, r'(\d+) ')
             os.makedirs(event_save_dir, exist_ok=True)
 
         tasks = []
@@ -639,11 +641,9 @@ class Event_story_getter(Pjsk_getter):
         if self.parse and not util.judge_need_skip(story_json):
             text = self.reader.read_story_in_json(story_json)
 
-            with open(
-                os.path.join(event_save_dir, episode_save_name) + '.txt',
-                'w',
-                encoding='utf8',
-            ) as f:
+            file_path = os.path.join(event_save_dir, episode_save_name) + '.txt'
+            util.remove_olds_or_rename_old(file_path, r'(\d+-\d+) ')
+            with open(file_path, 'w', encoding='utf8') as f:
                 if episode['episodeNo'] == 1:
                     f.write(event_outline + '\n\n')
                 f.write(episode_name + '\n\n')
@@ -779,6 +779,8 @@ class Unit_story_getter(Pjsk_getter):
 
         unit_save_dir = os.path.join(self.save_dir, save_folder_name)
         if self.parse:
+            os.makedirs(Path(unit_save_dir).parent, exist_ok=True)
+            util.remove_olds_or_rename_old(unit_save_dir, r'(\d+) ')
             os.makedirs(unit_save_dir, exist_ok=True)
 
         tasks = []
@@ -836,11 +838,9 @@ class Unit_story_getter(Pjsk_getter):
         if self.parse and not util.judge_need_skip(story_json):
             text = self.reader.read_story_in_json(story_json)
 
-            with open(
-                os.path.join(unit_save_dir, episode_save_name) + '.txt',
-                'w',
-                encoding='utf8',
-            ) as f:
+            file_path = os.path.join(unit_save_dir, episode_save_name) + '.txt'
+            util.remove_olds_or_rename_old(file_path, r'([^\s]+) ')
+            with open(file_path, 'w', encoding='utf8') as f:
                 if unit_outline is not None:
                     f.write(unit_outline + '\n\n')
                 f.write(episode_name + '\n\n')
@@ -1007,11 +1007,9 @@ class Card_story_getter(Pjsk_getter):
             text_1 = self.reader.read_story_in_json(story_1_json)
             text_2 = self.reader.read_story_in_json(story_2_json)
 
-            with open(
-                os.path.join(card_save_dir, card_story_filename) + '.txt',
-                'w',
-                encoding='utf8',
-            ) as f:
+            file_path = os.path.join(card_save_dir, card_story_filename) + '.txt'
+            util.remove_olds_or_rename_old(file_path, r'(\d+)_')
+            with open(file_path, 'w', encoding='utf8') as f:
                 f.write(card_story_name + '\n\n')
                 if card_gachaPhrase != '-':
                     f.write(
@@ -1578,9 +1576,9 @@ class Special_story_getter(Pjsk_getter):
                 f"sp{id:0{self.maxlen_sp}} {episodes[0]['title']}"
             )
 
-            with open(
-                os.path.join(self.save_dir, filename) + '.txt', 'w', encoding='utf8'
-            ) as f:
+            file_path = os.path.join(self.save_dir, filename) + '.txt'
+            util.remove_olds_or_rename_old(file_path, r'sp(\d+) ')
+            with open(file_path, 'w', encoding='utf8') as f:
                 f.write(story_name + '\n\n')
                 if len(episodes) == 1:
                     f.write(texts[0] + '\n')
@@ -1602,9 +1600,7 @@ class Special_story_getter(Pjsk_getter):
 
 async def main():
 
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s - %(message)s", datefmt="%H:%M:%S"
-    )
+    logging.basicConfig(level=logging.INFO)
 
     net_connect_limit = 20
 

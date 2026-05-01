@@ -1,4 +1,5 @@
-import os, json, asyncio, traceback, bisect, logging
+import os, json, asyncio, traceback, bisect, logging, re, shutil
+from pathlib import Path
 from enum import Enum
 from typing import Any, Callable
 from asyncio import Semaphore
@@ -428,3 +429,41 @@ def judge_need_skip(*story_json: dict | str) -> bool:
         isinstance(json_str, str) and json_str.startswith('ERROR:')
         for json_str in story_json
     )
+
+
+def delete_path(path: str) -> None:
+    if not os.path.exists(path):
+        return
+    if os.path.isdir(path):
+        shutil.rmtree(path)
+    else:
+        os.unlink(path)
+
+
+def remove_olds_or_rename_old(new_path_str: str, name_index_reg: str) -> None:
+    '''
+    make sure new_path's parent exist
+    '''
+    new_path = Path(new_path_str)
+    index_match = re.match(name_index_reg, new_path.name)
+
+    assert index_match is not None
+    new_index = index_match.group(1)
+
+    old_paths = [
+        p
+        for p in Path(new_path.parent).iterdir()
+        if ((match := re.match(name_index_reg, p.name)) and (match.group(1) == new_index))
+    ]
+
+    if len(old_paths) == 0:
+        return
+    elif len(old_paths) == 1:
+        if old_paths[0] != new_path:
+            old_paths[0].rename(new_path)
+            logging.warning(f'Rename: {old_paths[0]} -> {new_path}')
+    else:
+        for p in old_paths:
+            if p != new_path:
+                delete_path(str(p))
+                logging.warning(f'Delete: {p}')

@@ -294,6 +294,8 @@ class Event_story_getter(util.Base_getter):
         event_save_dir = os.path.join(self.save_dir.format(lang=lang), save_folder_name)
 
         if self.parse:
+            os.makedirs(Path(event_save_dir).parent, exist_ok=True)
+            util.remove_olds_or_rename_old(event_save_dir, r'(\d+) ')
             os.makedirs(event_save_dir, exist_ok=True)
 
         tasks = []
@@ -346,11 +348,9 @@ class Event_story_getter(util.Base_getter):
             story_json = ''
 
         if self.parse and not util.judge_need_skip(story_json):
-            with open(
-                os.path.join(event_save_dir, filename) + '.txt',
-                'w',
-                encoding='utf8',
-            ) as f:
+            file_path = os.path.join(event_save_dir, filename) + '.txt'
+            util.remove_olds_or_rename_old(file_path, r'([^\s]+) ')
+            with open(file_path, 'w', encoding='utf8') as f:
                 f.write(name + '\n\n')
                 f.write(f'{synopsis}' + '\n\n')
                 f.write(text + '\n')
@@ -466,6 +466,8 @@ class Band_story_getter(util.Base_getter):
                 self.save_dir.format(lang=lang), band_name, save_folder_name
             )
             if self.parse:
+                os.makedirs(Path(band_save_dir).parent, exist_ok=True)
+                util.remove_olds_or_rename_old(band_save_dir, r'([^\s]+) ')
                 os.makedirs(band_save_dir, exist_ok=True)
 
             for story in band_story['stories'].values():
@@ -508,11 +510,9 @@ class Band_story_getter(util.Base_getter):
         if self.parse and not util.judge_need_skip(story_json):
             text = self.reader.read_story_in_json(story_json, lang, mark_lang)
 
-            with open(
-                os.path.join(band_save_dir, filename) + '.txt',
-                'w',
-                encoding='utf8',
-            ) as f:
+            file_path = os.path.join(band_save_dir, filename) + '.txt'
+            util.remove_olds_or_rename_old(file_path, r'([^\s]+) ')
+            with open(file_path, 'w', encoding='utf8') as f:
                 f.write(name + '\n\n')
                 f.write(synopsis + '\n\n')
                 f.write(text + '\n')
@@ -612,11 +612,9 @@ class Main_story_getter(util.Base_getter):
         if self.parse and not util.judge_need_skip(story_json):
             text = self.reader.read_story_in_json(story_json, lang, mark_lang)
 
-            with open(
-                os.path.join(self.save_dir.format(lang=lang), filename) + '.txt',
-                'w',
-                encoding='utf8',
-            ) as f:
+            file_path = os.path.join(self.save_dir.format(lang=lang), filename) + '.txt'
+            util.remove_olds_or_rename_old(file_path, r'([^\s]+) ')
+            with open(file_path, 'w', encoding='utf8') as f:
                 f.write(name + '\n\n')
                 f.write(synopsis + '\n\n')
                 f.write(text + '\n')
@@ -769,11 +767,9 @@ class Card_story_getter(util.Base_getter):
 
             os.makedirs(card_save_dir, exist_ok=True)
 
-            with open(
-                os.path.join(card_save_dir, card_story_filename) + '.txt',
-                'w',
-                encoding='utf8',
-            ) as f:
+            file_path = os.path.join(card_save_dir, card_story_filename) + '.txt'
+            util.remove_olds_or_rename_old(file_path, r'(\d+)_')
+            with open(file_path, 'w', encoding='utf8') as f:
                 f.write(card_story_name + '\n\n')
                 if card_gachaText:
                     f.write(
@@ -833,9 +829,7 @@ class Card_story_getter(util.Base_getter):
 
 async def main():
 
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s - %(message)s", datefmt="%H:%M:%S"
-    )
+    logging.basicConfig(level=logging.INFO)
 
     net_connect_limit = 20
 
