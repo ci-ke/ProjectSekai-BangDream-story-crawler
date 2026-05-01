@@ -697,6 +697,7 @@ class Unit_story_getter(Pjsk_getter):
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
+        maxlen_unitId: int = 1,
         compress_assets: bool = False,
         force_master_online: bool = False,
     ) -> None:
@@ -713,6 +714,7 @@ class Unit_story_getter(Pjsk_getter):
 
         self.reader = reader
         self.save_dir = self.save_dir.format(lang=self.reader.lang)
+        self.maxlen_unitId = maxlen_unitId
 
         self.unitProfiles_url = Constant.get_srcs_url(
             self.reader.lang, src, 'master', 'unitProfiles'
@@ -775,7 +777,9 @@ class Unit_story_getter(Pjsk_getter):
             logging.info(f'unit {unit_id} does not exist.')
             return
 
-        save_folder_name = util.valid_filename(f'{unit_id} {unitName}')
+        save_folder_name = util.valid_filename(
+            f'{unit_id:0{self.maxlen_unitId}} {unitName}'
+        )
 
         unit_save_dir = os.path.join(self.save_dir, save_folder_name)
         if self.parse:
@@ -866,7 +870,7 @@ class Card_story_getter(Pjsk_getter):
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
-        maxlen_id: int = 4,
+        maxlen_charaId_cardId: tuple[int, int] = (2, 4),
         compress_assets: bool = False,
         force_master_online: bool = False,
     ) -> None:
@@ -883,7 +887,7 @@ class Card_story_getter(Pjsk_getter):
 
         self.reader = reader
         self.save_dir = self.save_dir.format(lang=self.reader.lang)
-        self.maxlen_id = maxlen_id
+        self.maxlen_charaId_cardId = maxlen_charaId_cardId
 
         self.cards_url = Constant.get_srcs_url(self.reader.lang, src, 'master', 'cards')
         self.cardEpisodes_url = Constant.get_srcs_url(
@@ -954,7 +958,10 @@ class Card_story_getter(Pjsk_getter):
         story_2_scenarioId = cardEpisode_2['scenarioId']
 
         card_save_dir = os.path.join(
-            self.save_dir, util.valid_filename(chara_unit_and_name)
+            self.save_dir,
+            util.valid_filename(
+                f"{card['characterId']:0{self.maxlen_charaId_cardId[0]}} {chara_unit_and_name}"
+            ),
         )
 
         if sub_unit != 'none':
@@ -973,7 +980,7 @@ class Card_story_getter(Pjsk_getter):
         card_story_name = f'{card_id}_{chara_name}{sub_unit_name}_{cardRarityType} {card_name}{belong_event}'
 
         card_story_filename = util.valid_filename(
-            f'{card_id:0{self.maxlen_id}}_{chara_name}{sub_unit_name}_{cardRarityType} {card_name}{belong_event}'
+            f'{card_id:0{self.maxlen_charaId_cardId[1]}}_{chara_name}{sub_unit_name}_{cardRarityType} {card_name}{belong_event}'
         )
 
         story_1_json, story_2_json = await asyncio.gather(
@@ -1002,6 +1009,8 @@ class Card_story_getter(Pjsk_getter):
         )
 
         if self.parse and not util.judge_need_skip(story_1_json, story_2_json):
+            os.makedirs(Path(card_save_dir).parent, exist_ok=True)
+            util.remove_olds_or_rename_old(card_save_dir, r'(\d+) ')
             os.makedirs(card_save_dir, exist_ok=True)
 
             text_1 = self.reader.read_story_in_json(story_1_json)
@@ -1377,6 +1386,7 @@ class Self_intro_getter(Pjsk_getter):
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
+        maxlen_charaId: int = 2,
         compress_assets: bool = False,
         force_master_online: bool = False,
     ):
@@ -1393,6 +1403,7 @@ class Self_intro_getter(Pjsk_getter):
 
         self.reader = reader
         self.save_dir = self.save_dir.format(lang=self.reader.lang)
+        self.maxlen_charaId = maxlen_charaId
 
         self.characterProfiles_url = Constant.get_srcs_url(
             self.reader.lang, src, 'master', 'characterProfiles'
@@ -1424,7 +1435,9 @@ class Self_intro_getter(Pjsk_getter):
 
         chara_unit_name = '_'.join(self.reader.get_chara_unitAbbr_names(chara_id)[:2])
 
-        filename = util.valid_filename(chara_unit_name)
+        filename = util.valid_filename(
+            f'{chara_id:0{self.maxlen_charaId}} {chara_unit_name}'
+        )
 
         profile = self.characterProfiles_json[profile_index]
         scenarioId: str = profile['scenarioId']
@@ -1454,13 +1467,11 @@ class Self_intro_getter(Pjsk_getter):
             text_1 = self.reader.read_story_in_json(grade1_json)
             text_2 = self.reader.read_story_in_json(grade2_json)
 
-            with open(
-                os.path.join(self.save_dir, filename) + '.txt',
-                'w',
-                encoding='utf8',
-            ) as f:
+            file_path = os.path.join(self.save_dir, filename) + '.txt'
+            util.remove_olds_or_rename_old(file_path, r'(\d+) ')
+            with open(file_path, 'w', encoding='utf8') as f:
                 f.write(
-                    f"{Mark_multi_lang['self intro'][self.reader.mark_lang]}{chara_unit_name.split('_')[1]}\n\n"
+                    f"{Mark_multi_lang['self intro'][self.reader.mark_lang]}{self.reader.get_chara_unitAbbr_names(chara_id)[1]}\n\n"
                 )
                 f.write(
                     Mark_multi_lang['<'][self.reader.mark_lang]

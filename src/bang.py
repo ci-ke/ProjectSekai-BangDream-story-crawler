@@ -51,7 +51,6 @@ class Story_reader(util.Base_fetcher):
         self.debug_parse = debug_parse
 
         self.characters_main_url = URLS['bestdori.com']['characters_main_3']
-        self.bands_main_url = URLS['bestdori.com']['bands_main_1']
 
     async def init(
         self,
@@ -60,17 +59,9 @@ class Story_reader(util.Base_fetcher):
     ) -> None:
         await super().init(session, network_semaphore)
 
-        self.characters_json, self.bands_json = await asyncio.gather(
-            self.fetch_url_json(
-                self.characters_main_url, force_online=self.force_master_online
-            ),
-            self.fetch_url_json(
-                self.bands_main_url, force_online=self.force_master_online
-            ),
+        self.characters_json = await self.fetch_url_json(
+            self.characters_main_url, force_online=self.force_master_online
         )
-
-    def get_band_name(self, band_id: int, lang: str) -> str:
-        return self.bands_json[str(band_id)]['bandName'][Constant.lang_index[lang]]
 
     def get_chara_bandAbbr_and_names(
         self, chara_id: int, lang: str
@@ -397,6 +388,7 @@ class Band_story_getter(util.Base_getter):
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
+        maxlen_bandId: int = 2,
         compress_assets: bool = False,
         force_master_online: bool = False,
     ) -> None:
@@ -412,7 +404,9 @@ class Band_story_getter(util.Base_getter):
         )
 
         self.reader = reader
+        self.maxlen_bandId = maxlen_bandId
 
+        self.bands_main_url = URLS['bestdori.com']['bands_main_1']
         self.bandstories_5_url = URLS['bestdori.com']['bandstories_5']
         self.band_asset_url = URLS['bestdori.com']['band_asset']
 
@@ -423,8 +417,13 @@ class Band_story_getter(util.Base_getter):
     ) -> None:
         await super().init(session, network_semaphore)
 
-        self.info_json: dict[str, dict[str, Any]] = await self.fetch_url_json(
-            self.bandstories_5_url, force_online=self.force_master_online
+        self.bands_json, self.info_json = await asyncio.gather(
+            self.fetch_url_json(
+                self.bands_main_url, force_online=self.force_master_online
+            ),
+            self.fetch_url_json(
+                self.bandstories_5_url, force_online=self.force_master_online
+            ),
         )
 
     async def get(
@@ -437,7 +436,7 @@ class Band_story_getter(util.Base_getter):
 
         tasks = []
         for band_story in self.info_json.values():
-            band_id = band_story['bandId']
+            band_id: int = band_story['bandId']
             try:
                 chapterNumber = band_story['chapterNumber']
             except KeyError:
@@ -450,7 +449,9 @@ class Band_story_getter(util.Base_getter):
                 if want_chapter_number != chapterNumber:
                     continue
 
-            band_name = self.reader.get_band_name(band_id, lang)
+            band_name = self.bands_json[str(band_id)]['bandName'][
+                Constant.lang_index[lang]
+            ]
 
             if band_story['mainTitle'][Constant.lang_index[lang]] == None:
                 logging.info(
@@ -463,9 +464,14 @@ class Band_story_getter(util.Base_getter):
             )
 
             band_save_dir = os.path.join(
-                self.save_dir.format(lang=lang), band_name, save_folder_name
+                self.save_dir.format(lang=lang),
+                f'{band_id:0{self.maxlen_bandId}} {band_name}',
+                save_folder_name,
             )
             if self.parse:
+                os.makedirs(Path(band_save_dir).parents[1], exist_ok=True)
+                util.remove_olds_or_rename_old(Path(band_save_dir).parent, r'(\d+) ')
+
                 os.makedirs(Path(band_save_dir).parent, exist_ok=True)
                 util.remove_olds_or_rename_old(band_save_dir, r'([^\s]+) ')
                 os.makedirs(band_save_dir, exist_ok=True)
@@ -632,7 +638,7 @@ class Card_story_getter(util.Base_getter):
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
-        maxlen_id: int = 4,
+        maxlen_charaId_cardId: tuple[int, int] = (2, 4),
         compress_assets: bool = False,
         force_master_online: bool = False,
     ) -> None:
@@ -648,7 +654,7 @@ class Card_story_getter(util.Base_getter):
         )
 
         self.reader = reader
-        self.maxlen_id = maxlen_id
+        self.maxlen_charaId_cardId = maxlen_charaId_cardId
 
         self.cards_all_5_url = URLS['bestdori.com']['cards_all_5']
         self.cards_id_url = URLS['bestdori.com']['cards_id']
@@ -707,8 +713,13 @@ class Card_story_getter(util.Base_getter):
 
         card_story_name = f'{card_id}_{chara_name}_R{cardRarityType} {card_name}'
 
+        card_save_dir = os.path.join(
+            self.save_dir.format(lang=lang),
+            f"{card['characterId']:0{self.maxlen_charaId_cardId[0]}} {chara_band_and_name}",
+        )
+
         card_story_filename = util.valid_filename(
-            f'{card_id:0{self.maxlen_id}}_{chara_name}_R{cardRarityType} {card_name}'
+            f'{card_id:0{self.maxlen_charaId_cardId[1]}}_{chara_name}_R{cardRarityType} {card_name}'
         )
 
         story_1_name = card['episodes']['entries'][0]['title'][
@@ -761,10 +772,8 @@ class Card_story_getter(util.Base_getter):
             text_2 = ''
 
         if self.parse and not util.judge_need_skip(story_1_json, story_2_json):
-            card_save_dir = os.path.join(
-                self.save_dir.format(lang=lang), chara_band_and_name
-            )
-
+            os.makedirs(Path(card_save_dir).parent, exist_ok=True)
+            util.remove_olds_or_rename_old(card_save_dir, r'(\d+) ')
             os.makedirs(card_save_dir, exist_ok=True)
 
             file_path = os.path.join(card_save_dir, card_story_filename) + '.txt'

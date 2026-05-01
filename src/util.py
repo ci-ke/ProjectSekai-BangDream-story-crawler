@@ -440,11 +440,11 @@ def delete_path(path: str) -> None:
         os.unlink(path)
 
 
-def remove_olds_or_rename_old(new_path_str: str, name_index_reg: str) -> None:
+def remove_olds_or_rename_old(new_path_: str | Path, name_index_reg: str) -> None:
     '''
     make sure new_path's parent exist
     '''
-    new_path = Path(new_path_str)
+    new_path = Path(new_path_)
     index_match = re.match(name_index_reg, new_path.name)
 
     assert index_match is not None
@@ -453,7 +453,10 @@ def remove_olds_or_rename_old(new_path_str: str, name_index_reg: str) -> None:
     old_paths = [
         p
         for p in Path(new_path.parent).iterdir()
-        if ((match := re.match(name_index_reg, p.name)) and (match.group(1) == new_index))
+        if (
+            (match := re.match(name_index_reg, p.name))
+            and (match.group(1) == new_index)
+        )
     ]
 
     if len(old_paths) == 0:
