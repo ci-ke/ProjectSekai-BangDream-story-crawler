@@ -61,10 +61,14 @@ class Constant:
                     )
                 )
             else:
-                base_url = Constant.urls[src][f'{file}_asset']
-                base_urls.append(
-                    base_url.format(lang=Constant.urls[src]['asset_lang'][lang])
-                )
+                sp_key = f'{file}_asset_{lang}'
+                if not sp_key in Constant.urls[src]:
+                    base_url = Constant.urls[src][f'{file}_asset']
+                    base_urls.append(
+                        base_url.format(lang=Constant.urls[src]['asset_lang'][lang])
+                    )
+                else:
+                    base_urls.append(Constant.urls[src][sp_key])
         return base_urls
 
 
@@ -198,11 +202,11 @@ class Story_reader(Pjsk_fetcher):
         assert profile_index != -1
         profile: dict[str, Any] = self.gameCharacters[profile_index]
         first_name = profile.get('firstName')
-        givenName = profile['givenName']
-        full_name = first_name + givenName if first_name is not None else givenName
+        givenName: str = profile['givenName']
+        full_name: str = first_name + givenName if first_name is not None else givenName
 
         unit_abbr = Constant.unit_code_abbr[profile['unit']]
-        return (unit_abbr, full_name, givenName)
+        return (unit_abbr, full_name.strip(), givenName.strip())
 
     def get_chara2d_unitAbbr_names_isVS(
         self, chara2dId: int
