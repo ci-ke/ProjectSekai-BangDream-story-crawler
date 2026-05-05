@@ -53,6 +53,8 @@ class Constant:
         '''
         base_urls = []
         for src in srcs:
+            if lang not in Constant.urls[src]['master_lang']:
+                continue
             if file_type == 'master':
                 base_url: str = Constant.urls[src]['master']
                 base_urls.append(
@@ -69,6 +71,7 @@ class Constant:
                     )
                 else:
                     base_urls.append(Constant.urls[src][sp_key])
+        assert len(base_urls) > 0
         return base_urls
 
 
