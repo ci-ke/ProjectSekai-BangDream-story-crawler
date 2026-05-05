@@ -68,9 +68,11 @@ class Story_reader(util.Base_fetcher):
     ) -> tuple[str, str, str]:
         if str(chara_id) not in self.characters_json:
             return '', '', ''
-        fullname = self.characters_json[str(chara_id)]['characterName'][
+        fullname: str = self.characters_json[str(chara_id)]['characterName'][
             Constant.lang_index[lang]
-        ].replace(' ', '')
+        ]
+        if lang in ('jp', 'cn', 'tw'):
+            fullname = fullname.replace(' ', '')
         shortname = self.characters_json[str(chara_id)]['firstName'][
             Constant.lang_index[lang]
         ]
