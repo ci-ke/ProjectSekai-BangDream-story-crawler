@@ -9,6 +9,9 @@ on:
       commit_message:
         required: true
         type: string
+    secrets:
+      PAT_TOKEN:
+        required: true
 
 jobs:
   common-update:
@@ -24,6 +27,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 1
+          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Clone crawler project
         run: git clone https://github.com/ci-ke/ProjectSekai-BangDream-story-crawler.git crawler
