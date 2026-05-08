@@ -11,7 +11,7 @@ on:
         type: string
     secrets:
       PAT_TOKEN:
-        required: true
+        required: false
 
 jobs:
   common-update:
@@ -20,14 +20,26 @@ jobs:
       contents: write
     env:
       UV_INDEX_URL: https://pypi.org/simple/
+      PAT_TOKEN: ""
 
     steps:
-      - name: Checkout main branch
+      - name: Set PAT token env
+        run: echo "PAT_TOKEN=${{ secrets.PAT_TOKEN }}" >> $GITHUB_ENV
+
+      - name: Checkout main branch (with PAT)
+        if: ${{ env.PAT_TOKEN != '' }}
         uses: actions/checkout@v5
         with:
           ref: main
           fetch-depth: 1
           token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Checkout main branch (default token)
+        if: ${{ env.PAT_TOKEN == '' }}
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 1
 
       - name: Clone crawler project
         run: git clone https://github.com/ci-ke/ProjectSekai-BangDream-story-crawler.git crawler
