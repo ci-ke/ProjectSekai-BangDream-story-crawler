@@ -440,6 +440,18 @@ def delete_path(path: str) -> None:
         os.unlink(path)
 
 
+def remove_leading_zeros(s: str) -> str:
+    '''
+    001 → 1，001-02 → 1-2，000 → 0，012abc034 → 12abc34
+    '''
+
+    def process_digit(match: re.Match):
+        digit_str: str = match.group()
+        return digit_str.lstrip('0') or '0'
+
+    return re.sub(r'\d+', process_digit, s)
+
+
 def remove_olds_or_rename_old(new_path_: str | Path, name_index_reg: str) -> None:
     '''
     make sure new_path's parent exist
@@ -455,7 +467,9 @@ def remove_olds_or_rename_old(new_path_: str | Path, name_index_reg: str) -> Non
         for p in Path(new_path.parent).iterdir()
         if (
             (match := re.match(name_index_reg, p.name))
-            and (match.group(1) == new_index)
+            and (
+                remove_leading_zeros(match.group(1)) == remove_leading_zeros(new_index)
+            )
         )
     ]
 
