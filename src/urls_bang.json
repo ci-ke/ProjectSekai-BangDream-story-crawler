@@ -13,6 +13,10 @@
         "cards_all_0": "https://bestdori.com/api/cards/all.0.json",
         "cards_all_5": "https://bestdori.com/api/cards/all.5.json",
         "cards_id": "https://bestdori.com/api/cards/{id}.json",
-        "card_asset": "https://bestdori.com/assets/{lang}/characters/resourceset/{res_id}_rip/Scenario{scenarioId}.asset"
+        "card_asset": "https://bestdori.com/assets/{lang}/characters/resourceset/{res_id}_rip/Scenario{scenarioId}.asset",
+        "areas_1": "https://bestdori.com/api/misc/areas.1.json",
+        "actionsets_5": "https://bestdori.com/api/misc/actionsets.5.json",
+        "talk_actionset_asset": "https://bestdori.com/assets/{lang}/actionset/group{group}_rip/ActionSet{id}.asset",
+        "talk_scenario_asset": "https://bestdori.com/assets/{lang}/scenario/actionset/group{group}_rip/Scenario{scenario_id}.asset"
     }
 }

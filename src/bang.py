@@ -1,4 +1,4 @@
-import os, asyncio, json, time, logging, copy
+import os, asyncio, json, time, logging, copy, math
 from pathlib import Path
 from typing import Any
 from asyncio import Semaphore
@@ -838,6 +838,107 @@ class Card_story_getter(util.Base_getter):
         await asyncio.gather(*tasks)
 
 
+class Area_talk_getter(util.Base_getter):
+    def __init__(
+        self,
+        reader: Story_reader,
+        save_dir: str = './story_{lang}/area',
+        assets_save_dir: str = './assets',
+        online: bool = True,
+        save_assets: bool = True,
+        parse: bool = True,
+        missing_download: bool = True,
+        maxlen_areaID: int = 2,
+        compress_assets: bool = False,
+        force_master_online: bool = False,
+    ) -> None:
+        super().__init__(
+            save_dir,
+            assets_save_dir,
+            online,
+            save_assets,
+            parse,
+            missing_download,
+            compress_assets,
+            force_master_online,
+        )
+
+        self.reader = reader
+        self.maxlen_areaID = maxlen_areaID
+
+        self.areas_url = URLS['bestdori.com']['areas_1']
+        self.actionSets_url = URLS['bestdori.com']['actionsets_5']
+        self.talk_actionset_asset = URLS['bestdori.com']['talk_actionset_asset']
+        self.talk_scenario_asset = URLS['bestdori.com']['talk_scenario_asset']
+
+    async def init(
+        self,
+        session: ClientSession | None = None,
+        network_semaphore: Semaphore | None = None,
+    ) -> None:
+        await super().init(session, network_semaphore)
+
+        self.area_name_json, self.actionSets_json = await asyncio.gather(
+            self.fetch_url_json(self.areas_url, force_online=self.force_master_online),
+            self.fetch_url_json(
+                self.actionSets_url, force_online=self.force_master_online
+            ),
+        )
+
+    async def get(self, talk_id: int, lang: str = 'cn', mark_lang: str = 'cn') -> None:
+        if str(talk_id) not in self.actionSets_json:
+            logging.info(f'talk {talk_id} does not exist.')
+            return
+
+        actionSet = self.actionSets_json[str(talk_id)]
+
+        if self.parse:
+            os.makedirs(self.save_dir.format(lang=lang), exist_ok=True)
+
+        talk_actionset_json = await self.fetch_url_json(
+            self.talk_actionset_asset.format(
+                lang=lang, group=math.floor(talk_id / 128), id=talk_id
+            ),
+            compress=self.compress_assets,
+            skip_read=not self.parse,
+        )
+
+        scenario_id = talk_actionset_json['Base']['details'][0]['reactionTypeBelongId']
+
+        if len(scenario_id) == 0:
+            logging.info(f'talk {talk_id} does not exist.')
+            return
+
+        talk_json = await self.fetch_url_json(
+            self.talk_scenario_asset.format(
+                lang=lang, group=math.floor(talk_id / 256), scenario_id=scenario_id
+            ),
+            compress=self.compress_assets,
+            skip_read=not self.parse,
+        )
+
+        if self.parse and not util.judge_need_skip(talk_actionset_json, talk_json):
+            text = self.reader.read_story_in_json(talk_json, lang, mark_lang)
+
+            filename = f'talk_{talk_id}'
+
+            area_name = self.area_name_json[str(actionSet['areaId'])]['areaName'][
+                Constant.lang_index[lang]
+            ]
+
+            with open(
+                os.path.join(self.save_dir.format(lang=lang), filename) + '.txt',
+                'w',
+                encoding='utf8',
+            ) as f:
+                left = Mark_multi_lang['['][mark_lang]
+                right = Mark_multi_lang[']'][mark_lang]
+                f.write(f"{talk_id} {left}{area_name}{right}\n\n")
+                f.write(text + '\n')
+
+        logging.info(f'get talk {talk_id} done.')
+
+
 async def main():
 
     logging.basicConfig(level=logging.INFO)
@@ -851,6 +952,7 @@ async def main():
     band_getter = Band_story_getter(reader, online=online)
     event_getter = Event_story_getter(reader, online=online)
     card_getter = Card_story_getter(reader, online=online)
+    area_getter = Area_talk_getter(reader, online=online)
 
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=net_connect_limit)
@@ -862,6 +964,7 @@ async def main():
             band_getter.init(session),
             event_getter.init(session),
             card_getter.init(session),
+            area_getter.init(session),
         )
 
         tasks = []
@@ -876,6 +979,8 @@ async def main():
             tasks.append(event_getter.get(i, *text_mark_lang))
         for i in range(1, 11):
             tasks.append(card_getter.get(i, *text_mark_lang))
+        for i in range(1, 6):
+            tasks.append(area_getter.get(i))
 
         await asyncio.gather(*tasks)
 
