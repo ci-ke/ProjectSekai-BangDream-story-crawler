@@ -371,7 +371,11 @@ async def fetch_url_json(
                             break
 
                     except Exception as e:
-                        last_error = f'ERROR: Fetch json error, attempt {attempt + 1}/{max_retries}, url: {current_url}, {traceback.format_exc()}'.strip()
+                        last_error = (
+                            f'ERROR: Fetch json error, attempt {attempt + 1}/{max_retries}, '
+                            + (f'msg: {extra_record_msg}, ' if extra_record_msg else '')
+                            + f'url: {current_url}, {traceback.format_exc()}'
+                        ).strip()
                         no_retry = (
                             isinstance(e, aiohttp.ClientResponseError)
                             and 400 <= e.status < 500
