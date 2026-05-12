@@ -1281,16 +1281,19 @@ class Area_talk_getter(Pjsk_getter):
                 filename = f'talk_event_{target:0{self.maxlen_eventId_areaID[0]}}'
             elif target.startswith('limited_'):
                 filename = f'talk_{target.split('_')[0]}_{target.split('_')[1]:0{self.maxlen_eventId_areaID[1]}}'
+
+                area_name_index = self.area_name_lookup.find_index(action['areaId'])
+                area_name = self.area_name_json[area_name_index]['name']
+
+                filename += ' ' + area_name
             else:
                 filename = f'talk_{target}'
 
             filename = util.valid_filename(filename)
 
-            with open(
-                os.path.join(self.save_dir, filename) + '.txt',
-                'w',
-                encoding='utf8',
-            ) as f:
+            filepath = os.path.join(self.save_dir, filename) + '.txt'
+            util.remove_olds_or_rename_old(filepath, r'([^\s\.]+)')
+            with open(filepath, 'w', encoding='utf8') as f:
                 for index, (action, text) in enumerate(zip(actions, texts)):
                     area_name_index = self.area_name_lookup.find_index(action['areaId'])
                     area_name = self.area_name_json[area_name_index]['name']
