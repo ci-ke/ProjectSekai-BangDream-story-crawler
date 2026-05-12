@@ -10,6 +10,8 @@ main_getter = bang.Main_story_getter(reader, save_dir='../story_{lang}/main')
 band_getter = bang.Band_story_getter(reader, save_dir='../story_{lang}/band')
 event_getter = bang.Event_story_getter(reader, save_dir='../story_{lang}/event')
 card_getter = bang.Card_story_getter(reader, save_dir='../story_{lang}/card')
+area_getter = bang.Area_talk_getter(reader, save_dir='../story_{lang}/area')
+
 
 net_connect_limit = 20
 
@@ -29,6 +31,7 @@ async def main():
             band_getter.init(session),
             event_getter.init(session),
             card_getter.init(session),
+            area_getter.init(session),
         )
 
         tasks = []
@@ -52,6 +55,12 @@ async def main():
             card_getter.get_newest('jp', 'en', quantity=0, timestamp13=timestamp13)
         )
         tasks.append(card_getter.get_newest('tw', quantity=0, timestamp13=timestamp13))
+
+        for i in area_getter.tell_area_ids():
+            for t in area_getter.types:
+                tasks.append(area_getter.get(i, t, 'cn'))
+                tasks.append(area_getter.get(i, t, 'jp', 'en'))
+                tasks.append(area_getter.get(i, t, 'tw'))
 
         await asyncio.gather(*tasks)
 

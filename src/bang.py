@@ -28,6 +28,17 @@ class Constant:
     }
 
 
+def bypass_asset_missing(story_json: Any) -> tuple[bool, str]:
+    if (
+        isinstance(story_json, str)
+        and story_json.startswith('ERROR: ')
+        and ('json.decoder.JSONDecodeError' in story_json)
+    ):
+        return True, 'Unable to read json file'
+    else:
+        return False, story_json
+
+
 class Story_reader(util.Base_fetcher):
     def __init__(
         self,
@@ -80,27 +91,11 @@ class Story_reader(util.Base_fetcher):
         band_abbr = Constant.band_id_abbr[band_id]
         return band_abbr, fullname, shortname
 
-    def read_story_in_json(
-        self,
-        json_data: str | dict[str, dict[str, Any]],
-        lang: str,
-        mark_lang: str,
+    def make_characters(
+        self, chara_id_list: list[int], lang: str, mark_lang: str
     ) -> str:
-        if isinstance(json_data, str):
-            return json_data
-
-        talks = json_data['Base']['talkData']
-        specialEffects = json_data['Base']['specialEffectData']
-
-        appearCharacters = json_data['Base']['appearCharacters']
-        chara_id = set()
-        for chara in appearCharacters:
-            if str(chara['characterId']) in self.characters_json:
-                chara_id.add(chara['characterId'])
-        chara_id_list = sorted(chara_id)
-
         if len(chara_id_list) > 0:
-            ret0 = (
+            return (
                 Mark_multi_lang['characters'][mark_lang]
                 + Mark_multi_lang[','][mark_lang].join(
                     [
@@ -111,7 +106,32 @@ class Story_reader(util.Base_fetcher):
                 + Mark_multi_lang[')'][mark_lang]
             )
         else:
-            ret0 = ''
+            return ''
+
+    def read_story_in_json(
+        self,
+        json_data: str | dict[str, dict[str, Any]],
+        lang: str,
+        mark_lang: str,
+        show_characters: bool = True,
+    ) -> str:
+        if isinstance(json_data, str):
+            return json_data
+
+        talks = json_data['Base']['talkData']
+        specialEffects = json_data['Base']['specialEffectData']
+
+        if show_characters:
+            appearCharacters = json_data['Base']['appearCharacters']
+            chara_id = set()
+            for chara in appearCharacters:
+                if str(chara['characterId']) in self.characters_json:
+                    chara_id.add(chara['characterId'])
+            chara_id_list = sorted(chara_id)
+        else:
+            chara_id_list = []
+
+        ret0 = self.make_characters(chara_id_list, lang, mark_lang)
 
         snippets = json_data['Base']['snippets']
         next_talk_need_newline = True
@@ -766,6 +786,9 @@ class Card_story_getter(util.Base_getter):
             story_1_json_task, story_2_json_task
         )
 
+        story_1_json = bypass_asset_missing(story_1_json)[1]
+        story_2_json = bypass_asset_missing(story_2_json)[1]
+
         if self.parse:
             text_1 = self.reader.read_story_in_json(story_1_json, lang, mark_lang)
             text_2 = self.reader.read_story_in_json(story_2_json, lang, mark_lang)
@@ -849,6 +872,7 @@ class Area_talk_getter(util.Base_getter):
         parse: bool = True,
         missing_download: bool = True,
         maxlen_areaID: int = 2,
+        print_fetch_detial: bool = False,
         compress_assets: bool = False,
         force_master_online: bool = False,
     ) -> None:
@@ -865,6 +889,9 @@ class Area_talk_getter(util.Base_getter):
 
         self.reader = reader
         self.maxlen_areaID = maxlen_areaID
+        self.print_fetch_detial = print_fetch_detial
+
+        self.types = ('normal', 'birthday', 'period_limited_area', 'area_item')
 
         self.areas_url = URLS['bestdori.com']['areas_1']
         self.actionSets_url = URLS['bestdori.com']['actionsets_5']
@@ -878,6 +905,9 @@ class Area_talk_getter(util.Base_getter):
     ) -> None:
         await super().init(session, network_semaphore)
 
+        self.area_name_json: dict[str, dict[str, str]]
+        self.actionSets_json: dict[str, dict[str, Any]]
+
         self.area_name_json, self.actionSets_json = await asyncio.gather(
             self.fetch_url_json(self.areas_url, force_online=self.force_master_online),
             self.fetch_url_json(
@@ -885,15 +915,139 @@ class Area_talk_getter(util.Base_getter):
             ),
         )
 
-    async def get(self, talk_id: int, lang: str = 'cn', mark_lang: str = 'cn') -> None:
+    async def get(
+        self, area_id: int, talk_type: str, lang: str = 'cn', mark_lang: str = 'cn'
+    ) -> None:
+        if str(area_id) not in self.area_name_json:
+            logging.info(f'talk area {area_id} does not exist.')
+            return
+
+        if talk_type not in self.types:
+            logging.info(f'talk type {talk_type} does not exist.')
+            return
+
+        collected_talk_ids = []
+
+        for talk_id_str, actionset in self.actionSets_json.items():
+            if (
+                actionset['areaId'] == area_id
+                and actionset['actionSetType'] == talk_type
+            ):
+                collected_talk_ids.append(int(talk_id_str))
+
+        tasks = []
+        for talk_id in collected_talk_ids:
+            tasks.append(
+                self.fetch_url_json(
+                    self.talk_actionset_asset.format(
+                        lang=lang, group=math.floor(talk_id / 128), id=talk_id
+                    ),
+                    print_done=self.print_fetch_detial,
+                    compress=self.compress_assets,
+                    skip_read=not self.parse,
+                )
+            )
+        collected_talk_actionset_jsons = await asyncio.gather(*tasks)
+
+        legal_talk_ids = []
+        legal_talk_actionset_jsons = []
+        for talk_id, talk_actionset_json in zip(
+            collected_talk_ids, collected_talk_actionset_jsons
+        ):
+            if not isinstance(talk_actionset_json, str):
+                reactionType = talk_actionset_json['Base']['details'][0]['reactionType']
+                if reactionType != 1:
+                    continue
+            if bypass_asset_missing(talk_actionset_json)[0]:
+                continue
+
+            legal_talk_ids.append(talk_id)
+            legal_talk_actionset_jsons.append(talk_actionset_json)
+
+        if len(legal_talk_ids) == 0:
+            logging.info(f'talk {talk_type} {area_id} does not exist.')
+            return
+
+        async def noop(x: str) -> str:
+            return x
+
+        tasks = []
+        for talk_id, talk_actionset_json in zip(
+            legal_talk_ids, legal_talk_actionset_jsons
+        ):
+            if isinstance(talk_actionset_json, str):
+                tasks.append(noop(talk_actionset_json))
+            else:
+                scenario_id = talk_actionset_json['Base']['details'][0][
+                    'reactionTypeBelongId'
+                ]
+
+                tasks.append(
+                    self.fetch_url_json(
+                        self.talk_scenario_asset.format(
+                            lang=lang,
+                            group=math.floor(talk_id / 256),
+                            scenario_id=scenario_id,
+                        ),
+                        str(talk_id),
+                        print_done=self.print_fetch_detial,
+                        compress=self.compress_assets,
+                        skip_read=not self.parse,
+                    )
+                )
+        talk_jsons = await asyncio.gather(*tasks)
+
+        i = 0
+        while i < len(talk_jsons):
+            talk_jsons[i] = bypass_asset_missing(talk_jsons[i])[1]
+            i += 1
+
+        if self.parse and not util.judge_need_skip(*talk_jsons):
+            os.makedirs(self.save_dir.format(lang=lang), exist_ok=True)
+
+            texts = [
+                self.reader.read_story_in_json(talk_json, lang, mark_lang)
+                for talk_json in talk_jsons
+            ]
+
+            area_name = self.area_name_json[str(area_id)]['areaName'][
+                Constant.lang_index[lang]
+            ]
+            filename = f'talk_{talk_type}_{area_id:0{self.maxlen_areaID}} {area_name}'
+
+            filepath = os.path.join(self.save_dir.format(lang=lang), filename) + '.txt'
+            util.remove_olds_or_rename_old(filepath, r'([^\s\.]+)')
+            with open(filepath, 'w', encoding='utf8') as f:
+                left = Mark_multi_lang['['][mark_lang]
+                right = Mark_multi_lang[']'][mark_lang]
+
+                for index, (talk_id, text) in enumerate(zip(legal_talk_ids, texts)):
+                    # charaters = self.reader.make_characters(
+                    #     sorted(
+                    #         filter(
+                    #             lambda id: str(id) in self.reader.characters_json,
+                    #             self.actionSets_json[str(talk_id)]['characterIds'],
+                    #         )
+                    #     ),
+                    #     lang,
+                    #     mark_lang,
+                    # )
+
+                    f.write(f"{index+1}:{talk_id} {left}{area_name}{right}\n\n")
+                    # if charaters:
+                    #     f.write(charaters + '\n\n')
+                    f.write(text + '\n\n\n')
+
+        logging.info(f'get talk {talk_type} {area_id} done.')
+
+    async def get_id_to_single_file(
+        self, talk_id: int, lang: str = 'cn', mark_lang: str = 'cn'
+    ) -> None:
         if str(talk_id) not in self.actionSets_json:
             logging.info(f'talk {talk_id} does not exist.')
             return
 
         actionSet = self.actionSets_json[str(talk_id)]
-
-        if self.parse:
-            os.makedirs(self.save_dir.format(lang=lang), exist_ok=True)
 
         talk_actionset_json = await self.fetch_url_json(
             self.talk_actionset_asset.format(
@@ -903,21 +1057,30 @@ class Area_talk_getter(util.Base_getter):
             skip_read=not self.parse,
         )
 
-        scenario_id = talk_actionset_json['Base']['details'][0]['reactionTypeBelongId']
+        if isinstance(talk_actionset_json, str):
+            talk_json = talk_actionset_json
+        else:
+            reactionType = talk_actionset_json['Base']['details'][0]['reactionType']
+            scenario_id = talk_actionset_json['Base']['details'][0][
+                'reactionTypeBelongId'
+            ]
 
-        if len(scenario_id) == 0:
-            logging.info(f'talk {talk_id} does not exist.')
-            return
+            if reactionType != 1:
+                logging.info(f'talk {talk_id} does not exist.')
+                return
 
-        talk_json = await self.fetch_url_json(
-            self.talk_scenario_asset.format(
-                lang=lang, group=math.floor(talk_id / 256), scenario_id=scenario_id
-            ),
-            compress=self.compress_assets,
-            skip_read=not self.parse,
-        )
+            talk_json = await self.fetch_url_json(
+                self.talk_scenario_asset.format(
+                    lang=lang, group=math.floor(talk_id / 256), scenario_id=scenario_id
+                ),
+                str(talk_id),
+                compress=self.compress_assets,
+                skip_read=not self.parse,
+            )
 
-        if self.parse and not util.judge_need_skip(talk_actionset_json, talk_json):
+        if self.parse and not util.judge_need_skip(talk_json):
+            os.makedirs(self.save_dir.format(lang=lang), exist_ok=True)
+
             text = self.reader.read_story_in_json(talk_json, lang, mark_lang)
 
             filename = f'talk_{talk_id}'
@@ -933,10 +1096,15 @@ class Area_talk_getter(util.Base_getter):
             ) as f:
                 left = Mark_multi_lang['['][mark_lang]
                 right = Mark_multi_lang[']'][mark_lang]
-                f.write(f"{talk_id} {left}{area_name}{right}\n\n")
+                f.write(
+                    f"{talk_id} {actionSet['actionSetType']} {left}{area_name}{right}\n\n"
+                )
                 f.write(text + '\n')
 
         logging.info(f'get talk {talk_id} done.')
+
+    def tell_area_ids(self) -> list[int]:
+        return [int(x) for x in self.area_name_json]
 
 
 async def main():
@@ -980,7 +1148,7 @@ async def main():
         for i in range(1, 11):
             tasks.append(card_getter.get(i, *text_mark_lang))
         for i in range(1, 6):
-            tasks.append(area_getter.get(i))
+            tasks.append(area_getter.get_id_to_single_file(i))
 
         await asyncio.gather(*tasks)
 

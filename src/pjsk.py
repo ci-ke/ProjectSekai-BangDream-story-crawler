@@ -102,6 +102,7 @@ class Pjsk_fetcher(util.Base_fetcher):
         append_save_path: str | None = None,
         compress: bool = False,
         force_online: bool = False,
+        force_local: bool = False,
         skip_read: bool = False,
         content_save_edit: Callable | None = None,
         lang_for_path: str | None = None,
@@ -134,6 +135,7 @@ class Pjsk_fetcher(util.Base_fetcher):
             append_save_path=append_save_path,
             compress=compress,
             force_online=force_online,
+            force_local=force_local,
             skip_read=skip_read,
             content_save_edit=content_save_edit,
         )
@@ -1294,6 +1296,9 @@ class Area_talk_getter(Pjsk_getter):
             filepath = os.path.join(self.save_dir, filename) + '.txt'
             util.remove_olds_or_rename_old(filepath, r'([^\s\.]+)')
             with open(filepath, 'w', encoding='utf8') as f:
+                left = Mark_multi_lang['['][self.reader.mark_lang]
+                right = Mark_multi_lang[']'][self.reader.mark_lang]
+
                 for index, (action, text) in enumerate(zip(actions, texts)):
                     area_name_index = self.area_name_lookup.find_index(action['areaId'])
                     area_name = self.area_name_json[area_name_index]['name']
@@ -1301,8 +1306,6 @@ class Area_talk_getter(Pjsk_getter):
                     if sub_name is not None:
                         area_name += ' - ' + sub_name
 
-                    left = Mark_multi_lang['['][self.reader.mark_lang]
-                    right = Mark_multi_lang[']'][self.reader.mark_lang]
                     f.write(
                         f"{index+1} {action['id']}:{action['scenarioId']}\n\n{left}{area_name}{right}\n\n"
                     )

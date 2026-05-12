@@ -151,15 +151,23 @@ class Base_fetcher:
         append_save_path: str | None = None,
         compress: bool = False,
         force_online: bool = False,
+        force_local: bool = False,
         skip_read: bool = False,
         content_save_edit: Callable | None = None,
     ) -> Any:
+        if force_local:
+            online = False
+            missing_download = False
+        else:
+            online = self.online | force_online
+            missing_download = self.missing_download
+
         return await fetch_url_json(
             url,
-            self.online | force_online,
+            online,
             self.save_assets,
             self.assets_save_dir,
-            self.missing_download,
+            missing_download,
             extra_record_msg=extra_record_msg,
             session=self.session,
             network_semaphore=self.network_semaphore,
@@ -379,7 +387,7 @@ async def fetch_url_json(
                         no_retry = (
                             isinstance(e, aiohttp.ClientResponseError)
                             and 400 <= e.status < 500
-                        )
+                        ) | isinstance(e, json.decoder.JSONDecodeError)
                         if no_retry or attempt + 1 == max_retries:
                             logging.warning(last_error)
                         if no_retry:
