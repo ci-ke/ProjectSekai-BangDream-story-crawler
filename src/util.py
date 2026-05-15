@@ -380,14 +380,19 @@ async def fetch_url_json(
 
                     except Exception as e:
                         last_error = (
-                            f'ERROR: Fetch json error, attempt {attempt + 1}/{max_retries}, '
-                            + (f'msg: {extra_record_msg}, ' if extra_record_msg else '')
-                            + f'url: {current_url}, {traceback.format_exc()}'
-                        ).strip()
+                            f'ERROR: Fetch json error, attempt {attempt + 1}/{max_retries} || '
+                            + f'{type(e)}: {e} || '
+                            + f'url: {current_url}'
+                            + (
+                                f' || message: {extra_record_msg}'
+                                if extra_record_msg
+                                else ''
+                            )
+                        )
                         no_retry = (
                             isinstance(e, aiohttp.ClientResponseError)
                             and 400 <= e.status < 500
-                        ) | isinstance(e, json.decoder.JSONDecodeError)
+                        ) or isinstance(e, json.decoder.JSONDecodeError)
                         if no_retry or attempt + 1 == max_retries:
                             logging.warning(last_error)
                         if no_retry:
