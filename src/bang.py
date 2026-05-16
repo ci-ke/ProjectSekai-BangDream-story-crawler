@@ -492,11 +492,12 @@ class Band_story_getter(util.Base_getter):
                 save_folder_name,
             )
             if self.parse:
-                os.makedirs(Path(band_save_dir).parents[1], exist_ok=True)
-                util.remove_olds_or_rename_old(Path(band_save_dir).parent, r'(\d+) ')
+                ## bad for EN
+                # os.makedirs(Path(band_save_dir).parents[1], exist_ok=True)
+                # util.remove_olds_or_rename_old(Path(band_save_dir).parent, r'(\d+) ')
 
-                os.makedirs(Path(band_save_dir).parent, exist_ok=True)
-                util.remove_olds_or_rename_old(band_save_dir, r'([^\s]+) ')
+                # os.makedirs(Path(band_save_dir).parent, exist_ok=True)
+                # util.remove_olds_or_rename_old(band_save_dir, r'([^\s]+) ')
                 os.makedirs(band_save_dir, exist_ok=True)
 
             for story in band_story['stories'].values():
