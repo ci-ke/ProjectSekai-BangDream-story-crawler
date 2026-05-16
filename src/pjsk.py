@@ -208,16 +208,25 @@ class Story_reader(Pjsk_fetcher):
         profile: dict[str, Any] = self.gameCharacters[profile_index]
         first_name = profile.get('firstName')
         givenName: str = profile['givenName']
+        unit_abbr = Constant.unit_code_abbr[profile['unit']]
         if self.lang != 'en':
             full_name: str = (
                 (first_name + givenName) if first_name is not None else givenName
             )
         else:
-            full_name = (
-                (givenName + ' ' + first_name) if first_name is not None else givenName
-            )
+            if unit_abbr == 'VS':
+                full_name = (
+                    (first_name + ' ' + givenName)
+                    if first_name is not None
+                    else givenName
+                )
+            else:
+                full_name = (
+                    (givenName + ' ' + first_name)
+                    if first_name is not None
+                    else givenName
+                )
 
-        unit_abbr = Constant.unit_code_abbr[profile['unit']]
         return (unit_abbr, full_name.strip(), givenName.strip())
 
     def get_chara2d_unitAbbr_names_isVS(
