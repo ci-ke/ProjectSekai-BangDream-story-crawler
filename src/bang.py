@@ -1,4 +1,4 @@
-import os, asyncio, json, time, logging, copy, math
+import os, asyncio, json, time, logging, copy, math, re
 from pathlib import Path
 from typing import Any
 from asyncio import Semaphore
@@ -482,9 +482,9 @@ class Band_story_getter(util.Base_getter):
                 )
                 continue
 
-            save_folder_name = util.valid_filename(
-                f'{band_story["mainTitle"][Constant.lang_index[lang]]} {band_story["subTitle"][Constant.lang_index[lang]]}'
-            )
+            mainTitle = band_story["mainTitle"][Constant.lang_index[lang]]
+            subTitle = band_story["subTitle"][Constant.lang_index[lang]]
+            save_folder_name = util.valid_filename(f'{mainTitle} {subTitle}')
 
             band_save_dir = os.path.join(
                 self.save_dir.format(lang=lang),
@@ -492,12 +492,13 @@ class Band_story_getter(util.Base_getter):
                 save_folder_name,
             )
             if self.parse:
-                ## bad for EN
-                # os.makedirs(Path(band_save_dir).parents[1], exist_ok=True)
-                # util.remove_olds_or_rename_old(Path(band_save_dir).parent, r'(\d+) ')
+                os.makedirs(Path(band_save_dir).parents[1], exist_ok=True)
+                util.remove_olds_or_rename_old(Path(band_save_dir).parent, r'(\d+) ')
 
-                # os.makedirs(Path(band_save_dir).parent, exist_ok=True)
-                # util.remove_olds_or_rename_old(band_save_dir, r'([^\s]+) ')
+                os.makedirs(Path(band_save_dir).parent, exist_ok=True)
+                util.remove_olds_or_rename_old(
+                    band_save_dir, f'({re.escape(mainTitle)}) '
+                )
                 os.makedirs(band_save_dir, exist_ok=True)
 
             for story in band_story['stories'].values():
