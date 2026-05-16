@@ -338,7 +338,7 @@ class Event_story_getter(util.Base_getter):
 
         id = story['scenarioId']
 
-        filename = util.valid_filename(name)
+        filename = util.valid_filename(name + '.txt')
 
         if ('bandStoryId' not in story) and (
             event_id not in Event_story_getter.event_is_main
@@ -362,7 +362,7 @@ class Event_story_getter(util.Base_getter):
             story_json = ''
 
         if self.parse and not util.judge_need_skip(story_json):
-            file_path = os.path.join(event_save_dir, filename) + '.txt'
+            file_path = os.path.join(event_save_dir, filename)
             util.remove_olds_or_rename_old(file_path, r'([^\s]+) ')
             with open(file_path, 'w', encoding='utf8') as f:
                 f.write(name + '\n\n')
@@ -529,7 +529,7 @@ class Band_story_getter(util.Base_getter):
         synopsis = story['synopsis'][Constant.lang_index[lang]].replace('\n', ' ')
         id = story['scenarioId']
 
-        filename = util.valid_filename(name)
+        filename = util.valid_filename(name + '.txt')
 
         story_json: dict[str, dict[str, Any]] = await self.fetch_url_json(
             self.band_asset_url.format(lang=lang, band_id=band_id, id=id),
@@ -541,7 +541,7 @@ class Band_story_getter(util.Base_getter):
         if self.parse and not util.judge_need_skip(story_json):
             text = self.reader.read_story_in_json(story_json, lang, mark_lang)
 
-            file_path = os.path.join(band_save_dir, filename) + '.txt'
+            file_path = os.path.join(band_save_dir, filename)
             util.remove_olds_or_rename_old(file_path, r'([^\s]+) ')
             with open(file_path, 'w', encoding='utf8') as f:
                 f.write(name + '\n\n')
@@ -612,7 +612,7 @@ class Main_story_getter(util.Base_getter):
 
             name = f"{main_story['scenarioId']} {main_story['caption'][Constant.lang_index[lang]]} {main_story['title'][Constant.lang_index[lang]]}"
 
-            filename = util.valid_filename(name)
+            filename = util.valid_filename(name + '.txt')
 
             synopsis = main_story['synopsis'][Constant.lang_index[lang]].replace(
                 '\n', ' '
@@ -643,7 +643,7 @@ class Main_story_getter(util.Base_getter):
         if self.parse and not util.judge_need_skip(story_json):
             text = self.reader.read_story_in_json(story_json, lang, mark_lang)
 
-            file_path = os.path.join(self.save_dir.format(lang=lang), filename) + '.txt'
+            file_path = os.path.join(self.save_dir.format(lang=lang), filename)
             util.remove_olds_or_rename_old(file_path, r'([^\s]+) ')
             with open(file_path, 'w', encoding='utf8') as f:
                 f.write(name + '\n\n')
@@ -745,6 +745,7 @@ class Card_story_getter(util.Base_getter):
 
         card_story_filename = util.valid_filename(
             f'{card_id:0{self.maxlen_charaId_cardId[1]}}_{chara_name}_R{cardRarityType} {card_name}'
+            + '.txt'
         )
 
         story_1_name = card['episodes']['entries'][0]['title'][
@@ -804,7 +805,7 @@ class Card_story_getter(util.Base_getter):
             util.remove_olds_or_rename_old(card_save_dir, r'(\d+) ')
             os.makedirs(card_save_dir, exist_ok=True)
 
-            file_path = os.path.join(card_save_dir, card_story_filename) + '.txt'
+            file_path = os.path.join(card_save_dir, card_story_filename)
             util.remove_olds_or_rename_old(file_path, r'(\d+)_')
             with open(file_path, 'w', encoding='utf8') as f:
                 f.write(card_story_name + '\n\n')

@@ -632,6 +632,7 @@ class Event_story_getter(Pjsk_getter):
         )
         episode_save_name = util.valid_filename(
             f"{episode['eventStoryId']:0{self.maxlen_eventId_episode[0]}}-{episode['episodeNo']:0{self.maxlen_eventId_episode[1]}} {episode['title']}"
+            + '.txt'
         )
 
         if event_type == 'world_bloom':
@@ -640,7 +641,7 @@ class Event_story_getter(Pjsk_getter):
                 chara_name = self.reader.get_chara_unitAbbr_names(gameCharacterId)[1]
                 episode_name += f" ({chara_name})"
                 episode_save_name = util.valid_filename(
-                    episode_save_name + f" ({chara_name})"
+                    episode_save_name[:-4] + f" ({chara_name})" + '.txt'
                 )
 
         scenarioId = episode['scenarioId']
@@ -657,7 +658,7 @@ class Event_story_getter(Pjsk_getter):
         if self.parse and not util.judge_need_skip(story_json):
             text = self.reader.read_story_in_json(story_json)
 
-            file_path = os.path.join(event_save_dir, episode_save_name) + '.txt'
+            file_path = os.path.join(event_save_dir, episode_save_name)
             util.remove_olds_or_rename_old(file_path, r'(\d+-\d+) ')
             with open(file_path, 'w', encoding='utf8') as f:
                 if episode['episodeNo'] == 1:
@@ -844,7 +845,7 @@ class Unit_story_getter(Pjsk_getter):
         else:
             unit_outline = None
 
-        episode_save_name = util.valid_filename(episode_name)
+        episode_save_name = util.valid_filename(episode_name + '.txt')
 
         story_json: dict[str, Any] = await self.fetch_url_json(
             [
@@ -858,7 +859,7 @@ class Unit_story_getter(Pjsk_getter):
         if self.parse and not util.judge_need_skip(story_json):
             text = self.reader.read_story_in_json(story_json)
 
-            file_path = os.path.join(unit_save_dir, episode_save_name) + '.txt'
+            file_path = os.path.join(unit_save_dir, episode_save_name)
             util.remove_olds_or_rename_old(file_path, r'([^\s]+) ')
             with open(file_path, 'w', encoding='utf8') as f:
                 if unit_outline is not None:
@@ -997,6 +998,7 @@ class Card_story_getter(Pjsk_getter):
 
         card_story_filename = util.valid_filename(
             f'{card_id:0{self.maxlen_charaId_cardId[1]}}_{chara_name}{sub_unit_name}_{cardRarityType} {card_name}{belong_event}'
+            + '.txt'
         )
 
         story_1_json, story_2_json = await asyncio.gather(
@@ -1032,7 +1034,7 @@ class Card_story_getter(Pjsk_getter):
             text_1 = self.reader.read_story_in_json(story_1_json)
             text_2 = self.reader.read_story_in_json(story_2_json)
 
-            file_path = os.path.join(card_save_dir, card_story_filename) + '.txt'
+            file_path = os.path.join(card_save_dir, card_story_filename)
             util.remove_olds_or_rename_old(file_path, r'(\d+)_')
             with open(file_path, 'w', encoding='utf8') as f:
                 f.write(card_story_name + '\n\n')
@@ -1291,9 +1293,9 @@ class Area_talk_getter(Pjsk_getter):
             else:
                 filename = f'talk_{target}'
 
-            filename = util.valid_filename(filename)
+            filename = util.valid_filename(filename + '.txt')
 
-            filepath = os.path.join(self.save_dir, filename) + '.txt'
+            filepath = os.path.join(self.save_dir, filename)
             util.remove_olds_or_rename_old(filepath, r'([^\s\.]+)')
             with open(filepath, 'w', encoding='utf8') as f:
                 left = Mark_multi_lang['['][self.reader.mark_lang]
@@ -1456,7 +1458,7 @@ class Self_intro_getter(Pjsk_getter):
         chara_unit_name = '_'.join(self.reader.get_chara_unitAbbr_names(chara_id)[:2])
 
         filename = util.valid_filename(
-            f'{chara_id:0{self.maxlen_charaId}} {chara_unit_name}'
+            f'{chara_id:0{self.maxlen_charaId}} {chara_unit_name}' + '.txt'
         )
 
         profile = self.characterProfiles_json[profile_index]
@@ -1487,7 +1489,7 @@ class Self_intro_getter(Pjsk_getter):
             text_1 = self.reader.read_story_in_json(grade1_json)
             text_2 = self.reader.read_story_in_json(grade2_json)
 
-            file_path = os.path.join(self.save_dir, filename) + '.txt'
+            file_path = os.path.join(self.save_dir, filename)
             util.remove_olds_or_rename_old(file_path, r'(\d+) ')
             with open(file_path, 'w', encoding='utf8') as f:
                 f.write(
@@ -1604,10 +1606,10 @@ class Special_story_getter(Pjsk_getter):
 
             story_name = f"sp{id} {episodes[0]['title']} ({episodes[0]['scenarioId']})"
             filename = util.valid_filename(
-                f"sp{id:0{self.maxlen_sp}} {episodes[0]['title']}"
+                f"sp{id:0{self.maxlen_sp}} {episodes[0]['title']}" + '.txt'
             )
 
-            file_path = os.path.join(self.save_dir, filename) + '.txt'
+            file_path = os.path.join(self.save_dir, filename)
             util.remove_olds_or_rename_old(file_path, r'sp(\d+) ')
             with open(file_path, 'w', encoding='utf8') as f:
                 f.write(story_name + '\n\n')

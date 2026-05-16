@@ -41,7 +41,7 @@ unit_getter_tw = pjsk.Unit_story_getter(reader_tw, **args)
 self_getter_tw = pjsk.Self_intro_getter(reader_tw, **args)
 special_getter_tw = pjsk.Special_story_getter(reader_tw, **args)
 
-reader_en = pjsk.Story_reader('en', **args)
+reader_en = pjsk.Story_reader('en', mark_lang='en', **args)
 event_getter_en = pjsk.Event_story_getter(reader_en, **args)
 card_getter_en = pjsk.Card_story_getter(reader_en, **args)
 area_getter_en = pjsk.Area_talk_getter(reader_en, **args)
