@@ -31,8 +31,9 @@ class Constant:
 def bypass_asset_missing(story_json: Any) -> tuple[bool, str]:
     if (
         isinstance(story_json, str)
-        and story_json.startswith('ERROR: ')
-        and 'JSONDecodeError' in story_json.split('||')[1].split(':')[0]
+        and story_json.startswith('ERROR:')
+        and len(details := story_json.split('||')) > 1
+        and 'JSONDecodeError' in details[1].split(':')[0]
     ):
         return True, 'Unable to read json file'
     else:
