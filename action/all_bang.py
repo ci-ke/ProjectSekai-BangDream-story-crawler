@@ -37,30 +37,39 @@ async def main():
         tasks = []
 
         tasks.append(main_getter.get(None, 'cn'))
-        tasks.append(main_getter.get(None, 'jp', 'en'))
         tasks.append(main_getter.get(None, 'tw'))
+        tasks.append(main_getter.get(None, 'jp', 'en'))
+        tasks.append(main_getter.get(None, 'en', 'en'))
 
         tasks.append(band_getter.get(None, None, 'cn'))
-        tasks.append(band_getter.get(None, None, 'jp', 'en'))
         tasks.append(band_getter.get(None, None, 'tw'))
+        tasks.append(band_getter.get(None, None, 'jp', 'en'))
+        tasks.append(band_getter.get(None, None, 'en', 'en'))
 
         tasks.append(event_getter.get_newest('cn', quantity=0, timestamp13=timestamp13))
+        tasks.append(event_getter.get_newest('tw', quantity=0, timestamp13=timestamp13))
         tasks.append(
             event_getter.get_newest('jp', 'en', quantity=0, timestamp13=timestamp13)
         )
-        tasks.append(event_getter.get_newest('tw', quantity=0, timestamp13=timestamp13))
+        tasks.append(
+            event_getter.get_newest('en', 'en', quantity=0, timestamp13=timestamp13)
+        )
 
         tasks.append(card_getter.get_newest('cn', quantity=0, timestamp13=timestamp13))
+        tasks.append(card_getter.get_newest('tw', quantity=0, timestamp13=timestamp13))
         tasks.append(
             card_getter.get_newest('jp', 'en', quantity=0, timestamp13=timestamp13)
         )
-        tasks.append(card_getter.get_newest('tw', quantity=0, timestamp13=timestamp13))
+        tasks.append(
+            card_getter.get_newest('en', 'en', quantity=0, timestamp13=timestamp13)
+        )
 
         for i in area_getter.tell_area_ids():
             for t in area_getter.types:
                 tasks.append(area_getter.get(i, t, 'cn'))
-                tasks.append(area_getter.get(i, t, 'jp', 'en'))
                 tasks.append(area_getter.get(i, t, 'tw'))
+                tasks.append(area_getter.get(i, t, 'jp', 'en'))
+                tasks.append(area_getter.get(i, t, 'en', 'en'))
 
         await asyncio.gather(*tasks)
 

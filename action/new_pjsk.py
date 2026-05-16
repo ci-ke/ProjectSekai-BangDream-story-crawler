@@ -18,6 +18,11 @@ from .all_pjsk import (
     card_getter_tw,
     area_getter_tw,
     special_getter_tw,
+    reader_en,
+    event_getter_en,
+    card_getter_en,
+    area_getter_en,
+    special_getter_en,
     net_connect_limit,
     timestamp13,
 )
@@ -43,6 +48,11 @@ async def main():
             card_getter_tw.init(session),
             area_getter_tw.init(session),
             special_getter_tw.init(session),
+            reader_en.init(session),
+            event_getter_en.init(session),
+            card_getter_en.init(session),
+            area_getter_en.init(session),
+            special_getter_en.init(session),
         )
 
         tasks = []
@@ -60,11 +70,17 @@ async def main():
                 10, area_getter=area_getter_tw, timestamp13=timestamp13
             )
         )
+        tasks.append(
+            event_getter_en.get_newest(
+                10, area_getter=area_getter_en, timestamp13=timestamp13
+            )
+        )
 
         tasks.append(card_getter.get_newest(50, timestamp13=timestamp13))
         for i in card_getter_jp.tell_ids()[-50:]:
             tasks.append(card_getter_jp.get(i))
         tasks.append(card_getter_tw.get_newest(50, timestamp13=timestamp13))
+        tasks.append(card_getter_en.get_newest(50, timestamp13=timestamp13))
 
         for i in special_getter.tell_ids()[-5:]:
             tasks.append(special_getter.get(i))
@@ -72,6 +88,8 @@ async def main():
             tasks.append(special_getter_jp.get(i))
         for i in special_getter_tw.tell_ids()[-5:]:
             tasks.append(special_getter_tw.get(i))
+        for i in special_getter_en.tell_ids()[-5:]:
+            tasks.append(special_getter_en.get(i))
 
         await asyncio.gather(*tasks)
 

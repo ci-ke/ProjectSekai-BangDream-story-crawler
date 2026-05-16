@@ -1149,7 +1149,7 @@ async def main():
         for i in range(1, 11):
             tasks.append(card_getter.get(i, *text_mark_lang))
         for i in range(1, 6):
-            tasks.append(area_getter.get_id_to_single_file(i))
+            tasks.append(area_getter.get_id_to_single_file(i, *text_mark_lang))
 
         await asyncio.gather(*tasks)
 
