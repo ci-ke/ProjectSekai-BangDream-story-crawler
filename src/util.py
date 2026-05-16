@@ -223,16 +223,22 @@ class DictLookup:
 
 
 def valid_filename(filename: str) -> str:
-    return (
-        filename.strip()
-        .replace('*', '＊')
+    cleaned = filename.strip()
+    while cleaned.endswith('.'):
+        cleaned = cleaned[:-1]
+    cleaned = (
+        cleaned.replace('*', '＊')
         .replace(':', '：')
         .replace('/', '／')
         .replace('\\', '＼')
         .replace('?', '？')
-        .replace('"', "''")
+        .replace('"', '＂')
+        .replace('<', '＜')
+        .replace('>', '＞')
+        .replace('|', '｜')
         .replace('\n', ' ')
     )
+    return cleaned
 
 
 def url_to_path(url: str, save_dir: str) -> str:
