@@ -29,13 +29,13 @@ def create_getters(
     use_parent_save_dir: bool = False,
     args: dict[str, Any] | None = None,
 ) -> Getters_type:
-    if mark_lang is not None:
-        reader = pjsk.Story_reader(lang=lang, mark_lang=mark_lang)
-    else:
-        reader = pjsk.Story_reader(lang=lang)
-
     if args is None:
         args = {}
+
+    if mark_lang is not None:
+        reader = pjsk.Story_reader(lang=lang, mark_lang=mark_lang, **args)
+    else:
+        reader = pjsk.Story_reader(lang=lang, **args)
 
     def get_save_dir(getter_cls) -> str:
         default = inspect.signature(getter_cls.__init__).parameters['save_dir'].default
