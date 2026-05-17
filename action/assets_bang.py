@@ -1,74 +1,42 @@
 import asyncio, sys
-from typing import Any
+from typing import cast, Any
 
 from aiohttp import ClientSession, TCPConnector
 
-import src.bang as bang
+import src.util as util
 
-assert sys.argv[1] in ('full', 'incremental')
-online = True if sys.argv[1] == 'full' else False
-
-args: dict[str, Any] = {
-    'online': online,
-    'parse': False,
-    'assets_save_dir': '../assets',
-    'compress_assets': True,
-    'force_master_online': True,
-}
-
-reader = bang.Story_reader(**args)
-main_getter = bang.Main_story_getter(reader, **args)
-band_getter = bang.Band_story_getter(reader, **args)
-event_getter = bang.Event_story_getter(reader, **args)
-card_getter = bang.Card_story_getter(reader, **args)
-area_getter = bang.Area_talk_getter(reader, **args)
+from .all_bang import (
+    create_getters,
+    Getters_type,
+    TaskList_type,
+    add_all_tasks,
+    NET_CONNECT_LIMIT,
+)
 
 
-net_connect_limit = 20
+async def main() -> None:
+    assert sys.argv[1] in ('full', 'incremental')
+    online = sys.argv[1] == 'full'
 
+    args: dict[str, Any] = {
+        'online': online,
+        'parse': False,
+        'assets_save_dir': '../assets',
+        'compress_assets': True,
+        'force_master_online': True,
+    }
 
-async def main():
+    getters = create_getters(args=args)
+
     async with ClientSession(
-        trust_env=True, connector=TCPConnector(limit=net_connect_limit)
+        trust_env=True, connector=TCPConnector(limit=NET_CONNECT_LIMIT)
     ) as session:
         await asyncio.gather(
-            reader.init(session),
-            main_getter.init(session),
-            band_getter.init(session),
-            event_getter.init(session),
-            card_getter.init(session),
-            area_getter.init(session),
+            *[cast(util.Base_fetcher, obj).init(session) for obj in getters.values()]
         )
 
-        tasks = []
-
-        tasks.append(main_getter.get(None, 'cn'))
-        tasks.append(main_getter.get(None, 'tw'))
-        tasks.append(main_getter.get(None, 'jp', 'en'))
-        tasks.append(main_getter.get(None, 'en', 'en'))
-
-        tasks.append(band_getter.get(None, None, 'cn'))
-        tasks.append(band_getter.get(None, None, 'tw'))
-        tasks.append(band_getter.get(None, None, 'jp', 'en'))
-        tasks.append(band_getter.get(None, None, 'en', 'en'))
-
-        tasks.append(event_getter.get_newest('cn', quantity=0))
-        tasks.append(event_getter.get_newest('tw', quantity=0))
-        tasks.append(event_getter.get_newest('jp', 'en', quantity=0))
-        tasks.append(event_getter.get_newest('en', 'en', quantity=0))
-
-        tasks.append(card_getter.get_newest('cn', quantity=0))
-        tasks.append(card_getter.get_newest('tw', quantity=0))
-        tasks.append(card_getter.get_newest('jp', 'en', quantity=0))
-        tasks.append(card_getter.get_newest('en', 'en', quantity=0))
-
-        for i in area_getter.tell_area_ids():
-            for t in area_getter.types:
-                tasks.append(area_getter.get(i, t, 'cn'))
-                tasks.append(area_getter.get(i, t, 'tw'))
-                tasks.append(area_getter.get(i, t, 'jp', 'en'))
-                tasks.append(area_getter.get(i, t, 'en', 'en'))
-
+        tasks: TaskList_type = []
+        add_all_tasks(tasks, getters)
         await asyncio.gather(*tasks)
 
 

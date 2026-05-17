@@ -1,76 +1,108 @@
-import asyncio
+import asyncio, inspect
+from typing import cast, Any, TypedDict
+from collections.abc import Coroutine
 from datetime import datetime, timedelta, timezone
 
 from aiohttp import ClientSession, TCPConnector
 
 import src.bang as bang
+import src.util as util
 
-reader = bang.Story_reader()
-main_getter = bang.Main_story_getter(reader, save_dir='../story_{lang}/main')
-band_getter = bang.Band_story_getter(reader, save_dir='../story_{lang}/band')
-event_getter = bang.Event_story_getter(reader, save_dir='../story_{lang}/event')
-card_getter = bang.Card_story_getter(reader, save_dir='../story_{lang}/card')
-area_getter = bang.Area_talk_getter(reader, save_dir='../story_{lang}/area')
+NET_CONNECT_LIMIT = 20
+TIMESTAMP13 = int((datetime.now(timezone.utc) + timedelta(hours=24)).timestamp() * 1000)
 
+LANGS: tuple[tuple[str, str], ...] = (
+    ('cn', 'cn'),
+    ('tw', 'cn'),
+    ('jp', 'en'),
+    ('en', 'en'),
+)
 
-net_connect_limit = 20
-
-now = datetime.now(timezone.utc)
-future_time = now + timedelta(hours=24)
-future_timestamp = future_time.timestamp()
-timestamp13 = int(future_timestamp * 1000)
+TaskList_type = list[Coroutine[Any, Any, Any]]
 
 
-async def main():
+class Getters_type(TypedDict):
+    reader: bang.Story_reader
+    main_getter: bang.Main_story_getter
+    band_getter: bang.Band_story_getter
+    event_getter: bang.Event_story_getter
+    card_getter: bang.Card_story_getter
+    area_getter: bang.Area_talk_getter
+
+
+def create_getters(
+    use_parent_save_dir: bool = False,
+    args: dict[str, Any] | None = None,
+) -> Getters_type:
+    if args is None:
+        args = {}
+    reader = bang.Story_reader(**args)
+
+    def get_save_dir(getter_cls) -> str:
+        default = inspect.signature(getter_cls.__init__).parameters['save_dir'].default
+        return ('.' if use_parent_save_dir else '') + default
+
+    return {
+        'reader': reader,
+        'main_getter': bang.Main_story_getter(
+            reader, save_dir=get_save_dir(bang.Main_story_getter), **args
+        ),
+        'band_getter': bang.Band_story_getter(
+            reader, save_dir=get_save_dir(bang.Band_story_getter), **args
+        ),
+        'event_getter': bang.Event_story_getter(
+            reader, save_dir=get_save_dir(bang.Event_story_getter), **args
+        ),
+        'card_getter': bang.Card_story_getter(
+            reader, save_dir=get_save_dir(bang.Card_story_getter), **args
+        ),
+        'area_getter': bang.Area_talk_getter(
+            reader, save_dir=get_save_dir(bang.Area_talk_getter), **args
+        ),
+    }
+
+
+def add_all_tasks(
+    tasks: TaskList_type,
+    getters: Getters_type,
+    timestamp13: int | None = None,
+) -> None:
+    """main / band / event / card / area: 全量获取"""
+    main_getter = getters['main_getter']
+    band_getter = getters['band_getter']
+    event_getter = getters['event_getter']
+    card_getter = getters['card_getter']
+    area_getter = getters['area_getter']
+
+    for lang, mark_lang in LANGS:
+        tasks.append(main_getter.get(None, lang, mark_lang))
+        tasks.append(band_getter.get(None, None, lang, mark_lang))
+        tasks.append(
+            event_getter.get_newest(
+                lang, mark_lang, quantity=0, timestamp13=timestamp13
+            )
+        )
+        tasks.append(
+            card_getter.get_newest(lang, mark_lang, quantity=0, timestamp13=timestamp13)
+        )
+        for area_id in area_getter.tell_area_ids():
+            for talk_type in area_getter.types:
+                tasks.append(area_getter.get(area_id, talk_type, lang, mark_lang))
+
+
+async def main() -> None:
+
+    getters = create_getters(use_parent_save_dir=True)
+
     async with ClientSession(
-        trust_env=True, connector=TCPConnector(limit=net_connect_limit)
+        trust_env=True, connector=TCPConnector(limit=NET_CONNECT_LIMIT)
     ) as session:
         await asyncio.gather(
-            reader.init(session),
-            main_getter.init(session),
-            band_getter.init(session),
-            event_getter.init(session),
-            card_getter.init(session),
-            area_getter.init(session),
+            *[cast(util.Base_fetcher, obj).init(session) for obj in getters.values()]
         )
 
-        tasks = []
-
-        tasks.append(main_getter.get(None, 'cn'))
-        tasks.append(main_getter.get(None, 'tw'))
-        tasks.append(main_getter.get(None, 'jp', 'en'))
-        tasks.append(main_getter.get(None, 'en', 'en'))
-
-        tasks.append(band_getter.get(None, None, 'cn'))
-        tasks.append(band_getter.get(None, None, 'tw'))
-        tasks.append(band_getter.get(None, None, 'jp', 'en'))
-        tasks.append(band_getter.get(None, None, 'en', 'en'))
-
-        tasks.append(event_getter.get_newest('cn', quantity=0, timestamp13=timestamp13))
-        tasks.append(event_getter.get_newest('tw', quantity=0, timestamp13=timestamp13))
-        tasks.append(
-            event_getter.get_newest('jp', 'en', quantity=0, timestamp13=timestamp13)
-        )
-        tasks.append(
-            event_getter.get_newest('en', 'en', quantity=0, timestamp13=timestamp13)
-        )
-
-        tasks.append(card_getter.get_newest('cn', quantity=0, timestamp13=timestamp13))
-        tasks.append(card_getter.get_newest('tw', quantity=0, timestamp13=timestamp13))
-        tasks.append(
-            card_getter.get_newest('jp', 'en', quantity=0, timestamp13=timestamp13)
-        )
-        tasks.append(
-            card_getter.get_newest('en', 'en', quantity=0, timestamp13=timestamp13)
-        )
-
-        for i in area_getter.tell_area_ids():
-            for t in area_getter.types:
-                tasks.append(area_getter.get(i, t, 'cn'))
-                tasks.append(area_getter.get(i, t, 'tw'))
-                tasks.append(area_getter.get(i, t, 'jp', 'en'))
-                tasks.append(area_getter.get(i, t, 'en', 'en'))
-
+        tasks: TaskList_type = []
+        add_all_tasks(tasks, getters, TIMESTAMP13)
         await asyncio.gather(*tasks)
 
 
