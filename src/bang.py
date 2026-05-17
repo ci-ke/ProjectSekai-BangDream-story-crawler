@@ -330,7 +330,7 @@ class Event_story_getter(util.Base_getter):
         event_name: str,
         mark_lang: str,
     ):
-        name = f"{story['scenarioId']} {story['caption'][Constant.lang_index[lang]]} {story['title'][Constant.lang_index[lang]]}"
+        name = f"{story['scenarioId']} {story['caption'][Constant.lang_index[lang]]}: {story['title'][Constant.lang_index[lang]]}"
 
         synopsis: str | None = story['synopsis'][Constant.lang_index[lang]]
         if synopsis is not None:  # for 13 20 23, jp meta lost
@@ -484,7 +484,7 @@ class Band_story_getter(util.Base_getter):
 
             mainTitle = band_story["mainTitle"][Constant.lang_index[lang]]
             subTitle = band_story["subTitle"][Constant.lang_index[lang]]
-            save_folder_name = util.valid_filename(f'{mainTitle} {subTitle}')
+            save_folder_name = util.valid_filename(f'{mainTitle}: {subTitle}')
 
             band_save_dir = os.path.join(
                 self.save_dir.format(lang=lang),
@@ -497,7 +497,7 @@ class Band_story_getter(util.Base_getter):
 
                 os.makedirs(Path(band_save_dir).parent, exist_ok=True)
                 util.remove_olds_or_rename_old(
-                    band_save_dir, f'({re.escape(mainTitle)}) '
+                    band_save_dir, f'({re.escape(mainTitle)})'
                 )
                 os.makedirs(band_save_dir, exist_ok=True)
 
@@ -525,7 +525,7 @@ class Band_story_getter(util.Base_getter):
         band_story: dict[str, Any],
         mark_lang: str,
     ):
-        name = f"{story['scenarioId']} {story['caption'][Constant.lang_index[lang]]} {story['title'][Constant.lang_index[lang]]}"
+        name = f"{story['scenarioId']} {story['caption'][Constant.lang_index[lang]]}: {story['title'][Constant.lang_index[lang]]}"
         synopsis = story['synopsis'][Constant.lang_index[lang]].replace('\n', ' ')
         id = story['scenarioId']
 
@@ -610,7 +610,7 @@ class Main_story_getter(util.Base_getter):
                 )
                 continue
 
-            name = f"{main_story['scenarioId']} {main_story['caption'][Constant.lang_index[lang]]} {main_story['title'][Constant.lang_index[lang]]}"
+            name = f"{main_story['scenarioId']} {main_story['caption'][Constant.lang_index[lang]]}: {main_story['title'][Constant.lang_index[lang]]}"
 
             filename = util.valid_filename(name + '.txt')
 

@@ -228,6 +228,7 @@ def valid_filename(filename: str) -> str:
         cleaned = cleaned[:-1]
     cleaned = (
         cleaned.replace('*', '＊')
+        .replace(': ', '：')
         .replace(':', '：')
         .replace('/', '／')
         .replace('\\', '＼')
