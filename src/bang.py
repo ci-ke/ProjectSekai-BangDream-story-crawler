@@ -496,9 +496,7 @@ class Band_story_getter(util.Base_getter):
                 util.remove_olds_or_rename_old(Path(band_save_dir).parent, r'(\d+) ')
 
                 os.makedirs(Path(band_save_dir).parent, exist_ok=True)
-                util.remove_olds_or_rename_old(
-                    band_save_dir, f'({re.escape(mainTitle)})'
-                )
+                util.remove_olds_or_rename_old(band_save_dir, r'([^：]+)：')
                 os.makedirs(band_save_dir, exist_ok=True)
 
             for story in band_story['stories'].values():
