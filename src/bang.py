@@ -345,7 +345,7 @@ class Event_story_getter(util.Base_getter):
         ):
             story_json = await self.fetch_url_json(
                 self.event_asset_url.format(lang=lang, event_id=event_id, id=id),
-                filename,
+                name,
                 compress=self.compress_assets,
                 skip_read=not self.parse,
             )
@@ -531,7 +531,7 @@ class Band_story_getter(util.Base_getter):
 
         story_json: dict[str, dict[str, Any]] = await self.fetch_url_json(
             self.band_asset_url.format(lang=lang, band_id=band_id, id=id),
-            filename,
+            name,
             compress=self.compress_assets,
             skip_read=not self.parse,
         )
@@ -633,7 +633,7 @@ class Main_story_getter(util.Base_getter):
     ) -> None:
         story_json: dict[str, dict[str, Any]] = await self.fetch_url_json(
             self.main_asset_url.format(lang=lang, id=id),
-            filename,
+            name,
             compress=self.compress_assets,
             skip_read=not self.parse,
         )
@@ -762,7 +762,7 @@ class Card_story_getter(util.Base_getter):
                 self.card_asset_url.format(
                     lang=lang, res_id=resourceSetName, scenarioId=scenarioId_1
                 ),
-                card_story_filename,
+                card_story_name + ' part1',
                 compress=self.compress_assets,
                 skip_read=not self.parse,
             )
@@ -779,7 +779,7 @@ class Card_story_getter(util.Base_getter):
             self.card_asset_url.format(
                 lang=lang, res_id=resourceSetName, scenarioId=scenarioId_2
             ),
-            card_story_filename,
+            card_story_name + 'part 2',
             compress=self.compress_assets,
             skip_read=not self.parse,
         )

@@ -660,6 +660,7 @@ class Event_story_getter(Pjsk_getter):
                 url.format(assetbundleName=assetbundleName, scenarioId=scenarioId)
                 for url in self.event_asset_url
             ],
+            episode_name,
             compress=self.compress_assets,
             skip_read=not self.parse,
         )
@@ -861,6 +862,7 @@ class Unit_story_getter(Pjsk_getter):
                 url.format(assetbundleName=assetbundleName, scenarioId=scenarioId)
                 for url in self.unit_asset_url
             ],
+            episode_name,
             compress=self.compress_assets,
             skip_read=not self.parse,
         )
@@ -1275,6 +1277,7 @@ class Area_talk_getter(Pjsk_getter):
                         )
                         for url in self.talk_asset_url
                     ],
+                    str(target),
                     print_done=self.print_fetch_detial,
                     compress=self.compress_assets,
                     skip_read=not self.parse,
@@ -1482,11 +1485,13 @@ class Self_intro_getter(Pjsk_getter):
                     url.format(scenarioId=scenarioId_common)
                     for url in self.self_asset_url
                 ],
+                chara_unit_name,
                 compress=self.compress_assets,
                 skip_read=not self.parse,
             ),
             self.fetch_url_json(
                 [url.format(scenarioId=scenarioId_2nd) for url in self.self_asset_url],
+                chara_unit_name,
                 compress=self.compress_assets,
                 skip_read=not self.parse,
             ),
