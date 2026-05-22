@@ -946,7 +946,6 @@ class Area_talk_getter(util.Base_getter):
                     ),
                     print_done=self.print_fetch_detial,
                     compress=self.compress_assets,
-                    skip_read=not self.parse,
                 )
             )
         collected_talk_actionset_jsons = await asyncio.gather(*tasks)
