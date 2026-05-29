@@ -9,7 +9,6 @@ import src.bang as bang
 import src.util as util
 
 NET_CONNECT_LIMIT = 20
-TIMESTAMP13 = int((datetime.now(timezone.utc) + timedelta(hours=24)).timestamp() * 1000)
 
 LANGS: tuple[tuple[str, str], ...] = (
     ('cn', 'cn'),
@@ -62,30 +61,13 @@ def create_getters(
     }
 
 
-def add_all_tasks(
-    tasks: TaskList_type,
-    getters: Getters_type,
-    timestamp13: int | None = None,
-) -> None:
-    """main / band / event / card / area: 全量获取"""
-    main_getter = getters['main_getter']
-    band_getter = getters['band_getter']
-    event_getter = getters['event_getter']
-    card_getter = getters['card_getter']
-    area_getter = getters['area_getter']
-
+def add_all_tasks(tasks: TaskList_type, getters: Getters_type) -> None:
     for lang, mark_lang in LANGS:
-        tasks.append(main_getter.get(None, lang, mark_lang))
-        tasks.append(band_getter.get(None, None, lang, mark_lang))
-        tasks.append(
-            event_getter.get_newest(
-                lang, mark_lang, quantity=0, timestamp13=timestamp13
-            )
-        )
-        tasks.append(
-            card_getter.get_newest(lang, mark_lang, quantity=0, timestamp13=timestamp13)
-        )
-        for area_id in area_getter.tell_area_ids():
+        tasks.append(getters['main_getter'].get(None, lang, mark_lang))
+        tasks.append(getters['band_getter'].get(None, None, lang, mark_lang))
+        tasks.append(getters['event_getter'].get_newest(lang, mark_lang, quantity=0))
+        tasks.append(getters['card_getter'].get_newest(lang, mark_lang, quantity=0))
+        for area_id in (area_getter := getters['area_getter']).tell_area_ids():
             for talk_type in area_getter.types:
                 tasks.append(area_getter.get(area_id, talk_type, lang, mark_lang))
 
@@ -102,7 +84,7 @@ async def main() -> None:
         )
 
         tasks: TaskList_type = []
-        add_all_tasks(tasks, getters, TIMESTAMP13)
+        add_all_tasks(tasks, getters)
         await asyncio.gather(*tasks)
 
 

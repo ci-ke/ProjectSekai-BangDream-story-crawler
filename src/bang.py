@@ -376,13 +376,13 @@ class Event_story_getter(util.Base_getter):
         lang: str = 'cn',
         mark_lang: str = 'cn',
         quantity: int = 10,
-        timestamp13: int | None = None,
+        timestamp13: float | None = None,
     ) -> None:
         '''
         quantity 0 = all
         '''
         if timestamp13 is None:
-            timestamp13 = int(time.time() * 1000)
+            timestamp13 = float('inf')
 
         old_events: list[tuple[int, int]] = []
 
@@ -835,14 +835,14 @@ class Card_story_getter(util.Base_getter):
         lang: str = 'cn',
         mark_lang: str = 'cn',
         quantity: int = 50,
-        timestamp13: int | None = None,
+        timestamp13: float | None = None,
         exclude: list[int] | None = None,
     ) -> None:
         '''
         quantity 0 = all
         '''
         if timestamp13 is None:
-            timestamp13 = int(time.time() * 1000)
+            timestamp13 = float('inf')
 
         old_cards: list[tuple[int, int]] = []
 

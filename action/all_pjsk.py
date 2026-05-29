@@ -67,7 +67,6 @@ def create_getters(
 def add_common_tasks(
     tasks: TaskList_type, lang_getters: dict[str, Getters_type]
 ) -> None:
-    """unit / self / special: 所有语言统一走 tell_ids"""
     for getters in lang_getters.values():
         unit_getter = getters['unit_getter']
         tasks.extend(unit_getter.get(story_id) for story_id in unit_getter.tell_ids())
@@ -77,43 +76,25 @@ def add_common_tasks(
         tasks.extend(
             special_getter.get(story_id) for story_id in special_getter.tell_ids()
         )
-
-
-def add_jp_tasks(tasks: TaskList_type, lang_getters: dict[str, Getters_type]) -> None:
-    """JP 模式: event/card 走 tell_ids, area 不过滤 int"""
-    getters = lang_getters['jp']
-    event_getter = getters['event_getter']
-    card_getter = getters['card_getter']
-    area_getter = getters['area_getter']
-
-    tasks.extend(event_getter.get(story_id) for story_id in event_getter.tell_ids())
-    tasks.extend(card_getter.get(story_id) for story_id in card_getter.tell_ids())
-    tasks.extend(
-        area_getter.get(category) for category in area_getter.tell_categories()
-    )
-
-
-def add_nonjp_tasks(
-    tasks: TaskList_type,
-    lang_getters: dict[str, Getters_type],
-    timestamp13: int | None = None,
-) -> None:
-    """非 JP 模式: event/card 走 get_newest, area 过滤 int"""
-    for lang in ('cn', 'tw', 'en'):
-        getters = lang_getters[lang]
-        event_getter = getters['event_getter']
-        card_getter = getters['card_getter']
         area_getter = getters['area_getter']
-
-        tasks.append(
-            event_getter.get_newest(0, area_getter=area_getter, timestamp13=timestamp13)
-        )
-        tasks.append(card_getter.get_newest(0, timestamp13=timestamp13))
         tasks.extend(
             area_getter.get(category)
             for category in area_getter.tell_categories()
             if not isinstance(category, int)
         )
+
+
+def add_timestamp_tasks(
+    tasks: TaskList_type,
+    getters: Getters_type,
+    timestamp13: int | None = None,
+) -> None:
+    tasks.append(
+        getters['event_getter'].get_newest(
+            0, area_getter=getters['area_getter'], timestamp13=timestamp13
+        )
+    )
+    tasks.append(getters['card_getter'].get_newest(0, timestamp13=timestamp13))
 
 
 async def main() -> None:
@@ -138,8 +119,9 @@ async def main() -> None:
 
         tasks: TaskList_type = []
         add_common_tasks(tasks, lang_getters)
-        add_jp_tasks(tasks, lang_getters)
-        add_nonjp_tasks(tasks, lang_getters, TIMESTAMP13)
+        add_timestamp_tasks(tasks, lang_getters['jp'])
+        for lang in ('cn', 'tw', 'en'):
+            add_timestamp_tasks(tasks, lang_getters[lang], TIMESTAMP13)
         await asyncio.gather(*tasks)
 
 
