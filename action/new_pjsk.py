@@ -26,7 +26,7 @@ def add_common_tasks(
 def add_timestamp_tasks(
     tasks: TaskList_type,
     getters: Getters_type,
-    timestamp13: int | None = None,
+    timestamp13: float = float('inf'),
 ) -> None:
     tasks.append(
         getters['event_getter'].get_newest(
@@ -64,6 +64,4 @@ async def main() -> None:
 
 
 if __name__ == '__main__':
-    import logging
-    logging.basicConfig(level=logging.INFO)
     asyncio.run(main())

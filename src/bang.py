@@ -1,4 +1,4 @@
-import os, asyncio, json, time, logging, copy, math, re
+import os, asyncio, json, logging, copy, math
 from pathlib import Path
 from typing import Any
 from asyncio import Semaphore
@@ -376,14 +376,11 @@ class Event_story_getter(util.Base_getter):
         lang: str = 'cn',
         mark_lang: str = 'cn',
         quantity: int = 10,
-        timestamp13: float | None = None,
+        timestamp13: float = float('inf'),
     ) -> None:
         '''
         quantity 0 = all
         '''
-        if timestamp13 is None:
-            timestamp13 = float('inf')
-
         old_events: list[tuple[int, int]] = []
 
         for str_id, event in self.events_all_json.items():
@@ -835,15 +832,12 @@ class Card_story_getter(util.Base_getter):
         lang: str = 'cn',
         mark_lang: str = 'cn',
         quantity: int = 50,
-        timestamp13: float | None = None,
+        timestamp13: float = float('inf'),
         exclude: list[int] | None = None,
     ) -> None:
         '''
         quantity 0 = all
         '''
-        if timestamp13 is None:
-            timestamp13 = float('inf')
-
         old_cards: list[tuple[int, int]] = []
 
         for str_id, card in self.cards_all_json.items():

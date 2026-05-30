@@ -5,13 +5,7 @@ from aiohttp import ClientSession, TCPConnector
 
 import src.util as util
 
-from .all_bang import (
-    create_getters,
-    Getters_type,
-    TaskList_type,
-    add_all_tasks,
-    NET_CONNECT_LIMIT,
-)
+from .all_bang import create_getters, TaskList_type, add_all_tasks, NET_CONNECT_LIMIT
 
 
 async def main() -> None:
