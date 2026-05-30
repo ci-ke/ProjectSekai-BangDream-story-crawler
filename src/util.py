@@ -4,7 +4,7 @@ from enum import Enum
 from typing import Any, Callable
 from asyncio import Semaphore
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import aiohttp, brotli
 
@@ -104,7 +104,9 @@ Mark_multi_lang = {
 _net_semaphore = asyncio.Semaphore(20)
 _MISSING_FILE = object()
 
-LATE_TIMESTAMP13 = int((datetime.now() + timedelta(days=365)).timestamp() * 1000)
+LATE_TIMESTAMP13 = int(
+    (datetime.now(timezone.utc) + timedelta(days=365)).timestamp() * 1000
+)
 
 
 _compress_executor = ThreadPoolExecutor(max_workers=min(8, (os.cpu_count() or 4)))
