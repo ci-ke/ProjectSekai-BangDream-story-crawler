@@ -376,11 +376,14 @@ class Event_story_getter(util.Base_getter):
         lang: str = 'cn',
         mark_lang: str = 'cn',
         quantity: int = 10,
-        timestamp13: float = float('inf'),
+        timestamp13: int | None = None,
     ) -> None:
         '''
         quantity 0 = all
         '''
+        if timestamp13 is None:
+            timestamp13 = util.LATE_TIMESTAMP13
+
         old_events: list[tuple[int, int]] = []
 
         for str_id, event in self.events_all_json.items():
@@ -832,12 +835,15 @@ class Card_story_getter(util.Base_getter):
         lang: str = 'cn',
         mark_lang: str = 'cn',
         quantity: int = 50,
-        timestamp13: float = float('inf'),
+        timestamp13: int | None = None,
         exclude: list[int] | None = None,
     ) -> None:
         '''
         quantity 0 = all
         '''
+        if timestamp13 is None:
+            timestamp13 = util.LATE_TIMESTAMP13
+
         old_cards: list[tuple[int, int]] = []
 
         for str_id, card in self.cards_all_json.items():

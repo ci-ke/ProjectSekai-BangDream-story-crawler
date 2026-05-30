@@ -681,12 +681,15 @@ class Event_story_getter(Pjsk_getter):
     async def get_newest(
         self,
         quantity: int = 10,
-        timestamp13: float = float('inf'),
+        timestamp13: int | None = None,
         area_getter: Optional['Area_talk_getter'] = None,
     ) -> None:
         '''
         quantity 0 = all
         '''
+        if timestamp13 is None:
+            timestamp13 = util.LATE_TIMESTAMP13
+
         old_events: list[tuple[int, int]] = []
 
         for event in self.events_json:
@@ -1119,11 +1122,14 @@ class Card_story_getter(Pjsk_getter):
     async def get_newest(
         self,
         quantity: int = 50,
-        timestamp13: float = float('inf'),
+        timestamp13: int | None = None,
     ) -> None:
         '''
         quantity 0 = all
         '''
+        if timestamp13 is None:
+            timestamp13 = util.LATE_TIMESTAMP13
+
         old_cards: list[tuple[int, int]] = []
 
         for card in self.cards_json:
