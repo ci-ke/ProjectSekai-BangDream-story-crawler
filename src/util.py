@@ -1,4 +1,4 @@
-import os, json, asyncio, traceback, bisect, logging, re, shutil
+import os, json, asyncio, bisect, logging, re, shutil
 from pathlib import Path
 from enum import Enum
 from typing import Any, Callable
@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 import aiohttp, brotli
 
 SKIP_FETCH_ERROR = True
+RECORD_ASSET_SUCCESS = False
 
 
 # https://github.com/EternalFlower/Project-Sekai-Story-Parser/blob/main/PJSekai%20Story%20parser.py
@@ -101,13 +102,12 @@ Mark_multi_lang = {
 }
 
 
-_net_semaphore = asyncio.Semaphore(20)
-_MISSING_FILE = object()
-
 LATE_TIMESTAMP13 = int(
     (datetime.now(timezone.utc) + timedelta(days=365)).timestamp() * 1000
 )
 
+_net_semaphore = asyncio.Semaphore(20)
+_MISSING_FILE = object()
 
 _compress_executor = ThreadPoolExecutor(max_workers=min(8, (os.cpu_count() or 4)))
 
@@ -372,7 +372,9 @@ async def fetch_url_json(
     save_dir: str,
     missing_download: bool,
     extra_record_msg: str = '',
-    success_assets_file: str | None = None,  #'assets_success.log',
+    success_assets_file: str | None = (
+        'assets_success.log' if RECORD_ASSET_SUCCESS else None
+    ),
     error_assets_file: str | None = 'assets_error.log',
     missing_assets_file: str | None = 'assets_missing.log',
     session: aiohttp.ClientSession | None = None,
