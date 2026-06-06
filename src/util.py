@@ -253,9 +253,10 @@ def url_to_path(url: str, save_dir: str) -> str:
     return os.path.normpath(os.path.join(save_dir, url_path))
 
 
-def write_to_file(file_path: str, content: str) -> None:
-    with open(file_path, 'a', encoding='utf-8') as f:
-        f.write(f"{content}\n")
+def write_to_file(file_path: str | None, content: str) -> None:
+    if file_path is not None:
+        with open(file_path, 'a', encoding='utf-8') as f:
+            f.write(f"{content}\n")
 
 
 async def save_json_to_url(
@@ -264,13 +265,19 @@ async def save_json_to_url(
     save_dir: str,
     append_save_path: str | None,
     compress: bool,
-    content_edit: Callable | None,
-) -> None:
+    content_edit: Callable | None = None,
+    skip_save: bool = False,
+) -> str:
     if append_save_path is None:
         path = url_to_path(url, save_dir)
     else:
         path = os.path.normpath(os.path.join(save_dir, append_save_path))
-    os.makedirs(os.path.split(path)[0], exist_ok=True)
+    save_path = (path + '.br') if compress else path
+
+    if skip_save:
+        return save_path
+
+    os.makedirs(os.path.split(save_path)[0], exist_ok=True)
 
     if content_edit is not None:
         content = content_edit(content)
@@ -281,11 +288,13 @@ async def save_json_to_url(
         compressed = await loop.run_in_executor(
             _compress_executor, _compress_sync, json_bytes, 11
         )
-        with open(path + '.br', 'wb') as f:
+        with open(save_path, 'wb') as f:
             f.write(compressed)
     else:
-        with open(path, 'w', encoding='utf8') as f:
+        with open(save_path, 'w', encoding='utf8') as f:
             f.write(json.dumps(content, ensure_ascii=False, indent=2))
+
+    return save_path
 
 
 async def read_json_from_url(
@@ -293,6 +302,7 @@ async def read_json_from_url(
     missing_download: bool,
     save_dir: str,
     extra_record_msg: str,
+    success_assets_file: str | None,
     error_assets_file: str | None,
     missing_assets_file: str | None,
     session: aiohttp.ClientSession | None,
@@ -307,6 +317,7 @@ async def read_json_from_url(
         else:
             path = os.path.normpath(os.path.join(save_dir, append_save_path))
         if os.path.exists(path):
+            write_to_file(success_assets_file, path)
             if skip_read:
                 return 'ERROR: skip read'
             async with network_semaphore:
@@ -314,10 +325,12 @@ async def read_json_from_url(
                     content = f.read()
                     return json.loads(content)
         elif os.path.exists(path + '.br'):
+            path = path + '.br'
+            write_to_file(success_assets_file, path)
             if skip_read:
                 return 'ERROR: skip read'
             async with network_semaphore:
-                with open(path + '.br', 'rb') as f:
+                with open(path, 'rb') as f:
                     compressed_bytes = f.read()
                     loop = asyncio.get_event_loop()
                     decompressed_bytes = await loop.run_in_executor(
@@ -333,21 +346,22 @@ async def read_json_from_url(
             True,
             save_dir,
             False,
-            extra_record_msg,
-            error_assets_file,
-            missing_assets_file,
-            session,
-            network_semaphore,
+            extra_record_msg=extra_record_msg,
+            success_assets_file=success_assets_file,
+            error_assets_file=error_assets_file,
+            missing_assets_file=None,
+            session=session,
+            network_semaphore=network_semaphore,
             append_save_path=append_save_path,
             compress=compress,
             skip_read=skip_read,
         )
     else:
-        if missing_assets_file:
-            write_to_file(
-                missing_assets_file,
-                f"{extra_record_msg}{': ' if extra_record_msg else ''}{', '.join(urls)}",
-            )
+        write_to_file(
+            missing_assets_file,
+            f"{path} || url: {', '.join(urls)}"
+            + (f' || message: {extra_record_msg}' if extra_record_msg else ''),
+        )
         return _MISSING_FILE
 
 
@@ -358,6 +372,7 @@ async def fetch_url_json(
     save_dir: str,
     missing_download: bool,
     extra_record_msg: str = '',
+    success_assets_file: str | None = None,  #'assets_success.log',
     error_assets_file: str | None = 'assets_error.log',
     missing_assets_file: str | None = 'assets_missing.log',
     session: aiohttp.ClientSession | None = None,
@@ -413,7 +428,7 @@ async def fetch_url_json(
 
             if last_error is None:
                 if save:
-                    await save_json_to_url(
+                    save_path = await save_json_to_url(
                         current_url,
                         json_content,
                         save_dir,
@@ -421,16 +436,19 @@ async def fetch_url_json(
                         compress,
                         content_save_edit,
                     )
+                    write_to_file(success_assets_file, save_path)
                 break
 
         if last_error is not None:
             json_content = last_error
-            if error_assets_file:
-                failed_urls = ', '.join(urls)
-                write_to_file(
-                    error_assets_file,
-                    f"{extra_record_msg}{': ' if extra_record_msg else ''}{failed_urls}",
-                )
+            save_path = await save_json_to_url(
+                current_url, None, save_dir, append_save_path, compress, skip_save=True
+            )
+            write_to_file(
+                error_assets_file,
+                f"{save_path} || url: {', '.join(urls)}"
+                + (f' || message: {extra_record_msg}' if extra_record_msg else ''),
+            )
 
     else:  # offline
         result = await read_json_from_url(
@@ -438,6 +456,7 @@ async def fetch_url_json(
             missing_download,
             save_dir,
             extra_record_msg,
+            success_assets_file,
             error_assets_file,
             missing_assets_file,
             session,
