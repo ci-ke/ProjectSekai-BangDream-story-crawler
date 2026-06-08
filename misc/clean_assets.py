@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-clean_assets.py — 子命令工具
+clean_assets.py — 子命令工具（路径参数支持通配符）
 
 子命令:
 
@@ -8,11 +8,11 @@ clean_assets.py — 子命令工具
         从所有 --src 目录的 assets_*.log 收集合法路径，
         在所有 --dst 目录中找出未被引用的文件，输出到 unused_file.txt。
 
-    empty <dst>
+    empty <dst> [dst ...]
         在 dst 中递归找出所有空文件夹（只含空子文件夹也算空），
         子条目在前、父条目在后排序，输出到 empty_folder.txt。
 
-    act <file>
+    act <file> [file ...]
         从 <file> 逐行读取路径并删除（文件 unlink，目录 rmdir）。
         如需清理删除后产生的空文件夹，可配合 empty 子命令使用。
 """
@@ -52,6 +52,20 @@ def _load_list_file(file_path: str) -> list[Path]:
             if line:
                 paths.append(Path(line))
     return paths
+
+
+def _expand_globs(paths: list[str]) -> list[str]:
+    """展开路径中的通配符（? * [）; 无通配符的路径原样保留。"""
+    expanded: list[str] = []
+    for p in paths:
+        if glob.has_magic(p):
+            matched = sorted(glob.glob(p))
+            if not matched:
+                print(f"[Warning] 通配符未匹配任何路径: {p}", file=sys.stderr)
+            expanded.extend(matched)
+        else:
+            expanded.append(p)
+    return expanded
 
 
 # ---------------------------------------------------------------------------
@@ -250,18 +264,20 @@ def main() -> int:
         if args.src or args.dst:
             if not args.src or not args.dst:
                 parser.error("--src 和 --dst 必须同时使用")
-            return cmd_unused(args.src, args.dst)
+            return cmd_unused(_expand_globs(args.src), _expand_globs(args.dst))
         elif len(args.positional) == 2:
-            return cmd_unused([args.positional[0]], [args.positional[1]])
+            src_expanded = _expand_globs([args.positional[0]])
+            dst_expanded = _expand_globs([args.positional[1]])
+            return cmd_unused(src_expanded, dst_expanded)
         else:
             parser.error(
                 "unused 需要两个位置参数（src dst），"
                 "或多个目录时使用 --src x y --dst z u"
             )
     elif args.command == "empty":
-        return cmd_empty(args.dst)
+        return cmd_empty(_expand_globs(args.dst))
     elif args.command == "act":
-        return cmd_act(args.file)
+        return cmd_act(_expand_globs(args.file))
     return 1
 
 
