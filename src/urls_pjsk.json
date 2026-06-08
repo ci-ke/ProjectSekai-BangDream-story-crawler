@@ -46,5 +46,22 @@
             "en": "en-",
             "kr": "kr-"
         }
+    },
+    "pjsk.moe": {
+        "master": "https://sekaimaster{lang}.exmeaning.com/master/{file}.json",
+        "master_lang": {
+            "cn": "-cn",
+            "jp": ""
+        },
+        "unit_asset": "https://storage.exmeaning.com/sekai-{lang}assets/scenario/unitstory/{{assetbundleName}}/{{scenarioId}}.json",
+        "event_asset": "https://storage.exmeaning.com/sekai-{lang}assets/event_story/{{assetbundleName}}/scenario/{{scenarioId}}.json",
+        "card_asset": "https://storage.exmeaning.com/sekai-{lang}assets/character/member/{{assetbundleName}}/{{scenarioId}}.json",
+        "talk_asset": "https://storage.exmeaning.com/sekai-{lang}assets/scenario/actionset/group{{group}}/{{scenarioId}}.json",
+        "self_asset": "https://storage.exmeaning.com/sekai-{lang}assets/scenario/profile/{{scenarioId}}.json",
+        "special_asset": "https://storage.exmeaning.com/sekai-{lang}assets/scenario/special/{{assetbundleName}}/{{scenarioId}}.json",
+        "asset_lang": {
+            "cn": "cn-",
+            "jp": "jp-"
+        }
     }
 }

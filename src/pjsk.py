@@ -90,6 +90,8 @@ class Pjsk_fetcher(util.Base_fetcher):
         asset_name_match = re.search(r'(ondemand|startapp|sekai-\w+-assets)/(.*)', url)
         if asset_name_match:
             asset_name = asset_name_match.group(2)
+            if asset_name.endswith('.json'):
+                asset_name = asset_name[:-5] + '.asset'
         else:
             raise RuntimeError(url)
         return os.path.normpath(os.path.join(f'pjsk-{lang}-assets', asset_name))
