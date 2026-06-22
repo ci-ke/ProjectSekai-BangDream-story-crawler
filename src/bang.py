@@ -251,6 +251,7 @@ class Event_story_getter(util.Base_getter):
         maxlen_eventId: int = 3,
         compress_assets: bool = False,
         force_master_online: bool = False,
+        **args,
     ) -> None:
         super().__init__(
             save_dir,
@@ -414,6 +415,7 @@ class Band_story_getter(util.Base_getter):
         maxlen_bandId: int = 2,
         compress_assets: bool = False,
         force_master_online: bool = False,
+        **args,
     ) -> None:
         super().__init__(
             save_dir,
@@ -563,6 +565,7 @@ class Main_story_getter(util.Base_getter):
         missing_download: bool = True,
         compress_assets: bool = False,
         force_master_online: bool = False,
+        **args,
     ) -> None:
         super().__init__(
             save_dir,
@@ -664,6 +667,7 @@ class Card_story_getter(util.Base_getter):
         maxlen_charaId_cardId: tuple[int, int] = (2, 4),
         compress_assets: bool = False,
         force_master_online: bool = False,
+        **args,
     ) -> None:
         super().__init__(
             save_dir,
@@ -877,6 +881,7 @@ class Area_talk_getter(util.Base_getter):
         print_fetch_detial: bool = False,
         compress_assets: bool = False,
         force_master_online: bool = False,
+        **args,
     ) -> None:
         super().__init__(
             save_dir,

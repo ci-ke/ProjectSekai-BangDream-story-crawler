@@ -445,6 +445,7 @@ class Event_story_getter(Pjsk_getter):
         maxlen_eventId_episode: tuple[int, int] = (3, 2),
         compress_assets: bool = False,
         force_master_online: bool = False,
+        **args,
     ) -> None:
         super().__init__(
             save_dir,
@@ -730,6 +731,7 @@ class Unit_story_getter(Pjsk_getter):
         maxlen_unitId: int = 1,
         compress_assets: bool = False,
         force_master_online: bool = False,
+        **args,
     ) -> None:
         super().__init__(
             save_dir,
@@ -904,6 +906,7 @@ class Card_story_getter(Pjsk_getter):
         maxlen_charaId_cardId: tuple[int, int] = (2, 4),
         compress_assets: bool = False,
         force_master_online: bool = False,
+        **args,
     ) -> None:
         super().__init__(
             save_dir,
@@ -1169,6 +1172,7 @@ class Area_talk_getter(Pjsk_getter):
         print_fetch_detial: bool = False,
         compress_assets: bool = False,
         force_master_online: bool = False,
+        **args,
     ) -> None:
         super().__init__(
             save_dir,
@@ -1426,6 +1430,7 @@ class Self_intro_getter(Pjsk_getter):
         maxlen_charaId: int = 2,
         compress_assets: bool = False,
         force_master_online: bool = False,
+        **args,
     ):
         super().__init__(
             save_dir,
@@ -1550,6 +1555,7 @@ class Special_story_getter(Pjsk_getter):
         maxlen_sp: int = 3,
         compress_assets: bool = False,
         force_master_online: bool = False,
+        **args,
     ):
         super().__init__(
             save_dir,
