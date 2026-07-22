@@ -107,6 +107,7 @@ class Pjsk_fetcher(util.Base_fetcher):
         force_local: bool = False,
         skip_read: bool = False,
         content_save_edit: Callable | None = None,
+        format: str = 'json',
         lang_for_path: str | None = None,
     ) -> Any:
         assert append_save_path is None
@@ -140,6 +141,7 @@ class Pjsk_fetcher(util.Base_fetcher):
             force_local=force_local,
             skip_read=skip_read,
             content_save_edit=content_save_edit,
+            format=format,
         )
 
 
@@ -479,7 +481,9 @@ class Event_story_getter(Pjsk_getter):
             self.reader.lang, src, 'asset', 'event'
         )
 
-        self.actionSets_url = Constant.get_srcs_url('jp', src, 'master', 'actionSets')
+        self.actionSets_jp_url = Constant.get_srcs_url(
+            'jp', src, 'master', 'actionSets'
+        )
 
     async def init(
         self,
@@ -492,7 +496,7 @@ class Event_story_getter(Pjsk_getter):
             self.events_json,
             self.eventStories_json,
             self.gameCharacterUnits,
-            actionSets,
+            actionSets_jp,
         ) = await asyncio.gather(
             self.fetch_url_json(self.events_url, force_online=self.force_master_online),
             self.fetch_url_json(
@@ -502,7 +506,7 @@ class Event_story_getter(Pjsk_getter):
                 self.gameCharacterUnits_url, force_online=self.force_master_online
             ),
             self.fetch_url_json(
-                self.actionSets_url,
+                self.actionSets_jp_url,
                 lang_for_path='jp',
                 force_online=self.force_master_online,
             ),
@@ -512,7 +516,7 @@ class Event_story_getter(Pjsk_getter):
         self.eventStories_lookup = util.DictLookup(self.eventStories_json, 'eventId')
         self.gameCharacterUnits_lookup = util.DictLookup(self.gameCharacterUnits, 'id')
 
-        self.event_type_map = Event_story_getter.__get_event_type_map(actionSets)
+        self.event_type_map = Event_story_getter.__get_event_type_map(actionSets_jp)
 
     @staticmethod
     def __get_event_type_map(actionSets: list[dict[str, Any]]) -> dict[int, str]:
@@ -1654,6 +1658,500 @@ class Special_story_getter(Pjsk_getter):
         return ret
 
 
+class Mysekai_talk_getter(Pjsk_getter):
+    def __init__(
+        self,
+        reader: Story_reader,
+        src: list[str] = ['haruki', 'sekai.best'],
+        save_dir: str = './story_{lang}/mysekai',
+        assets_save_dir: str = './assets',
+        online: bool = True,
+        save_assets: bool = True,
+        parse: bool = True,
+        missing_download: bool = True,
+        maxlen_charaId: int = 2,
+        print_fetch_detial: bool = False,
+        compress_assets: bool = False,
+        force_master_online: bool = False,
+        **args,
+    ) -> None:
+        super().__init__(
+            save_dir,
+            assets_save_dir,
+            online,
+            save_assets,
+            parse,
+            missing_download,
+            compress_assets,
+            force_master_online,
+        )
+
+        self.reader = reader
+        self.save_dir = self.save_dir.format(lang=self.reader.lang)
+        self.maxlen_charaId = maxlen_charaId
+        self.print_fetch_detial = print_fetch_detial
+
+        # Master JSON URLs
+        self.mysekaiCharacterTalks_url = Constant.get_srcs_url(
+            self.reader.lang, src, 'master', 'mysekaiCharacterTalks'
+        )
+        self.mysekaiTutorialTalks_url = Constant.get_srcs_url(
+            self.reader.lang, src, 'master', 'mysekaiTutorialTalks'
+        )
+        self.mysekaiGameCharacterUnitGroups_url = Constant.get_srcs_url(
+            self.reader.lang, src, 'master', 'mysekaiGameCharacterUnitGroups'
+        )
+        self.mysekaiCharacterTalkConditionGroups_url = Constant.get_srcs_url(
+            self.reader.lang, src, 'master', 'mysekaiCharacterTalkConditionGroups'
+        )
+        self.mysekaiCharacterTalkConditions_url = Constant.get_srcs_url(
+            self.reader.lang, src, 'master', 'mysekaiCharacterTalkConditions'
+        )
+        self.mysekaiPhenomenas_url = Constant.get_srcs_url(
+            self.reader.lang, src, 'master', 'mysekaiPhenomenas'
+        )
+        self.mysekaiFixtures_url = Constant.get_srcs_url(
+            self.reader.lang, src, 'master', 'mysekaiFixtures'
+        )
+        self.gameCharacterUnits_url = Constant.get_srcs_url(
+            self.reader.lang, src, 'master', 'gameCharacterUnits'
+        )
+        self.releaseConditions_url = Constant.get_srcs_url(
+            self.reader.lang, src, 'master', 'releaseConditions'
+        )
+
+        # Asset URL
+        self.talk_asset_url = Constant.get_srcs_url(
+            self.reader.lang, src, 'asset', 'mysekai_talk'
+        )
+
+    async def init(
+        self,
+        session: ClientSession | None = None,
+        network_semaphore: Semaphore | None = None,
+    ) -> None:
+        await super().init(session, network_semaphore)
+
+        (
+            self.mysekaiCharacterTalks_json,
+            self.mysekaiGameCharacterUnitGroups_json,
+            self.mysekaiCharacterTalkConditionGroups_json,
+            self.mysekaiCharacterTalkConditions_json,
+            self.mysekaiPhenomenas_json,
+            self.mysekaiFixtures_json,
+            self.gameCharacterUnits_json,
+            self.releaseConditions_json,
+        ) = await asyncio.gather(
+            self.fetch_url_json(
+                self.mysekaiCharacterTalks_url, force_online=self.force_master_online
+            ),
+            self.fetch_url_json(
+                self.mysekaiGameCharacterUnitGroups_url,
+                force_online=self.force_master_online,
+            ),
+            self.fetch_url_json(
+                self.mysekaiCharacterTalkConditionGroups_url,
+                force_online=self.force_master_online,
+            ),
+            self.fetch_url_json(
+                self.mysekaiCharacterTalkConditions_url,
+                force_online=self.force_master_online,
+            ),
+            self.fetch_url_json(
+                self.mysekaiPhenomenas_url, force_online=self.force_master_online
+            ),
+            self.fetch_url_json(
+                self.mysekaiFixtures_url, force_online=self.force_master_online
+            ),
+            self.fetch_url_json(
+                self.gameCharacterUnits_url, force_online=self.force_master_online
+            ),
+            self.fetch_url_json(
+                self.releaseConditions_url, force_online=self.force_master_online
+            ),
+        )
+
+        # Build lookups
+        self.mysekaiGameCharacterUnitGroups_lookup = util.DictLookup(
+            self.mysekaiGameCharacterUnitGroups_json, 'id'
+        )
+        self.gameCharacterUnits_lookup = util.DictLookup(
+            self.gameCharacterUnits_json, 'id'
+        )
+        self.mysekaiCharacterTalkConditions_lookup = util.DictLookup(
+            self.mysekaiCharacterTalkConditions_json, 'id'
+        )
+        self.mysekaiPhenomenas_lookup = util.DictLookup(
+            self.mysekaiPhenomenas_json, 'id'
+        )
+        self.mysekaiFixtures_lookup = util.DictLookup(self.mysekaiFixtures_json, 'id')
+
+        # Group condition IDs by groupId
+        self.group_conditions_map: dict[int, list[int]] = {}
+        for cg in self.mysekaiCharacterTalkConditionGroups_json:
+            gid = cg['groupId']
+            cid = cg['mysekaiCharacterTalkConditionId']
+            if gid not in self.group_conditions_map:
+                self.group_conditions_map[gid] = []
+            self.group_conditions_map[gid].append(cid)
+
+        # Build release condition sentence map for read_event_story_episode_id
+        self.release_cond_eventID_map: dict[int, int] = {}
+        for rc in self.releaseConditions_json:
+            if rc['releaseConditionType'] == 'event_story':
+                type_id = rc['releaseConditionTypeId']
+                self.release_cond_eventID_map[type_id] = int(str(rc['id'])[1:4]) + 1
+
+    def _get_chara_info(self, gameCharacterUnitId: int) -> tuple[int, str, str]:
+        """Return (gameCharacterId, unit_abbr, full_name)."""
+        gcu_index = self.gameCharacterUnits_lookup.find_index(gameCharacterUnitId)
+        assert gcu_index != -1, f'gameCharacterUnitId {gameCharacterUnitId} not found'
+        gcu = self.gameCharacterUnits_json[gcu_index]
+        gameCharacterId = gcu['gameCharacterId']
+        unit = gcu['unit']
+        unit_abbr = Constant.unit_code_abbr[unit]
+
+        _, fullname, _ = self.reader.get_chara_unitAbbr_names(gameCharacterId)
+
+        return gameCharacterId, unit_abbr, fullname
+
+    def _get_conditions_str(self, conditionGroupId: int) -> str:
+        """Return human-readable conditions string for a given condition group."""
+        cond_ids = self.group_conditions_map.get(conditionGroupId, [])
+        parts: list[str] = []
+        for cid in cond_ids:
+            cond_index = self.mysekaiCharacterTalkConditions_lookup.find_index(cid)
+            assert cond_index != -1
+            cond = self.mysekaiCharacterTalkConditions_json[cond_index]
+            cond_type = cond['mysekaiCharacterTalkConditionType']
+            cond_value = cond['mysekaiCharacterTalkConditionTypeValue']
+
+            if cond_type == 'mysekai_phenomena_id':
+                p_index = self.mysekaiPhenomenas_lookup.find_index(cond_value)
+                assert p_index != -1
+                parts.append(
+                    'phenomena-' + self.mysekaiPhenomenas_json[p_index]['name']
+                )
+            elif cond_type == 'mysekai_character_visit_count':
+                parts.append(f'character_visit_count-{cond_value}')
+            elif cond_type == 'read_event_story_episode_id':
+                eventID = self.release_cond_eventID_map[cond_value]
+                parts.append(f'read_event_story-{eventID}')
+            elif cond_type == 'mysekai_fixture_id':
+                fix_index = self.mysekaiFixtures_lookup.find_index(cond_value)
+                assert fix_index != -1
+                parts.append(self.mysekaiFixtures_json[fix_index]['name'])
+        return ', '.join(parts)
+
+    @staticmethod
+    def _parse_lua_talk(lua_text: str) -> str:
+        """Parse Lua talk script to formatted dialogue text."""
+        # Find all label and text calls in order by position
+        combined_pattern = re.compile(
+            r'label\("(?P<label>[^"]*)"\)|text\("(?P<text>(?:[^"\\]|\\.)*)"\)'
+        )
+
+        events: list[tuple[int, str, str]] = []  # (pos, type, content)
+        for m in combined_pattern.finditer(lua_text):
+            if m.group('label') is not None:
+                events.append((m.start(), 'label', m.group('label')))
+            elif m.group('text') is not None:
+                raw = m.group('text')
+                content = (
+                    raw.replace('\\n', ' ').replace('\\"', '"').replace('\\\\', '\\')
+                )
+                events.append((m.start(), 'text', content))
+
+        events.sort(key=lambda x: x[0])
+
+        lines: list[str] = []
+        current_label: str | None = None
+        for _, ev_type, ev_content in events:
+            if ev_type == 'label':
+                current_label = ev_content
+            elif ev_type == 'text' and current_label is not None:
+                lines.append(f"{current_label}：{ev_content}")
+
+        return '\n'.join(lines)
+
+    def _get_talk_meta(self, talk: dict) -> dict:
+        """Extract metadata for one mysekaiCharacterTalk entry.
+        Returns dict with talk_id, archive_group_id, conditions_str, chara_names,
+        gameCharacterUnitIds, lua_name, assetbundleName; or None if group missing.
+        """
+        talk_id = talk['id']
+        group_id = talk['mysekaiGameCharacterUnitGroupId']
+        condition_group_id = talk['mysekaiCharacterTalkConditionGroupId']
+        archive_group_id = talk['characterArchiveMysekaiCharacterTalkGroupId']
+        assetbundleName = talk['assetbundleName']
+        lua_name = talk['lua']
+
+        # Conditions
+        conditions_str = self._get_conditions_str(condition_group_id)
+
+        # Character group
+        group_index = self.mysekaiGameCharacterUnitGroups_lookup.find_index(group_id)
+        assert group_index != -1
+        chara_group: dict[str, int] = self.mysekaiGameCharacterUnitGroups_json[
+            group_index
+        ]
+
+        chara_unit_ids: list[int] = []
+        chara_names: list[str] = []
+        for key_name in [f'gameCharacterUnitId{i}' for i in range(1, 6)]:
+            chara_unit_id = chara_group.get(key_name)
+            if chara_unit_id is None:
+                continue
+            _, _, fullname = self._get_chara_info(chara_unit_id)
+            chara_unit_ids.append(chara_unit_id)
+            chara_names.append(fullname)
+
+        return {
+            'talk_id': talk_id,
+            'archive_group_id': archive_group_id,
+            'conditions_str': conditions_str,
+            'chara_names': chara_names,
+            'gameCharacterUnitIds': chara_unit_ids,
+            'lua_name': lua_name,
+            'assetbundleName': assetbundleName,
+        }
+
+    async def _fetch_lua_map(
+        self, lua_keys: list[tuple[str, str]]
+    ) -> tuple[dict[tuple[str, str], str], list[Any]]:
+        """Fetch unique lua files concurrently.
+
+        Returns (result_map, raw_results) where raw_results is the list of
+        raw return values from fetch_url_json (for judge_need_skip).
+        """
+        if not lua_keys:
+            return {}, []
+        lua_tasks = [
+            self.fetch_url_json(
+                [url.format(assetbundleName=ab, lua=ln) for url in self.talk_asset_url],
+                ln,
+                compress=self.compress_assets,
+                skip_read=not self.parse,
+                format='text',
+                print_done=self.print_fetch_detial,
+            )
+            for ab, ln in lua_keys
+        ]
+        lua_results = await asyncio.gather(*lua_tasks)
+        result_map: dict[tuple[str, str], str] = {}
+        for key, result in zip(lua_keys, lua_results):
+            if isinstance(result, str) and not result.startswith('ERROR:'):
+                result_map[key] = result
+            else:
+                logging.warning(f'failed to fetch lua: {key[1]}')
+        return result_map, lua_results
+
+    def _write_entries(
+        self,
+        filepath: str,
+        entries: list[tuple[int, int, str, str, str, str]],
+        lua_map: dict[tuple[str, str], str],
+    ) -> None:
+        """Write formatted talk entries to a file."""
+        right = Mark_multi_lang[')'][self.reader.mark_lang]
+        chara_prefix = Mark_multi_lang['characters'][self.reader.mark_lang]
+
+        with open(filepath, 'w', encoding='utf8') as f:
+            for idx, (
+                talk_id,
+                archive_group_id,
+                conditions_str,
+                chara_names_str,
+                lua_name,
+                ab,
+            ) in enumerate(entries, 1):
+                lua_text = lua_map.get((ab, lua_name))
+                f.write(f'{idx} {talk_id}:{archive_group_id} {conditions_str}\n')
+                if chara_names_str:
+                    f.write(f'\n{chara_prefix}{chara_names_str}{right}\n')
+                if lua_text is not None:
+                    f.write(f'\n{self._parse_lua_talk(lua_text)}\n')
+                else:
+                    f.write('\n')
+                f.write('\n\n')
+
+    # --- Public methods ---
+
+    async def get_id(self, talk_id: int) -> None:
+        """Debug: fetch one mysekai talk by id, save to mysekai_talk_id.txt."""
+        talk = None
+        for t in self.mysekaiCharacterTalks_json:
+            if t['id'] == talk_id:
+                talk = t
+                break
+        if talk is None:
+            logging.error(f'talk_id {talk_id} not found in mysekaiCharacterTalks')
+            return
+
+        meta = self._get_talk_meta(talk)
+        if meta is None:
+            logging.error(f'talk {talk_id}: group not found')
+            return
+
+        comma = Mark_multi_lang[','][self.reader.mark_lang]
+        entries = [
+            (
+                meta['talk_id'],
+                meta['archive_group_id'],
+                meta['conditions_str'],
+                comma.join(meta['chara_names']),
+                meta['lua_name'],
+                meta['assetbundleName'],
+            )
+        ]
+
+        lua_map, lua_results = await self._fetch_lua_map(
+            [(meta['assetbundleName'], meta['lua_name'])]
+        )
+
+        if self.parse and not util.judge_need_skip(*lua_results):
+            os.makedirs(self.save_dir, exist_ok=True)
+            filepath = os.path.join(self.save_dir, f'mysekai_talk_{talk_id}.txt')
+            self._write_entries(filepath, entries, lua_map)
+            logging.info(f'wrote talk {talk_id} to mysekai_talk_{talk_id}.txt')
+
+    async def get(self, gameCharacterUnitId: int) -> None:
+        """Fetch all mysekai talks for one character (by gameCharacterUnitId),
+        save to {chara_key}.txt.
+        """
+
+        # Build chara key
+        gameCharaId, unit_abbr, fullname = self._get_chara_info(gameCharacterUnitId)
+        chara_key = f'{gameCharaId:0{self.maxlen_charaId}} {unit_abbr}_{fullname}'
+
+        # Collect talks involving this character
+        comma = Mark_multi_lang[','][self.reader.mark_lang]
+        entries: list[tuple[int, int, str, str, str, str]] = []
+        lua_keys: list[tuple[str, str]] = []
+        seen_lua: set[tuple[str, str]] = set()
+
+        for talk in self.mysekaiCharacterTalks_json:
+            meta = self._get_talk_meta(talk)
+            if meta is None:
+                continue
+            if gameCharacterUnitId not in meta['gameCharacterUnitIds']:
+                continue
+
+            entries.append(
+                (
+                    meta['talk_id'],
+                    meta['archive_group_id'],
+                    meta['conditions_str'],
+                    comma.join(meta['chara_names']),
+                    meta['lua_name'],
+                    meta['assetbundleName'],
+                )
+            )
+
+            lua_key = (meta['assetbundleName'], meta['lua_name'])
+            if lua_key not in seen_lua:
+                seen_lua.add(lua_key)
+                lua_keys.append(lua_key)
+
+        if not entries:
+            logging.info(f'no talks found for {chara_key}')
+            return
+
+        # Sort by (archive_group_id, talk_id)
+        entries.sort(key=lambda x: (x[1], x[0]))
+
+        lua_map, lua_results = await self._fetch_lua_map(lua_keys)
+
+        if self.parse and not util.judge_need_skip(*lua_results):
+            os.makedirs(self.save_dir, exist_ok=True)
+            filename = util.valid_filename(chara_key + '.txt')
+            filepath = os.path.join(self.save_dir, filename)
+            util.remove_olds_or_rename_old(filepath, r'(\d+) ')
+            self._write_entries(filepath, entries, lua_map)
+            logging.info(f'wrote {len(entries)} talks to {filename}')
+
+    async def get_tutorial(self) -> None:
+        """Fetch all mysekai tutorial talks, save to _tutorial.txt."""
+
+        ttalk_list = await self.fetch_url_json(
+            self.mysekaiTutorialTalks_url, force_online=self.force_master_online
+        )
+        if not ttalk_list:
+            logging.info('no tutorial talks.')
+            return
+
+        lua_keys: list[tuple[str, str]] = []
+        for tt in ttalk_list:
+            key = (tt['assetbundleName'], tt['lua'])
+            if key not in lua_keys:
+                lua_keys.append(key)
+
+        lua_map, lua_results = await self._fetch_lua_map(lua_keys)
+
+        if self.parse and not util.judge_need_skip(*lua_results):
+            parts: list[str] = []
+            for tt in ttalk_list:
+                ttalk_id = tt['id']
+                lua_name = tt['lua']
+                ab = tt['assetbundleName']
+                lua_text = lua_map.get((ab, lua_name))
+                if lua_text is not None:
+                    parsed = self._parse_lua_talk(lua_text)
+                    parts.append(f'{ttalk_id}:{lua_name}\n\n{parsed}\n')
+                else:
+                    parts.append(f'{ttalk_id}:{lua_name}\n\n')
+
+            os.makedirs(self.save_dir, exist_ok=True)
+            filepath = os.path.join(
+                self.save_dir, f'{0:0{self.maxlen_charaId}} tutorial.txt'
+            )
+            with open(filepath, 'w', encoding='utf8') as f:
+                f.write('\n'.join(parts) + '\n')
+            logging.info(f'wrote {len(ttalk_list)} tutorial talks to tutorial.txt')
+
+    def tell_ids(self) -> list[int]:
+        """Return gameCharacterUnitIds for mysekai talks.
+        Fixed list: 20 original characters + 5 Miku variants + 5 VS group variants.
+        """
+        return sorted(
+            [
+                # 原创角色 (gameCharacterId 1~20)
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                # 初音未来 5 variants (charaId=21)
+                27,  # light_sound (Leo/need)
+                28,  # idol (MMJ)
+                29,  # street (VBS)
+                30,  # theme_park (WxS)
+                31,  # school_refusal (25ji)
+                # VS in groups
+                33,  # Rin (MMJ)
+                39,  # Len (VBS)
+                42,  # Luka (Leo/need)
+                49,  # MEIKO (VBS)
+                55,  # KAITO (WxS)
+            ]
+        )
+
+
 async def main():
 
     logging.basicConfig(level=logging.INFO)
@@ -1672,6 +2170,7 @@ async def main():
     area_getter = Area_talk_getter(reader, online=online)
     self_getter = Self_intro_getter(reader, online=online)
     special_getter = Special_story_getter(reader, online=online)
+    mysekai_getter = Mysekai_talk_getter(reader, online=online)
 
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=net_connect_limit)
@@ -1684,6 +2183,7 @@ async def main():
             area_getter.init(session),
             self_getter.init(session),
             special_getter.init(session),
+            mysekai_getter.init(session),
         )
 
         tasks = []
@@ -1700,6 +2200,8 @@ async def main():
             tasks.append(self_getter.get(i))
         for i in range(1, 5):
             tasks.append(special_getter.get(i))
+        for i in range(1, 5):
+            tasks.append(mysekai_getter.get_id(i))
 
         await asyncio.gather(*tasks)
 

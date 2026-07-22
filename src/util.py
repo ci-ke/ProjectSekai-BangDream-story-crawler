@@ -160,6 +160,7 @@ class Base_fetcher:
         force_local: bool = False,
         skip_read: bool = False,
         content_save_edit: Callable | None = None,
+        format: str = 'json',
     ) -> Any:
         if force_local:
             online = False
@@ -182,6 +183,7 @@ class Base_fetcher:
             compress=compress,
             skip_read=skip_read,
             content_save_edit=content_save_edit,
+            format=format,
         )
 
 
@@ -267,7 +269,9 @@ async def save_json_to_url(
     compress: bool,
     content_edit: Callable | None = None,
     skip_save: bool = False,
+    format: str = 'json',
 ) -> str:
+    is_json = format == 'json'
     if append_save_path is None:
         path = url_to_path(url, save_dir)
     else:
@@ -283,16 +287,22 @@ async def save_json_to_url(
         content = content_edit(content)
 
     if compress:
-        json_bytes = json.dumps(content, ensure_ascii=False).encode('utf-8')
+        if is_json:
+            raw_bytes = json.dumps(content, ensure_ascii=False).encode('utf-8')
+        else:
+            raw_bytes = (content or '').encode('utf-8')
         loop = asyncio.get_event_loop()
         compressed = await loop.run_in_executor(
-            _compress_executor, _compress_sync, json_bytes, 11
+            _compress_executor, _compress_sync, raw_bytes, 11
         )
         with open(save_path, 'wb') as f:
             f.write(compressed)
     else:
         with open(save_path, 'w', encoding='utf8') as f:
-            f.write(json.dumps(content, ensure_ascii=False, indent=2))
+            if is_json:
+                f.write(json.dumps(content, ensure_ascii=False, indent=2))
+            else:
+                f.write(content or '')
 
     return save_path
 
@@ -310,7 +320,9 @@ async def read_json_from_url(
     append_save_path: str | None,
     compress: bool,
     skip_read: bool,
+    format: str = 'json',
 ) -> Any:
+    is_json = format == 'json'
     for url in urls:
         if append_save_path is None:
             path = url_to_path(url, save_dir)
@@ -323,7 +335,7 @@ async def read_json_from_url(
             async with network_semaphore:
                 with open(path, encoding='utf8') as f:
                     content = f.read()
-                    return json.loads(content)
+                    return json.loads(content) if is_json else content
         elif os.path.exists(path + '.br'):
             path = path + '.br'
             write_to_file(success_assets_file, path)
@@ -337,7 +349,7 @@ async def read_json_from_url(
                         _compress_executor, _decompress_sync, compressed_bytes
                     )
                     content = decompressed_bytes.decode("utf-8")
-                    return json.loads(content)
+                    return json.loads(content) if is_json else content
 
     if missing_download:
         return await fetch_url_json(
@@ -355,6 +367,7 @@ async def read_json_from_url(
             append_save_path=append_save_path,
             compress=compress,
             skip_read=skip_read,
+            format=format,
         )
     else:
         write_to_file(
@@ -385,7 +398,10 @@ async def fetch_url_json(
     compress: bool = False,
     skip_read: bool = False,
     content_save_edit: Callable | None = None,
+    format: str = 'json',
 ) -> Any:
+
+    is_json = format == 'json'
 
     if network_semaphore is None:
         network_semaphore = _net_semaphore
@@ -395,7 +411,7 @@ async def fetch_url_json(
     if online:
         assert session is not None
 
-        json_content = None
+        content = None
         last_error = None
 
         for current_url in urls:
@@ -404,13 +420,18 @@ async def fetch_url_json(
                     try:
                         async with session.get(current_url) as res:
                             res.raise_for_status()
-                            json_content = await res.json(content_type=None)
+                            content = (
+                                await res.json(content_type=None)
+                                if is_json
+                                else await res.text()
+                            )
                             last_error = None
                             break
 
                     except Exception as e:
                         last_error = (
-                            f'ERROR: Fetch json error, attempt {attempt + 1}/{max_retries} || '
+                            f'ERROR: Fetch {"json" if is_json else "text"} error, '
+                            f'attempt {attempt + 1}/{max_retries} || '
                             + f'{type(e)}: {e} || '
                             + f'url: {current_url}'
                             + (
@@ -422,7 +443,7 @@ async def fetch_url_json(
                         no_retry = (
                             isinstance(e, aiohttp.ClientResponseError)
                             and 400 <= e.status < 500
-                        ) or isinstance(e, json.decoder.JSONDecodeError)
+                        ) or (is_json and isinstance(e, json.decoder.JSONDecodeError))
                         if no_retry or attempt + 1 == max_retries:
                             logging.warning(last_error)
                         if no_retry:
@@ -432,19 +453,26 @@ async def fetch_url_json(
                 if save:
                     save_path = await save_json_to_url(
                         current_url,
-                        json_content,
+                        content,
                         save_dir,
                         append_save_path,
                         compress,
                         content_save_edit,
+                        format=format,
                     )
                     write_to_file(success_assets_file, save_path)
                 break
 
         if last_error is not None:
-            json_content = last_error
+            content = last_error
             save_path = await save_json_to_url(
-                current_url, None, save_dir, append_save_path, compress, skip_save=True
+                current_url,
+                None,
+                save_dir,
+                append_save_path,
+                compress,
+                skip_save=True,
+                format=format,
             )
             write_to_file(
                 error_assets_file,
@@ -466,13 +494,18 @@ async def fetch_url_json(
             append_save_path,
             compress,
             skip_read,
+            format=format,
         )
-        json_content = 'Unable to read json file' if result is _MISSING_FILE else result
+        content = (
+            f'Unable to read {"json" if is_json else "text"} file'
+            if result is _MISSING_FILE
+            else result
+        )
 
     if print_done:
         logging.info('fetch ' + (urls[0] if len(urls) == 1 else str(urls)) + ' done.')
 
-    return json_content
+    return content
 
 
 def judge_need_skip(*story_json: dict | str) -> bool:
