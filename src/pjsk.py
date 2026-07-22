@@ -2021,8 +2021,10 @@ class Mysekai_talk_getter(Pjsk_getter):
         """
 
         # Build chara key
-        gameCharaId, unit_abbr, fullname = self._get_chara_info(gameCharacterUnitId)
-        chara_key = f'{gameCharaId:0{self.maxlen_charaId}} {unit_abbr}_{fullname}'
+        _, unit_abbr, fullname = self._get_chara_info(gameCharacterUnitId)
+        chara_key = (
+            f'{gameCharacterUnitId:0{self.maxlen_charaId}} {unit_abbr}_{fullname}'
+        )
 
         # Collect talks involving this character
         comma = Mark_multi_lang[','][self.reader.mark_lang]
