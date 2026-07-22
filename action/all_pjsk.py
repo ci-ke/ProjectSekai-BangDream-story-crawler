@@ -21,6 +21,7 @@ class Getters_type(TypedDict):
     unit_getter: pjsk.Unit_story_getter
     self_getter: pjsk.Self_intro_getter
     special_getter: pjsk.Special_story_getter
+    mysekai_getter: pjsk.Mysekai_talk_getter
 
 
 def create_getters(
@@ -61,6 +62,9 @@ def create_getters(
         'special_getter': pjsk.Special_story_getter(
             reader, save_dir=get_save_dir(pjsk.Special_story_getter), **args
         ),
+        'mysekai_getter': pjsk.Mysekai_talk_getter(
+            reader, save_dir=get_save_dir(pjsk.Mysekai_talk_getter), **args
+        ),
     }
 
 
@@ -81,6 +85,11 @@ def add_common_tasks(
             area_getter.get(category)
             for category in area_getter.tell_categories()
             if not isinstance(category, int)
+        )
+        mysekai_getter = getters['mysekai_getter']
+        tasks.extend(
+            mysekai_getter.get(chara_unit_id)
+            for chara_unit_id in mysekai_getter.tell_ids()
         )
 
 
