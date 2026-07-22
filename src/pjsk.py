@@ -1940,10 +1940,7 @@ class Mysekai_talk_getter(Pjsk_getter):
         lua_results = await asyncio.gather(*lua_tasks)
         result_map: dict[tuple[str, str], str] = {}
         for key, result in zip(lua_keys, lua_results):
-            if isinstance(result, str) and not result.startswith('ERROR:'):
-                result_map[key] = result
-            else:
-                logging.warning(f'failed to fetch lua: {key[1]}')
+            result_map[key] = result
         return result_map, lua_results
 
     def _write_entries(
