@@ -1843,8 +1843,7 @@ class Mysekai_talk_getter(Pjsk_getter):
                 parts.append(self.mysekaiFixtures_json[fix_index]['name'])
         return ', '.join(parts)
 
-    @staticmethod
-    def _parse_lua_talk(lua_text: str) -> str:
+    def _parse_lua_talk(self, lua_text: str) -> str:
         """Parse Lua talk script to formatted dialogue text."""
         # Find all label and text calls in order by position
         combined_pattern = re.compile(
@@ -1870,7 +1869,9 @@ class Mysekai_talk_getter(Pjsk_getter):
             if ev_type == 'label':
                 current_label = ev_content
             elif ev_type == 'text' and current_label is not None:
-                lines.append(f"{current_label}：{ev_content}")
+                lines.append(
+                    f"{current_label}{util.Mark_multi_lang[':'][self.reader.mark_lang]}{ev_content}"
+                )
 
         return '\n'.join(lines)
 
