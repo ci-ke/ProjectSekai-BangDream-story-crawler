@@ -92,6 +92,8 @@ class Pjsk_fetcher(util.Base_fetcher):
             asset_name = asset_name_match.group(2)
             if asset_name.endswith('.json'):
                 asset_name = asset_name[:-5] + '.asset'
+            elif asset_name.endswith('.lua.txt'):
+                asset_name = asset_name[:-4]
         else:
             raise RuntimeError(url)
         return os.path.normpath(os.path.join(f'pjsk-{lang}-assets', asset_name))
@@ -1662,7 +1664,7 @@ class Mysekai_talk_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['haruki', 'sekai.best'],
+        src: list[str] = ['haruki', 'pjsk.moe', 'sekai.best'],
         save_dir: str = './story_{lang}/mysekai',
         assets_save_dir: str = './assets',
         online: bool = True,

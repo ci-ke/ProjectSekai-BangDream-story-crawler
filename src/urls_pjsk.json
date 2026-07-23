@@ -15,7 +15,7 @@
         "talk_asset": "https://storage.sekai.best/sekai-{lang}-assets/scenario/actionset/group{{group}}/{{scenarioId}}.asset",
         "self_asset": "https://storage.sekai.best/sekai-{lang}-assets/scenario/profile/{{scenarioId}}.asset",
         "special_asset": "https://storage.sekai.best/sekai-{lang}-assets/scenario/special/{{assetbundleName}}/{{scenarioId}}.asset",
-        "mysekai_talk_asset": "https://storage.sekai.best/sekai-{lang}-assets/ondemand/{{assetbundleName}}/{{lua}}.lua",
+        "mysekai_talk_asset": "https://storage.sekai.best/sekai-{lang}-assets/{{assetbundleName}}/{{lua}}.lua.txt",
         "asset_lang": {
             "cn": "cn",
             "jp": "jp",
@@ -65,7 +65,7 @@
         "talk_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/scenario/actionset/group{{group}}/{{scenarioId}}.json",
         "self_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/scenario/profile/{{scenarioId}}.json",
         "special_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/scenario/special/{{assetbundleName}}/{{scenarioId}}.json",
-        "mysekai_talk_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/ondemand/{{assetbundleName}}/{{lua}}.lua",
+        "mysekai_talk_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/{{assetbundleName}}/{{lua}}.lua",
         "asset_lang": {
             "cn": "cn",
             "jp": "jp",
