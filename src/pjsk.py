@@ -1949,6 +1949,7 @@ class Mysekai_talk_getter(Pjsk_getter):
         filepath: str,
         entries: list[tuple[int, int, str, str, str, str]],
         lua_map: dict[tuple[str, str], str],
+        is_first_group_id: dict[int, bool] | None = None,
     ) -> None:
         """Write formatted talk entries to a file."""
         right = Mark_multi_lang[')'][self.reader.mark_lang]
@@ -1963,8 +1964,14 @@ class Mysekai_talk_getter(Pjsk_getter):
                 lua_name,
                 ab,
             ) in enumerate(entries, 1):
+                repeat_mark = ''
+                if is_first_group_id is not None and not is_first_group_id[talk_id]:
+                    repeat_mark = '~'
+
                 lua_text = lua_map.get((ab, lua_name))
-                f.write(f'{idx} {talk_id}:{archive_group_id} {conditions_str}\n')
+                f.write(
+                    f'{idx} {talk_id}:{archive_group_id}{repeat_mark} {conditions_str}\n'
+                )
                 if chara_names_str:
                     f.write(f'\n{chara_prefix}{chara_names_str}{right}\n')
                 if lua_text is not None:
@@ -2030,6 +2037,9 @@ class Mysekai_talk_getter(Pjsk_getter):
         lua_keys: list[tuple[str, str]] = []
         seen_lua: set[tuple[str, str]] = set()
 
+        is_first_group_id: dict[int, bool] = {}
+        seen_talk_group_id: set[int] = set()
+
         for talk in self.mysekaiCharacterTalks_json:
             meta = self._get_talk_meta(talk)
             if meta is None:
@@ -2048,6 +2058,14 @@ class Mysekai_talk_getter(Pjsk_getter):
                 )
             )
 
+            tid = meta['talk_id']
+            gid = meta['archive_group_id']
+            if gid not in seen_talk_group_id:
+                is_first_group_id[tid] = True
+            else:
+                is_first_group_id[tid] = False
+            seen_talk_group_id.add(gid)
+
             lua_key = (meta['assetbundleName'], meta['lua_name'])
             if lua_key not in seen_lua:
                 seen_lua.add(lua_key)
@@ -2064,7 +2082,7 @@ class Mysekai_talk_getter(Pjsk_getter):
             filename = util.valid_filename(chara_key + '.txt')
             filepath = os.path.join(self.save_dir, filename)
             util.remove_olds_or_rename_old(filepath, r'(\d+) ')
-            self._write_entries(filepath, entries, lua_map)
+            self._write_entries(filepath, entries, lua_map, is_first_group_id)
             logging.info(f'wrote {len(entries)} talks to {filename}')
 
     async def get_tutorial(self) -> None:
