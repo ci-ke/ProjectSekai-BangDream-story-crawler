@@ -2057,9 +2057,6 @@ class Mysekai_talk_getter(Pjsk_getter):
             logging.info(f'no talks found for {chara_key}')
             return
 
-        # Sort by (archive_group_id, talk_id)
-        entries.sort(key=lambda x: (x[1], x[0]))
-
         lua_map, lua_results = await self._fetch_lua_map(lua_keys)
 
         if self.parse and not util.judge_need_skip(*lua_results):
