@@ -8,10 +8,6 @@
 
 ## Related repositories
 
-### Online reading
-
-[Github Pages](https://ci-ke.github.io/story/) from [repository](https://github.com/ci-ke/story)
-
 ### Crawled stories (txt)
 
 [ProjectSekai-story repository](https://github.com/ci-ke/ProjectSekai-story)
