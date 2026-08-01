@@ -1,5 +1,6 @@
 import os, json, asyncio, bisect, logging, re, shutil
 from pathlib import Path
+from urllib.parse import urlsplit
 from enum import Enum
 from typing import Any, Callable
 from asyncio import Semaphore
@@ -108,6 +109,87 @@ LATE_TIMESTAMP13 = int(
 
 _net_semaphore = asyncio.Semaphore(20)
 _MISSING_FILE = object()
+
+
+class RateLimit:
+    """按 host 限制 QPS；配置见 qps.json（键按子串匹配 hostname，'default' 兜底）。"""
+
+    _qps_file = Path(__file__).parent / 'qps.json'
+
+    _qps_config: dict[str, float] = {}
+    _default_qps: float | None = None  # None 表示不限速
+    _lock = asyncio.Lock()
+    _last_times: dict[str, float] = {}
+
+    _retry_429_delay = 1  # 失败重试间隔；Retry-After 更大时按 Retry-After
+
+    @classmethod
+    def load_qps_config(cls, path: Path | None = None) -> None:
+        path = path or cls._qps_file
+        cls._qps_config = {}
+        cls._default_qps = None
+        try:
+            with open(path, encoding='utf8') as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                for key, value in data.items():
+                    if not isinstance(value, (int, float)) or isinstance(value, bool):
+                        continue
+                    if key == 'default':
+                        cls._default_qps = float(value)
+                    else:
+                        cls._qps_config[str(key)] = float(value)
+                return
+        except (OSError, ValueError):
+            pass
+        logging.warning(f'Failed to load QPS config from {path}, no rate limit applied')
+
+    @staticmethod
+    def interval_for(host: str) -> float:
+        """该 host 的请求最小间隔秒数；0 表示不限速。"""
+        for key, qps in RateLimit._qps_config.items():
+            if key in host:
+                return 1.0 / qps if qps > 0 else 0.0
+        default_qps = RateLimit._default_qps
+        if default_qps is not None and default_qps > 0:
+            return 1.0 / default_qps
+        return 0.0
+
+    @staticmethod
+    async def wait(url: str) -> None:
+        """按 host 静态限速：同一 host 两次请求至少间隔 qps.json 配置的秒数。"""
+        host = urlsplit(url).hostname or ''
+        interval = RateLimit.interval_for(host)
+        if interval <= 0:
+            return
+        loop = asyncio.get_running_loop()
+        while True:
+            async with RateLimit._lock:
+                now = loop.time()
+                delay = RateLimit._last_times.get(host, 0.0) + interval - now
+                if delay <= 0:
+                    RateLimit._last_times[host] = now
+                    return
+            await asyncio.sleep(min(delay, 1.0))
+
+    @staticmethod
+    def is_rate_limited(e: Exception) -> bool:
+        return isinstance(e, aiohttp.ClientResponseError) and e.status == 429
+
+    @staticmethod
+    def retry_delay(retry_after: str | None) -> float:
+        """429/5xx 重试前的等待：优先尊重 Retry-After，否则用 _retry_429_delay。"""
+        if retry_after:
+            try:
+                retry_after_sec = float(retry_after)
+            except ValueError:
+                retry_after_sec = 0.0
+        else:
+            retry_after_sec = 0.0
+        return max(retry_after_sec, RateLimit._retry_429_delay)
+
+
+RateLimit.load_qps_config()
 
 _compress_executor = ThreadPoolExecutor(max_workers=min(8, (os.cpu_count() or 4)))
 
@@ -416,9 +498,12 @@ async def fetch_url_json(
 
         for current_url in urls:
             for attempt in range(max_retries):
+                retry_after = None
+                await RateLimit.wait(current_url)
                 async with network_semaphore:
                     try:
                         async with session.get(current_url) as res:
+                            retry_after = res.headers.get('Retry-After')
                             res.raise_for_status()
                             content = (
                                 await res.json(content_type=None)
@@ -440,14 +525,28 @@ async def fetch_url_json(
                                 else ''
                             )
                         )
+                        is_rate_limited = RateLimit.is_rate_limited(e)
+                        # 429/5xx 需重试且每次警告，不按普通 4xx 放弃
                         no_retry = (
+                            (
+                                isinstance(e, aiohttp.ClientResponseError)
+                                and 400 <= e.status < 500
+                            )
+                            or (is_json and isinstance(e, json.decoder.JSONDecodeError))
+                        ) and not is_rate_limited
+                        retryable = is_rate_limited or (
                             isinstance(e, aiohttp.ClientResponseError)
-                            and 400 <= e.status < 500
-                        ) or (is_json and isinstance(e, json.decoder.JSONDecodeError))
-                        if no_retry or attempt + 1 == max_retries:
-                            logging.warning(last_error)
+                            and 500 <= e.status < 600
+                        )
+                        will_retry = not no_retry and attempt + 1 < max_retries
+                        if no_retry or retryable or attempt + 1 == max_retries:
+                            logging.warning(
+                                last_error + ' || retry' if will_retry else last_error
+                            )
                         if no_retry:
                             break
+                        if attempt + 1 < max_retries:
+                            await asyncio.sleep(RateLimit.retry_delay(retry_after))
 
             if last_error is None:
                 if save:
