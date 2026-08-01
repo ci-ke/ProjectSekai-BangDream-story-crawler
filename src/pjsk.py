@@ -155,7 +155,7 @@ class Story_reader(Pjsk_fetcher):
     def __init__(
         self,
         lang: str = 'cn',
-        src: list[str] = ['haruki', 'sekai.best'],
+        src: list[str] = ['sekai.best', 'haruki', 'pjsk.moe'],
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
@@ -439,7 +439,7 @@ class Event_story_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['haruki', 'sekai.best'],
+        src: list[str] = ['sekai.best', 'haruki', 'pjsk.moe'],
         save_dir: str = './story_{lang}/event',
         assets_save_dir: str = './assets',
         online: bool = True,
@@ -727,7 +727,7 @@ class Unit_story_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['haruki', 'sekai.best'],
+        src: list[str] = ['sekai.best', 'haruki', 'pjsk.moe'],
         save_dir: str = './story_{lang}/main',
         assets_save_dir: str = './assets',
         online: bool = True,
@@ -902,7 +902,7 @@ class Card_story_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['haruki', 'sekai.best'],
+        src: list[str] = ['sekai.best', 'haruki', 'pjsk.moe'],
         save_dir: str = './story_{lang}/card',
         assets_save_dir: str = './assets',
         online: bool = True,
@@ -1167,7 +1167,7 @@ class Area_talk_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['haruki', 'sekai.best'],
+        src: list[str] = ['sekai.best', 'haruki', 'pjsk.moe'],
         save_dir: str = './story_{lang}/area',
         assets_save_dir: str = './assets',
         online: bool = True,
@@ -1426,7 +1426,7 @@ class Self_intro_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['haruki', 'sekai.best'],
+        src: list[str] = ['sekai.best', 'haruki', 'pjsk.moe'],
         save_dir: str = './story_{lang}/self',
         assets_save_dir: str = './assets',
         online: bool = True,
@@ -1551,7 +1551,7 @@ class Special_story_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['haruki', 'sekai.best'],
+        src: list[str] = ['sekai.best', 'haruki', 'pjsk.moe'],
         save_dir: str = './story_{lang}/special',
         assets_save_dir: str = './assets',
         online: bool = True,

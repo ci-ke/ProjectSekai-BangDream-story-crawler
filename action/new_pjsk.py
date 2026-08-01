@@ -38,7 +38,12 @@ async def main() -> None:
     lang_getters: dict[str, Getters_type] = {
         'cn': create_getters('cn', use_parent_save_dir=True),
         'tw': create_getters('tw', use_parent_save_dir=True),
-        'jp': create_getters('jp', mark_lang='en', use_parent_save_dir=True),
+        'jp': create_getters(
+            'jp',
+            mark_lang='en',
+            use_parent_save_dir=True,
+            args={'src': ['haruki', 'sekai.best', 'pjsk.moe']},
+        ),
         'en': create_getters('en', mark_lang='en', use_parent_save_dir=True),
     }
 
