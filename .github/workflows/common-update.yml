@@ -52,7 +52,7 @@ jobs:
         if: ${{ inputs.need_assets }}
         working-directory: ./crawler
         run: |
-          git clone https://github.com/ci-ke/pjsk-bang-story-assets.git __assets_repo__
+          git clone -b main --single-branch https://github.com/ci-ke/pjsk-bang-story-assets.git __assets_repo__
           mv __assets_repo__/assets .
 
       - name: Install uv
