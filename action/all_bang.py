@@ -73,7 +73,9 @@ def add_all_tasks(tasks: TaskList_type, getters: Getters_type) -> None:
 
 async def main() -> None:
 
-    getters = create_getters(use_parent_save_dir=True)
+    args = {'online': False, 'missing_download': False}
+
+    getters = create_getters(use_parent_save_dir=True, args=args)
 
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=NET_CONNECT_LIMIT)

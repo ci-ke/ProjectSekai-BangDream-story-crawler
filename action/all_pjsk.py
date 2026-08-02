@@ -106,11 +106,13 @@ def add_timestamp_tasks(
 
 async def main() -> None:
 
+    args = {'online': False, 'missing_download': False}
+
     lang_getters: dict[str, Getters_type] = {
-        'cn': create_getters('cn', use_parent_save_dir=True),
-        'tw': create_getters('tw', use_parent_save_dir=True),
-        'jp': create_getters('jp', mark_lang='en', use_parent_save_dir=True),
-        'en': create_getters('en', mark_lang='en', use_parent_save_dir=True),
+        'cn': create_getters('cn', use_parent_save_dir=True, args=args),
+        'tw': create_getters('tw', use_parent_save_dir=True, args=args),
+        'jp': create_getters('jp', mark_lang='en', use_parent_save_dir=True, args=args),
+        'en': create_getters('en', mark_lang='en', use_parent_save_dir=True, args=args),
     }
 
     async with ClientSession(
