@@ -46,7 +46,7 @@ jobs:
           fetch-depth: 1
 
       - name: Clone crawler project
-        run: git clone https://github.com/ci-ke/ProjectSekai-BangDream-story-crawler.git crawler
+        run: git clone -b dev --single-branch https://github.com/ci-ke/ProjectSekai-BangDream-story-crawler.git crawler
 
       - name: Clone assets project
         if: ${{ inputs.need_assets }}
