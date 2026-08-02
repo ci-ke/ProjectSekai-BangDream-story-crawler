@@ -30,23 +30,23 @@ jobs:
       - name: Set PAT token env
         run: echo "PAT_TOKEN=${{ secrets.PAT_TOKEN }}" >> $GITHUB_ENV
 
-      - name: Checkout dev branch (with PAT)
+      - name: Checkout current branch (with PAT)
         if: ${{ env.PAT_TOKEN != '' }}
         uses: actions/checkout@v5
         with:
-          ref: dev
+          ref: ${{ github.ref_name }}
           fetch-depth: 1
           token: ${{ secrets.PAT_TOKEN }}
 
-      - name: Checkout dev branch (default token)
+      - name: Checkout current branch (default token)
         if: ${{ env.PAT_TOKEN == '' }}
         uses: actions/checkout@v5
         with:
-          ref: dev
+          ref: ${{ github.ref_name }}
           fetch-depth: 1
 
       - name: Clone crawler project
-        run: git clone -b dev --single-branch https://github.com/ci-ke/ProjectSekai-BangDream-story-crawler.git crawler
+        run: git clone -b ${{ github.ref_name }} --single-branch https://github.com/ci-ke/ProjectSekai-BangDream-story-crawler.git crawler
 
       - name: Clone assets project
         if: ${{ inputs.need_assets }}
