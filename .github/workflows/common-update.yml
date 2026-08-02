@@ -9,6 +9,10 @@ on:
       commit_message:
         required: true
         type: string
+      need_assets:
+        required: false
+        type: boolean
+        default: false
     secrets:
       PAT_TOKEN:
         required: false
@@ -43,6 +47,13 @@ jobs:
 
       - name: Clone crawler project
         run: git clone https://github.com/ci-ke/ProjectSekai-BangDream-story-crawler.git crawler
+
+      - name: Clone assets project
+        if: ${{ inputs.need_assets }}
+        working-directory: ./crawler
+        run: |
+          git clone https://github.com/ci-ke/pjsk-bang-story-assets.git __assets_repo__
+          mv __assets_repo__/assets .
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
