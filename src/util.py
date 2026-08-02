@@ -476,7 +476,7 @@ async def fetch_url_json(
     network_semaphore: Semaphore | None = None,
     print_done: bool = False,
     append_save_path: str | None = None,
-    max_retries: int = 5,
+    max_retries: int = 10,
     compress: bool = False,
     skip_read: bool = False,
     content_save_edit: Callable | None = None,
