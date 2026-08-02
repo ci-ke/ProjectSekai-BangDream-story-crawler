@@ -15,8 +15,8 @@ INIT_NAMES = ('reader', 'event_getter', 'card_getter')
 
 def add_new_tasks(tasks: TaskList_type, getters: Getters_type) -> None:
     for lang, mark_lang in LANGS:
-        tasks.append(getters['event_getter'].get_newest(lang, mark_lang, quantity=10))
-        tasks.append(getters['card_getter'].get_newest(lang, mark_lang, quantity=50))
+        tasks.append(getters['event_getter'].get_newest(lang, mark_lang, quantity=2))
+        tasks.append(getters['card_getter'].get_newest(lang, mark_lang, quantity=10))
 
 
 async def main() -> None:

@@ -10,17 +10,7 @@ from .all_pjsk import (
     TIMESTAMP13,
 )
 
-INIT_NAMES = ('reader', 'event_getter', 'card_getter', 'area_getter', 'special_getter')
-
-
-def add_common_tasks(
-    tasks: TaskList_type, lang_getters: dict[str, Getters_type]
-) -> None:
-    for getters in lang_getters.values():
-        special_getter = getters['special_getter']
-        tasks.extend(
-            special_getter.get(story_id) for story_id in special_getter.tell_ids()[-5:]
-        )
+INIT_NAMES = ('reader', 'event_getter', 'card_getter', 'area_getter')
 
 
 def add_timestamp_tasks(
@@ -28,10 +18,10 @@ def add_timestamp_tasks(
 ) -> None:
     tasks.append(
         getters['event_getter'].get_newest(
-            10, area_getter=getters['area_getter'], timestamp13=timestamp13
+            2, area_getter=getters['area_getter'], timestamp13=timestamp13
         )
     )
-    tasks.append(getters['card_getter'].get_newest(50, timestamp13=timestamp13))
+    tasks.append(getters['card_getter'].get_newest(10, timestamp13=timestamp13))
 
 
 async def main() -> None:
@@ -59,7 +49,6 @@ async def main() -> None:
         )
 
         tasks: TaskList_type = []
-        add_common_tasks(tasks, lang_getters)
         add_timestamp_tasks(tasks, lang_getters['jp'])
         for lang in ('cn', 'tw', 'en'):
             add_timestamp_tasks(tasks, lang_getters[lang], TIMESTAMP13)
