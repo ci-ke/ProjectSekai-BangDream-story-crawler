@@ -730,6 +730,7 @@ class Card_story_getter(util.Base_getter):
         chara_band_and_name = '_'.join((chara_bandAbbr, chara_name))
         cardRarityType = card['rarity']
         card_name = card['prefix'][Constant.lang_index[lang]]
+        skill_name = card['skillName'][Constant.lang_index[lang]]
         card_gachaText: str | None = card['gachaText'][Constant.lang_index[lang]]
         if card_gachaText:
             card_gachaText = card_gachaText.replace('\n', ' ')
@@ -813,14 +814,16 @@ class Card_story_getter(util.Base_getter):
             util.remove_olds_or_rename_old(file_path, r'(\d+)_')
             with open(file_path, 'w', encoding='utf8') as f:
                 f.write(card_story_name + '\n\n')
+                f.write(Mark_multi_lang['skill name'][mark_lang] + skill_name)
                 if card_gachaText:
                     f.write(
-                        Mark_multi_lang['gacha phrase'][mark_lang]
+                        '\n'
+                        + Mark_multi_lang['gacha phrase'][mark_lang]
                         + card_gachaText
-                        + '\n\n'
                     )
                 f.write(
-                    Mark_multi_lang['<'][mark_lang]
+                    '\n\n'
+                    + Mark_multi_lang['<'][mark_lang]
                     + str(story_1_name)
                     + Mark_multi_lang['>'][mark_lang]
                     + '\n\n'

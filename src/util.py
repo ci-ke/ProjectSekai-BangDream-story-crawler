@@ -95,6 +95,7 @@ Mark_multi_lang = {
     'memory out': {'cn': '（回忆切出）', 'en': '(Memory cut-out)'},
     'black out': {'cn': '（黑屏转场）', 'en': '(Black cut)'},
     'white out': {'cn': '（白屏转场）', 'en': '(White cut)'},
+    'skill name':{'cn': '技能名称：', 'en': 'Skill name: '},
     'gacha phrase': {'cn': '抽卡台词：', 'en': 'Gacha phrase: '},
     'self intro': {'cn': '自我介绍：', 'en': 'Self introduction: '},
     'anime story': {'cn': '动画故事', 'en': 'Anime story'},

@@ -988,6 +988,7 @@ class Card_story_getter(Pjsk_getter):
         chara_name = self.reader.get_chara_unitAbbr_names(card['characterId'])[1]
         cardRarityType = Constant.rarity_name[card['cardRarityType']]
         card_name = card['prefix']
+        skill_name = card['cardSkillName']
         card_gachaPhrase = card.get('gachaPhrase', '-').replace('\n', ' ')
         sub_unit = card['supportUnit']
         assetbundleName: str = card['assetbundleName']
@@ -1061,14 +1062,18 @@ class Card_story_getter(Pjsk_getter):
             util.remove_olds_or_rename_old(file_path, r'(\d+)_')
             with open(file_path, 'w', encoding='utf8') as f:
                 f.write(card_story_name + '\n\n')
+                f.write(
+                    Mark_multi_lang['skill name'][self.reader.mark_lang] + skill_name
+                )
                 if card_gachaPhrase != '-':
                     f.write(
-                        Mark_multi_lang['gacha phrase'][self.reader.mark_lang]
+                        '\n'
+                        + Mark_multi_lang['gacha phrase'][self.reader.mark_lang]
                         + card_gachaPhrase
-                        + '\n\n'
                     )
                 f.write(
-                    Mark_multi_lang['<'][self.reader.mark_lang]
+                    '\n\n'
+                    + Mark_multi_lang['<'][self.reader.mark_lang]
                     + story_1_name
                     + Mark_multi_lang['>'][self.reader.mark_lang]
                     + '\n\n'
