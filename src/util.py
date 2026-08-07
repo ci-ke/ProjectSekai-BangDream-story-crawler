@@ -12,6 +12,14 @@ import aiohttp, brotli
 SKIP_FETCH_ERROR = True
 RECORD_ASSET_SUCCESS = False
 
+LATE_TIMESTAMP13 = int(
+    (datetime.now(timezone.utc) + timedelta(days=365)).timestamp() * 1000
+)
+
+MISSING_MSG = 'Missing asset'
+
+_net_semaphore = asyncio.Semaphore(20)
+
 
 # https://github.com/EternalFlower/Project-Sekai-Story-Parser/blob/main/PJSekai%20Story%20parser.py
 class SnippetAction(int, Enum):
@@ -95,21 +103,13 @@ Mark_multi_lang = {
     'memory out': {'cn': '（回忆切出）', 'en': '(Memory cut-out)'},
     'black out': {'cn': '（黑屏转场）', 'en': '(Black cut)'},
     'white out': {'cn': '（白屏转场）', 'en': '(White cut)'},
-    'skill name':{'cn': '技能名称：', 'en': 'Skill name: '},
+    'skill name': {'cn': '技能名称：', 'en': 'Skill name: '},
     'gacha phrase': {'cn': '抽卡台词：', 'en': 'Gacha phrase: '},
     'self intro': {'cn': '自我介绍：', 'en': 'Self introduction: '},
     'anime story': {'cn': '动画故事', 'en': 'Anime story'},
     'see main story': {'cn': '见主线故事', 'en': 'See in main story'},
     'see band story': {'cn': '见乐队故事', 'en': 'See in band story'},
 }
-
-
-LATE_TIMESTAMP13 = int(
-    (datetime.now(timezone.utc) + timedelta(days=365)).timestamp() * 1000
-)
-
-_net_semaphore = asyncio.Semaphore(20)
-_MISSING_FILE = object()
 
 
 class RateLimit:
@@ -390,6 +390,9 @@ async def save_json_to_url(
     return save_path
 
 
+_MISSING_FILE = object()
+
+
 async def read_json_from_url(
     urls: list[str],
     missing_download: bool,
@@ -596,11 +599,7 @@ async def fetch_url_json(
             skip_read,
             format=format,
         )
-        content = (
-            f'Unable to read {"json" if is_json else "text"} file'
-            if result is _MISSING_FILE
-            else result
-        )
+        content = MISSING_MSG if result is _MISSING_FILE else result
 
     if print_done:
         logging.info('fetch ' + (urls[0] if len(urls) == 1 else str(urls)) + ' done.')

@@ -106,7 +106,7 @@ def add_timestamp_tasks(
 
 async def main() -> None:
 
-    args = {'online': False, 'missing_download': False}
+    args = {'online': False, 'missing_download': True}
 
     lang_getters: dict[str, Getters_type] = {
         'cn': create_getters('cn', use_parent_save_dir=True, args=args),

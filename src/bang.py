@@ -35,9 +35,9 @@ def bypass_asset_missing(story_json: Any) -> tuple[bool, str]:
             and len(details := story_json.split('||')) > 1
             and 'JSONDecodeError' in details[1].split(':')[0]
         )
-        or (story_json == 'Unable to read json file')
+        or (story_json == util.MISSING_MSG)
     ):
-        return True, 'Unable to read json file'
+        return True, util.MISSING_MSG
     else:
         return False, story_json
 

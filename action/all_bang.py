@@ -73,7 +73,7 @@ def add_all_tasks(tasks: TaskList_type, getters: Getters_type) -> None:
 
 async def main() -> None:
 
-    args = {'online': False, 'missing_download': False}
+    args = {'online': False, 'missing_download': True}
 
     getters = create_getters(use_parent_save_dir=True, args=args)
 
