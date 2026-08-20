@@ -693,6 +693,7 @@ class Event_story_getter(Pjsk_getter):
         quantity: int = 10,
         timestamp13: int | None = None,
         area_getter: Optional['Area_talk_getter'] = None,
+        exclude_new: int | None = None,
     ) -> None:
         '''
         quantity 0 = all
@@ -708,6 +709,9 @@ class Event_story_getter(Pjsk_getter):
 
         new_events = sorted(old_events)[-quantity:]
         new_eventids = [x[1] for x in new_events]
+
+        if exclude_new:
+            new_eventids = new_eventids[:-exclude_new]
 
         tasks = []
         for i in new_eventids:
@@ -1140,6 +1144,7 @@ class Card_story_getter(Pjsk_getter):
         self,
         quantity: int = 50,
         timestamp13: int | None = None,
+        exclude_new: int | None = None,
     ) -> None:
         '''
         quantity 0 = all
@@ -1155,6 +1160,9 @@ class Card_story_getter(Pjsk_getter):
 
         new_cards = sorted(old_cards)[-quantity:]
         new_cardids = [x[1] for x in new_cards]
+
+        if exclude_new:
+            new_cardids = new_cardids[:-exclude_new]
 
         tasks = []
         for i in new_cardids:

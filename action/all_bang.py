@@ -64,8 +64,16 @@ def add_all_tasks(tasks: TaskList_type, getters: Getters_type) -> None:
     for lang, mark_lang in LANGS:
         tasks.append(getters['main_getter'].get(None, lang, mark_lang))
         tasks.append(getters['band_getter'].get(None, None, lang, mark_lang))
-        tasks.append(getters['event_getter'].get_newest(lang, mark_lang, quantity=0))
-        tasks.append(getters['card_getter'].get_newest(lang, mark_lang, quantity=0))
+        tasks.append(
+            getters['event_getter'].get_newest(
+                lang, mark_lang, quantity=0, exclude_new=2
+            )
+        )
+        tasks.append(
+            getters['card_getter'].get_newest(
+                lang, mark_lang, quantity=0, exclude_new=10
+            )
+        )
         for area_id in (area_getter := getters['area_getter']).tell_area_ids():
             for talk_type in area_getter.types:
                 tasks.append(area_getter.get(area_id, talk_type, lang, mark_lang))

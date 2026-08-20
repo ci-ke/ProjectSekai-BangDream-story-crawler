@@ -98,10 +98,15 @@ def add_timestamp_tasks(
 ) -> None:
     tasks.append(
         getters['event_getter'].get_newest(
-            0, area_getter=getters['area_getter'], timestamp13=timestamp13
+            0,
+            area_getter=getters['area_getter'],
+            timestamp13=timestamp13,
+            exclude_new=2,
         )
     )
-    tasks.append(getters['card_getter'].get_newest(0, timestamp13=timestamp13))
+    tasks.append(
+        getters['card_getter'].get_newest(0, timestamp13=timestamp13, exclude_new=10)
+    )
 
 
 async def main() -> None:
