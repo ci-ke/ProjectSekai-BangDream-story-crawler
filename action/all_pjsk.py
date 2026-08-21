@@ -94,18 +94,23 @@ def add_common_tasks(
 
 
 def add_timestamp_tasks(
-    tasks: TaskList_type, getters: Getters_type, timestamp13: int | None = None
+    tasks: TaskList_type,
+    getters: Getters_type,
+    timestamp13: int | None = None,
+    if_exclude_new: bool = False,
 ) -> None:
     tasks.append(
         getters['event_getter'].get_newest(
             0,
             area_getter=getters['area_getter'],
             timestamp13=timestamp13,
-            exclude_new=2,
+            exclude_new=2 if if_exclude_new else None,
         )
     )
     tasks.append(
-        getters['card_getter'].get_newest(0, timestamp13=timestamp13, exclude_new=10)
+        getters['card_getter'].get_newest(
+            0, timestamp13=timestamp13, exclude_new=10 if if_exclude_new else None
+        )
     )
 
 
@@ -133,9 +138,11 @@ async def main() -> None:
 
         tasks: TaskList_type = []
         add_common_tasks(tasks, lang_getters)
-        add_timestamp_tasks(tasks, lang_getters['jp'])
+        add_timestamp_tasks(tasks, lang_getters['jp'], if_exclude_new=True)
         for lang in ('cn', 'tw', 'en'):
-            add_timestamp_tasks(tasks, lang_getters[lang], TIMESTAMP13)
+            add_timestamp_tasks(
+                tasks, lang_getters[lang], TIMESTAMP13, if_exclude_new=True
+            )
         await asyncio.gather(*tasks)
 
 

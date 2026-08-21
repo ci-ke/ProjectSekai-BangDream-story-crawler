@@ -60,18 +60,20 @@ def create_getters(
     }
 
 
-def add_all_tasks(tasks: TaskList_type, getters: Getters_type) -> None:
+def add_all_tasks(
+    tasks: TaskList_type, getters: Getters_type, if_exclude_new: bool = False
+) -> None:
     for lang, mark_lang in LANGS:
         tasks.append(getters['main_getter'].get(None, lang, mark_lang))
         tasks.append(getters['band_getter'].get(None, None, lang, mark_lang))
         tasks.append(
             getters['event_getter'].get_newest(
-                lang, mark_lang, quantity=0, exclude_new=2
+                lang, mark_lang, quantity=0, exclude_new=2 if if_exclude_new else None
             )
         )
         tasks.append(
             getters['card_getter'].get_newest(
-                lang, mark_lang, quantity=0, exclude_new=10
+                lang, mark_lang, quantity=0, exclude_new=10 if if_exclude_new else None
             )
         )
         for area_id in (area_getter := getters['area_getter']).tell_area_ids():
