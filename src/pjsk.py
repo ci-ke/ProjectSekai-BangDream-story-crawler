@@ -982,7 +982,7 @@ class Card_story_getter(Pjsk_getter):
             logging.info(f'card {card_id} does not exist.')
             return
 
-        card = self.cards_json[card_index]
+        card: dict[str, Any] = self.cards_json[card_index]
         cardEpisode_1 = self.cardEpisodes_json[cardEpisode_index]
         cardEpisode_2 = self.cardEpisodes_json[cardEpisode_index + 1]
 
@@ -993,7 +993,10 @@ class Card_story_getter(Pjsk_getter):
         cardRarityType = Constant.rarity_name[card['cardRarityType']]
         card_name = card['prefix']
         skill_name = card['cardSkillName']
-        card_gachaPhrase = card.get('gachaPhrase', '-').replace('\n', ' ')
+        special_skill_name = card.get('specialTrainingSkillName', None)
+        card_gachaPhrase = card.get('gachaPhrase', '-').replace(
+            '\n', ' '
+        )  # some have no gachaPhrase in tw
         sub_unit = card['supportUnit']
         assetbundleName: str = card['assetbundleName']
 
@@ -1069,6 +1072,8 @@ class Card_story_getter(Pjsk_getter):
                 f.write(
                     Mark_multi_lang['skill name'][self.reader.mark_lang] + skill_name
                 )
+                if special_skill_name:
+                    f.write(' / ' + special_skill_name)
                 if card_gachaPhrase != '-':
                     f.write(
                         '\n'
