@@ -66,10 +66,11 @@ class Constant:
             else:
                 sp_key = f'{file}_asset_{lang}'
                 if not sp_key in Constant.urls[src]:
-                    base_url = Constant.urls[src][f'{file}_asset']
-                    base_urls.append(
-                        base_url.format(lang=Constant.urls[src]['asset_lang'][lang])
-                    )
+                    if f'{file}_asset' in Constant.urls[src]:
+                        base_url = Constant.urls[src][f'{file}_asset']
+                        base_urls.append(
+                            base_url.format(lang=Constant.urls[src]['asset_lang'][lang])
+                        )
                 else:
                     base_urls.append(Constant.urls[src][sp_key])
         assert len(base_urls) > 0
