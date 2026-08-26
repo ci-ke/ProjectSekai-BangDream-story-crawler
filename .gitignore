@@ -24,3 +24,5 @@ mypy.ini
 
 # venv
 .venv
+.python-version
+uv.lock
