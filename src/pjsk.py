@@ -2191,7 +2191,7 @@ class Virtual_live_getter(Pjsk_getter):
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
-        maxlen_id: int = 5,
+        maxlen_id: int = 3,
         compress_assets: bool = False,
         force_master_online: bool = False,
         **args,
@@ -2347,6 +2347,9 @@ class Virtual_live_getter(Pjsk_getter):
 
     async def get(self, target: int) -> None:
         '''target: virtualLiveId，抓取整场 live 的全部 setlists（MC 台词 + 音乐列表）。'''
+        if target >= 10000:
+            logging.info(f'virtual live {target} does not exist.')
+            return
         vl_index = self.virtualLives_lookup.find_index(target)
         if vl_index == -1:
             logging.info(f'virtual live {target} does not exist.')
