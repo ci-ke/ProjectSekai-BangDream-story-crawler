@@ -1,6 +1,7 @@
 import os, math, asyncio, json, re, logging
 from pathlib import Path
 from asyncio import Semaphore
+from collections import defaultdict
 from typing import Any, Callable, Optional, cast
 
 from aiohttp import ClientSession, TCPConnector
@@ -189,6 +190,9 @@ class Story_reader(Pjsk_fetcher):
         self.character2ds_url = Constant.get_srcs_url(
             lang, src, 'master', 'character2ds'
         )
+        self.gameCharacterUnits_url = Constant.get_srcs_url(
+            lang, src, 'master', 'gameCharacterUnits'
+        )
 
     async def init(
         self,
@@ -197,13 +201,18 @@ class Story_reader(Pjsk_fetcher):
     ) -> None:
         await super().init(session, network_semaphore)
 
-        self.gameCharacters, self.character2ds = await asyncio.gather(
-            self.fetch_url_json(
-                self.gameCharacters_url, force_online=self.force_master_online
-            ),
-            self.fetch_url_json(
-                self.character2ds_url, force_online=self.force_master_online
-            ),
+        self.gameCharacters, self.character2ds, self.gameCharacterUnits = (
+            await asyncio.gather(
+                self.fetch_url_json(
+                    self.gameCharacters_url, force_online=self.force_master_online
+                ),
+                self.fetch_url_json(
+                    self.character2ds_url, force_online=self.force_master_online
+                ),
+                self.fetch_url_json(
+                    self.gameCharacterUnits_url, force_online=self.force_master_online
+                ),
+            )
         )
 
         self.gameCharacters_lookup = util.DictLookup(self.gameCharacters, 'id')
@@ -473,12 +482,6 @@ class Event_story_getter(Pjsk_getter):
         self.eventStories_url = Constant.get_srcs_url(
             self.reader.lang, src, 'master', 'eventStories'
         )
-        self.gameCharacterUnits_url = Constant.get_srcs_url(
-            self.reader.lang,
-            src,
-            'master',
-            'gameCharacterUnits',
-        )
         self.event_asset_url = Constant.get_srcs_url(
             self.reader.lang, src, 'asset', 'event'
         )
@@ -494,18 +497,10 @@ class Event_story_getter(Pjsk_getter):
     ) -> None:
         await super().init(session, network_semaphore)
 
-        (
-            self.events_json,
-            self.eventStories_json,
-            self.gameCharacterUnits,
-            actionSets_jp,
-        ) = await asyncio.gather(
+        self.events_json, self.eventStories_json, actionSets_jp = await asyncio.gather(
             self.fetch_url_json(self.events_url, force_online=self.force_master_online),
             self.fetch_url_json(
                 self.eventStories_url, force_online=self.force_master_online
-            ),
-            self.fetch_url_json(
-                self.gameCharacterUnits_url, force_online=self.force_master_online
             ),
             self.fetch_url_json(
                 self.actionSets_jp_url,
@@ -513,6 +508,8 @@ class Event_story_getter(Pjsk_getter):
                 force_online=self.force_master_online,
             ),
         )
+
+        self.gameCharacterUnits = self.reader.gameCharacterUnits
 
         self.events_lookup = util.DictLookup(self.events_json, 'id')
         self.eventStories_lookup = util.DictLookup(self.eventStories_json, 'eventId')
@@ -1733,9 +1730,6 @@ class Mysekai_talk_getter(Pjsk_getter):
         self.mysekaiFixtures_url = Constant.get_srcs_url(
             self.reader.lang, src, 'master', 'mysekaiFixtures'
         )
-        self.gameCharacterUnits_url = Constant.get_srcs_url(
-            self.reader.lang, src, 'master', 'gameCharacterUnits'
-        )
         self.releaseConditions_url = Constant.get_srcs_url(
             self.reader.lang, src, 'master', 'releaseConditions'
         )
@@ -1759,7 +1753,6 @@ class Mysekai_talk_getter(Pjsk_getter):
             self.mysekaiCharacterTalkConditions_json,
             self.mysekaiPhenomenas_json,
             self.mysekaiFixtures_json,
-            self.gameCharacterUnits_json,
             self.releaseConditions_json,
         ) = await asyncio.gather(
             self.fetch_url_json(
@@ -1784,12 +1777,11 @@ class Mysekai_talk_getter(Pjsk_getter):
                 self.mysekaiFixtures_url, force_online=self.force_master_online
             ),
             self.fetch_url_json(
-                self.gameCharacterUnits_url, force_online=self.force_master_online
-            ),
-            self.fetch_url_json(
                 self.releaseConditions_url, force_online=self.force_master_online
             ),
         )
+
+        self.gameCharacterUnits_json = self.reader.gameCharacterUnits
 
         # Build lookups
         self.mysekaiGameCharacterUnitGroups_lookup = util.DictLookup(
@@ -2185,6 +2177,293 @@ class Mysekai_talk_getter(Pjsk_getter):
                 55,  # KAITO (WxS)
             ]
         )
+
+
+class Virtual_live_getter(Pjsk_getter):
+    def __init__(
+        self,
+        reader: Story_reader,
+        src: list[str] = ['sekai.best'],
+        save_dir: str = './story_{lang}/live',
+        assets_save_dir: str = './assets',
+        online: bool = True,
+        save_assets: bool = True,
+        parse: bool = True,
+        missing_download: bool = True,
+        maxlen_id: int = 5,
+        compress_assets: bool = False,
+        force_master_online: bool = False,
+        **args,
+    ) -> None:
+        super().__init__(
+            save_dir,
+            assets_save_dir,
+            online,
+            save_assets,
+            parse,
+            missing_download,
+            compress_assets,
+            force_master_online,
+        )
+
+        self.reader = reader
+        self.save_dir = self.save_dir.format(lang=self.reader.lang)
+        self.maxlen_id = maxlen_id
+
+        self.virtualLives_url = Constant.get_srcs_url(
+            self.reader.lang, src, 'master', 'virtualLives'
+        )
+        self.character3ds_url = Constant.get_srcs_url(
+            self.reader.lang, src, 'master', 'character3ds'
+        )
+        self.musics_url = Constant.get_srcs_url(
+            self.reader.lang, src, 'master', 'musics'
+        )
+        self.virtual_live_asset_url = Constant.get_srcs_url(
+            self.reader.lang, src, 'asset', 'virtual_live'
+        )
+
+    async def init(
+        self,
+        session: ClientSession | None = None,
+        network_semaphore: Semaphore | None = None,
+    ) -> None:
+        await super().init(session, network_semaphore)
+
+        (
+            self.virtualLives_json,
+            self.character3ds_json,
+            self.musics_json,
+        ) = await asyncio.gather(
+            self.fetch_url_json(
+                self.virtualLives_url, force_online=self.force_master_online
+            ),
+            self.fetch_url_json(
+                self.character3ds_url, force_online=self.force_master_online
+            ),
+            self.fetch_url_json(self.musics_url, force_online=self.force_master_online),
+        )
+
+        self.virtualLives_lookup = util.DictLookup(self.virtualLives_json, 'id')
+        self.character3ds_lookup = util.DictLookup(self.character3ds_json, 'id')
+        self.musics_lookup = util.DictLookup(self.musics_json, 'id')
+
+    def _get_chara_name(self, character3dId: int | None) -> str:
+        '''character3ds id → characterId → 服务器语言角色名（gameCharacters givenName）。'''
+        if character3dId is None:
+            return ''
+        index = self.character3ds_lookup.find_index(character3dId)
+        if index == -1:
+            return ''
+        chara3d = self.character3ds_json[index]
+        # reader 的 gameCharacters 已按服务器语言加载
+        return self.reader.get_chara_unitAbbr_names(chara3d['characterId'])[2]
+
+    def parse_mc_scenario(self, mc_asset: dict[str, Any]) -> str:
+        '''解析 mc 类型（.asset，scenario 目录）的对话。
+
+        talk / spawn / unspawn 事件的 Id 属于同一计数空间，
+        合并后按 Id 排序即可获得演出顺序。
+        '''
+        events: list[tuple[str, dict[str, Any]]] = []
+        for ev_type, key in (
+            ('talk', 'characterTalkEvents'),
+            ('spawn', 'characterSpawnEvents'),
+            ('unspawn', 'characterUnspawnEvents'),
+        ):
+            for ev in mc_asset[key]:
+                events.append((ev_type, ev))
+        events.sort(key=lambda t: t[1]['Id'])
+
+        mark_lang = self.reader.mark_lang
+        lines: list[str] = []
+        for ev_type, ev in events:
+            if ev_type == 'talk':
+                serif = re.sub(r'\r\n|\r|\n', ' ', ev['Serif']).strip()
+                if not serif:
+                    continue
+                chara_name = self._get_chara_name(ev['Character3dId'])
+                lines.append(f'{chara_name}{Mark_multi_lang[":"][mark_lang]}{serif}')
+            else:  # spawn / unspawn: 登场 / 退场
+                chara_name = self._get_chara_name(ev['Character3dId'])
+                lines.append(
+                    f'{Mark_multi_lang[ev_type][mark_lang]}{chara_name}'
+                    f'{Mark_multi_lang[")"][mark_lang]}'
+                )
+        return '\n'.join(lines)
+
+    def _event_chara_name(
+        self, ev: dict[str, Any], chara3d_map: dict[str, list[int]]
+    ) -> str:
+        '''事件角色名 → 服务器语言角色名；映射失败回退原文。'''
+        raw_name: str = ev['character']
+        for cid in chara3d_map[raw_name]:
+            localized = self._get_chara_name(cid)
+            if localized:
+                return localized
+        return raw_name
+
+    def parse_mc_timeline(self, playable: dict[str, Any]) -> str:
+        '''解析 mc_timeline / virtual_message 类型（.playable）的对话。'''
+        timeline = playable['__timelineParse']
+
+        # talk 事件只带角色名文本，不带 3d id；用带 character3dId 的事件
+        # （spawn）及 meta.characters 建立「角色名文本 → character3dId」映射
+        chara3d_map: dict[str, list[int]] = defaultdict(list)
+        for chara in timeline['meta']['characters']:
+            chara3d_map[chara['name']].append(chara['character3dId'])
+        for ev in timeline['events']:
+            if 'character3dId' in ev:
+                chara3d_map[ev['character']].append(ev['character3dId'])
+
+        mark_lang = self.reader.mark_lang
+        lines: list[str] = []
+        for ev in timeline['events']:
+            ev_type: str = ev['type']
+
+            if ev_type == 'talk':
+                serif = re.sub(r'\r\n|\r|\n', ' ', ev['serif']).strip()
+                if not serif:
+                    continue
+                chara_name = self._event_chara_name(ev, chara3d_map)
+                lines.append(f'{chara_name}{Mark_multi_lang[":"][mark_lang]}{serif}')
+            elif ev_type in ('spawn', 'unspawn'):
+                # 登场 / 退场
+                chara_name = self._event_chara_name(ev, chara3d_map)
+                lines.append(
+                    f'{Mark_multi_lang[ev_type][mark_lang]}{chara_name}'
+                    f'{Mark_multi_lang[")"][mark_lang]}'
+                )
+        return '\n'.join(lines)
+
+    def _music_title(self, music_id: int | None) -> str:
+        if music_id is None:
+            return '?'
+        index = self.musics_lookup.find_index(music_id)
+        if index == -1:
+            return '?'
+        return self.musics_json[index]['title']
+
+    async def get(self, target: int) -> None:
+        '''target: virtualLiveId，抓取整场 live 的全部 setlists（MC 台词 + 音乐列表）。'''
+        vl_index = self.virtualLives_lookup.find_index(target)
+        if vl_index == -1:
+            logging.info(f'virtual live {target} does not exist.')
+            return
+
+        vl = self.virtualLives_json[vl_index]
+        setlists = sorted(vl['virtualLiveSetlists'], key=lambda sl: sl['seq'])
+
+        # 没有台词环节（mc / mc_timeline / virtual_message）的 live 视为不存在
+        if not any(
+            sl['virtualLiveSetlistType'] in ('mc', 'mc_timeline', 'virtual_message')
+            for sl in setlists
+        ):
+            logging.info(f'virtual live {target} has no talk segments.')
+            return
+
+        # 按 seq 顺序组装每一段的输出；MC 类段先发起 fetch
+        entries: list[str] = []
+        is_mc_block: list[bool] = []  # 与 entries 平行，标记是否为 MC 类块
+        pending: list[tuple[dict[str, Any], Any]] = []  # (setlist, fetch result)
+
+        for sl in setlists:
+            stype: str = sl['virtualLiveSetlistType']
+
+            if stype == 'music':
+                music_id = sl['musicId']
+                title = self._music_title(music_id)
+                entries.append(f"{sl['seq']} [MUSIC] {music_id}: {title}")
+                is_mc_block.append(False)
+                continue
+
+            if stype == 'mc':
+                mc_type, file_type = 'scenario', 'asset'
+            elif stype in ('mc_timeline', 'virtual_message'):
+                mc_type, file_type = 'timeline', 'playable'
+            else:
+                raise ValueError(f'unknown virtualLiveSetlistType: {stype}')
+
+            assetbundleName: str = sl['assetbundleName']
+
+            urls = [
+                url.format(
+                    mc_type=mc_type,
+                    assetbundleName=assetbundleName,
+                    file_type=file_type,
+                )
+                for url in self.virtual_live_asset_url
+            ]
+            entry_index = len(entries)
+            entries.append(
+                f"{sl['seq']} [{stype}] {assetbundleName}"
+            )  # 占位，内容稍后替换
+            is_mc_block.append(True)
+            pending.append(
+                (
+                    {
+                        'entry_index': entry_index,
+                        'mc_type': mc_type,
+                        'assetbundleName': assetbundleName,
+                        'setlist': sl,
+                    },
+                    self.fetch_url_json(
+                        urls,
+                        f"vl{target}:{sl['seq']}:{stype}:{assetbundleName}",
+                        compress=self.compress_assets,
+                        skip_read=not self.parse,
+                    ),
+                )
+            )
+
+        pending_results = (
+            await asyncio.gather(*[task for _, task in pending]) if pending else []
+        )
+
+        if self.parse and not util.judge_need_skip(*pending_results):
+            os.makedirs(self.save_dir, exist_ok=True)
+
+            for (meta, _), result in zip(pending, pending_results):
+                if isinstance(result, str):  # ERROR / Missing asset
+                    entries[meta['entry_index']] += f"\n\n{result}"
+                    continue
+                if meta['mc_type'] == 'timeline':
+                    text = self.parse_mc_timeline(result)
+                else:
+                    text = self.parse_mc_scenario(result)
+                entries[meta['entry_index']] += f"\n\n{text}" if text else ''
+
+            filename = util.valid_filename(
+                f"{target:0{self.maxlen_id}} {vl['name']}" + '.txt'
+            )
+            filepath = os.path.join(self.save_dir, filename)
+            util.remove_olds_or_rename_old(filepath, r'(\d+) ')
+            with open(filepath, 'w', encoding='utf8') as f:
+                # 块内：标题后空一行（\n\n）；块间：MC 块结束后空两行
+                # （\n\n\n），music 块后维持一个空行（\n\n）
+                out: list[str] = []
+                for i, entry in enumerate(entries):
+                    if i > 0:
+                        out.append('\n\n\n' if is_mc_block[i - 1] else '\n\n')
+                    out.append(entry)
+                f.write(f"{target} {vl['name']}\n\n")
+                f.write(''.join(out) + '\n')
+
+            logging.info(f'get virtual live {filename} done.')
+        elif pending_results:
+            logging.info(
+                f'get virtual live {target} skipped (fetch error: '
+                + '; '.join(r if isinstance(r, str) else 'ok' for r in pending_results)
+                + ')'
+            )
+        else:
+            logging.info(f'get virtual live {target} done. (no MC segments)')
+
+    def tell_ids(self) -> list[int]:
+        ret = []
+        for vl in self.virtualLives_json:
+            ret.append(vl['id'])
+        return ret
 
 
 async def main():

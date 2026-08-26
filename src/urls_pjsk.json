@@ -16,6 +16,7 @@
         "self_asset": "https://storage.sekai.best/sekai-{lang}-assets/scenario/profile/{{scenarioId}}.asset",
         "special_asset": "https://storage.sekai.best/sekai-{lang}-assets/scenario/special/{{assetbundleName}}/{{scenarioId}}.asset",
         "mysekai_talk_asset": "https://storage.sekai.best/sekai-{lang}-assets/{{assetbundleName}}/{{lua}}.lua.txt",
+        "virtual_live_asset": "https://storage.sekai.best/sekai-{lang}-assets/virtual_live/mc/{{mc_type}}/{{assetbundleName}}/{{assetbundleName}}.{{file_type}}",
         "asset_lang": {
             "cn": "cn",
             "jp": "jp",

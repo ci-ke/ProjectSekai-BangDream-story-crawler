@@ -22,6 +22,7 @@ class Getters_type(TypedDict):
     self_getter: pjsk.Self_intro_getter
     special_getter: pjsk.Special_story_getter
     mysekai_getter: pjsk.Mysekai_talk_getter
+    virtual_getter: pjsk.Virtual_live_getter
 
 
 def create_getters(
@@ -65,6 +66,9 @@ def create_getters(
         'mysekai_getter': pjsk.Mysekai_talk_getter(
             reader, save_dir=get_save_dir(pjsk.Mysekai_talk_getter), **args
         ),
+        'virtual_getter': pjsk.Virtual_live_getter(
+            reader, save_dir=get_save_dir(pjsk.Virtual_live_getter), **args
+        ),
     }
 
 
@@ -90,6 +94,10 @@ def add_common_tasks(
         tasks.extend(
             mysekai_getter.get(chara_unit_id)
             for chara_unit_id in mysekai_getter.tell_ids()
+        )
+        virtual_getter = getters['virtual_getter']
+        tasks.extend(
+            virtual_getter.get(live_id) for live_id in virtual_getter.tell_ids()
         )
 
 

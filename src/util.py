@@ -109,6 +109,8 @@ Mark_multi_lang = {
     'anime story': {'cn': '动画故事', 'en': 'Anime story'},
     'see main story': {'cn': '见主线故事', 'en': 'See in main story'},
     'see band story': {'cn': '见乐队故事', 'en': 'See in band story'},
+    'spawn': {'cn': '（登场：', 'en': '(Enter: '},
+    'unspawn': {'cn': '（退场：', 'en': '(Exit: '},
 }
 
 
