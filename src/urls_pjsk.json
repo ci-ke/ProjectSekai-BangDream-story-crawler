@@ -42,6 +42,7 @@
         "self_asset": "https://sekai-assets-bdf29c81.seiunx.net/{lang}-assets/startapp/scenario/profile/{{scenarioId}}.asset",
         "special_asset": "https://sekai-assets-bdf29c81.seiunx.net/{lang}-assets/startapp/scenario/special/{{assetbundleName}}/{{scenarioId}}.asset",
         "mysekai_talk_asset": "https://sekai-assets-bdf29c81.seiunx.net/{lang}-assets/ondemand/{{assetbundleName}}/{{lua}}.lua",
+        "virtual_live_asset": "https://sekai-assets-bdf29c81.seiunx.net/{lang}-assets/ondemand/virtual_live/mc/{{mc_type}}/{{assetbundleName}}/{{assetbundleName}}.asset",
         "asset_lang": {
             "cn": "cn",
             "jp": "jp",
@@ -67,6 +68,7 @@
         "self_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/scenario/profile/{{scenarioId}}.json",
         "special_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/scenario/special/{{assetbundleName}}/{{scenarioId}}.json",
         "mysekai_talk_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/{{assetbundleName}}/{{lua}}.lua",
+        "virtual_live_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/virtual_live/mc/{{mc_type}}/{{assetbundleName}}/{{assetbundleName}}.json",
         "asset_lang": {
             "cn": "cn",
             "jp": "jp",
