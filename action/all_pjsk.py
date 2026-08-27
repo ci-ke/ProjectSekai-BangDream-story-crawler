@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from aiohttp import ClientSession, TCPConnector
 
 import src.pjsk as pjsk
+import src.util as util
 
 NET_CONNECT_LIMIT = 20
 TIMESTAMP13 = int((datetime.now(timezone.utc) + timedelta(hours=36)).timestamp() * 1000)
@@ -90,7 +91,7 @@ def add_common_tasks(
 def add_timestamp_tasks(
     tasks: TaskList_type,
     getters: Getters_type,
-    timestamp13: int | None = None,
+    timestamp13: int | None = util.LATE_TIMESTAMP13,
     if_exclude_new: bool = False,
 ) -> None:
     tasks.append(

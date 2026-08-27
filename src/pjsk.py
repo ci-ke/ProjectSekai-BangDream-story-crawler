@@ -692,20 +692,17 @@ class Event_story_getter(Pjsk_getter):
     async def get_newest(
         self,
         quantity: int = 1,
-        timestamp13: int | None = None,
+        timestamp13: int | None = util.LATE_TIMESTAMP13,
         area_getter: Optional['Area_talk_getter'] = None,
         exclude_new: int | None = None,
     ) -> None:
         '''
         quantity 0 = all
         '''
-        if timestamp13 is None:
-            timestamp13 = util.LATE_TIMESTAMP13
-
         old_events: list[tuple[int, int]] = []
 
         for event in self.events_json:
-            if event['startAt'] <= timestamp13:
+            if timestamp13 is None or event['startAt'] <= timestamp13:
                 old_events.append((event['startAt'], event['id']))
 
         new_events = sorted(old_events)[-quantity:]
@@ -721,10 +718,12 @@ class Event_story_getter(Pjsk_getter):
                 tasks.append(area_getter.get(i, timestamp13=timestamp13))
         await asyncio.gather(*tasks)
 
-    def tell_ids(self) -> list[int]:
+    def tell_ids(self, timestamp13: int | None = None) -> list[int]:
+        '''timestamp13: 只返回 startAt <= timestamp13 的事件 id（None 为全部）'''
         ret = []
         for event in self.events_json:
-            ret.append(event['id'])
+            if timestamp13 is None or event['startAt'] <= timestamp13:
+                ret.append(event['id'])
         return ret
 
 
@@ -1149,19 +1148,16 @@ class Card_story_getter(Pjsk_getter):
     async def get_newest(
         self,
         quantity: int = 1,
-        timestamp13: int | None = None,
+        timestamp13: int | None = util.LATE_TIMESTAMP13,
         exclude_new: int | None = None,
     ) -> None:
         '''
         quantity 0 = all
         '''
-        if timestamp13 is None:
-            timestamp13 = util.LATE_TIMESTAMP13
-
         old_cards: list[tuple[int, int]] = []
 
         for card in self.cards_json:
-            if card['releaseAt'] <= timestamp13:
+            if timestamp13 is None or card['releaseAt'] <= timestamp13:
                 old_cards.append((card['releaseAt'], card['id']))
 
         new_cards = sorted(old_cards)[-quantity:]
@@ -1175,10 +1171,12 @@ class Card_story_getter(Pjsk_getter):
             tasks.append(self.get(i))
         await asyncio.gather(*tasks)
 
-    def tell_ids(self) -> list[int]:
+    def tell_ids(self, timestamp13: int | None = None) -> list[int]:
+        '''timestamp13: 只返回 releaseAt <= timestamp13 的卡片 id（None 为全部）'''
         ret = []
         for card in self.cards_json:
-            ret.append(card['id'])
+            if timestamp13 is None or card['releaseAt'] <= timestamp13:
+                ret.append(card['id'])
         return ret
 
 
@@ -1283,31 +1281,33 @@ class Area_talk_getter(Pjsk_getter):
             assert 'scenarioId' not in action or action['scenarioId'] == 'op_02area'
             return ''
 
-    async def get(self, target: int | str, timestamp13: int | None = None) -> None:
+    async def get(self, target: int | str, timestamp13: int | None = util.LATE_TIMESTAMP13) -> None:
         '''
         target: int: event_id; str: grade1, grade2, theater, limited_{area_id}, aprilfool2022+
 
         timestamp13: 只抓 archivePublishedAt <= timestamp13 的 talk
-        （默认 util.LATE_TIMESTAMP13 = now + 365 天：未来一年内纳入，
-        超远未来（一年以上）不抓）
+        （None 为不过滤；默认 util.LATE_TIMESTAMP13 = now + 365 天：
+        未来一年内纳入，超远未来（一年以上）不抓）
         '''
-        if timestamp13 is None:
-            timestamp13 = util.LATE_TIMESTAMP13
-
         actions = [
             action
             for action in self.actionSets_json
             if self.__get_category(action) == target
         ]
 
-        # archivePublishedAt 结构上可选：仅特例 id=2373（mzk5）
-        # 缺失该键，缺失视为最早，必通过过滤
-        actions = [
-            action
-            for action in actions
-            if (action['archivePublishedAt'] if 'archivePublishedAt' in action else 0)
-            <= timestamp13
-        ]
+        if timestamp13 is not None:
+            # archivePublishedAt 结构上可选：仅特例 id=2373（mzk5）
+            # 缺失该键，缺失视为最早，必通过过滤
+            actions = [
+                action
+                for action in actions
+                if (
+                    action['archivePublishedAt']
+                    if 'archivePublishedAt' in action
+                    else 0
+                )
+                <= timestamp13
+            ]
 
         if len(actions) == 0:
             logging.info(f'talk {target} does not exist.')
@@ -1447,9 +1447,21 @@ class Area_talk_getter(Pjsk_getter):
 
         logging.info(f'get talk {talk_id} done.')
 
-    def tell_categories(self) -> set[str | int]:
+    def tell_categories(self, timestamp13: int | None = None) -> set[str | int]:
+        '''timestamp13: 只返回存在 archivePublishedAt <= timestamp13 的
+        talk 的类别（None 为全部类别）'''
         ret = set()
         for actionSet in self.actionSets_json:
+            if timestamp13 is not None:
+                # archivePublishedAt 结构上可选：仅特例 id=2373（mzk5）
+                # 缺失该键，缺失视为最早，必通过过滤
+                archive_published_at = (
+                    actionSet['archivePublishedAt']
+                    if 'archivePublishedAt' in actionSet
+                    else 0
+                )
+                if archive_published_at > timestamp13:
+                    continue
             cate = self.__get_category(actionSet)
             if cate != '':
                 ret.add(cate)
@@ -1687,28 +1699,27 @@ class Special_story_getter(Pjsk_getter):
 
             logging.info(f'get special {filename} done.')
 
-    def tell_ids(self):
+    def tell_ids(self, timestamp13: int | None = None) -> list[int]:
+        '''timestamp13: 只返回 startAt <= timestamp13 的 special id（None 为全部）'''
         ret = []
         for sp in self.specialStories_json:
-            ret.append(sp['id'])
+            if timestamp13 is None or sp['startAt'] <= timestamp13:
+                ret.append(sp['id'])
         return ret
 
     async def get_newest(
         self,
         quantity: int = 1,
-        timestamp13: int | None = None,
+        timestamp13: int | None = util.LATE_TIMESTAMP13,
         exclude_new: int | None = None,
     ) -> None:
         '''
         quantity 0 = all
         '''
-        if timestamp13 is None:
-            timestamp13 = util.LATE_TIMESTAMP13
-
         old_stories: list[tuple[int, int]] = []
 
         for story in self.specialStories_json:
-            if story['startAt'] <= timestamp13:
+            if timestamp13 is None or story['startAt'] <= timestamp13:
                 old_stories.append((story['startAt'], story['id']))
 
         new_stories = sorted(old_stories)[-quantity:]
@@ -2523,28 +2534,27 @@ class Virtual_live_getter(Pjsk_getter):
         else:
             logging.info(f'get virtual live {target} done. (no MC segments)')
 
-    def tell_ids(self) -> list[int]:
+    def tell_ids(self, timestamp13: int | None = None) -> list[int]:
+        '''timestamp13: 只返回 startAt <= timestamp13 的 live id（None 为全部）'''
         ret = []
         for vl in self.virtualLives_json:
-            ret.append(vl['id'])
+            if timestamp13 is None or vl['startAt'] <= timestamp13:
+                ret.append(vl['id'])
         return ret
 
     async def get_newest(
         self,
         quantity: int = 1,
-        timestamp13: int | None = None,
+        timestamp13: int | None = util.LATE_TIMESTAMP13,
         exclude_new: int | None = None,
     ) -> None:
         '''
         quantity 0 = all
         '''
-        if timestamp13 is None:
-            timestamp13 = util.LATE_TIMESTAMP13
-
         old_lives: list[tuple[int, int]] = []
 
         for live in self.virtualLives_json:
-            if live['startAt'] <= timestamp13:
+            if timestamp13 is None or live['startAt'] <= timestamp13:
                 old_lives.append((live['startAt'], live['id']))
 
         new_lives = sorted(old_lives)[-quantity:]

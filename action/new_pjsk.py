@@ -2,6 +2,8 @@ import asyncio
 
 from aiohttp import ClientSession, TCPConnector
 
+import src.util as util
+
 from .all_pjsk import (
     create_getters,
     Getters_type,
@@ -15,7 +17,9 @@ INIT_NAMES = ('event_getter', 'card_getter', 'area_getter')  # reader 由 init_g
 
 
 def add_timestamp_tasks(
-    tasks: TaskList_type, getters: Getters_type, timestamp13: int | None = None
+    tasks: TaskList_type,
+    getters: Getters_type,
+    timestamp13: int | None = util.LATE_TIMESTAMP13,
 ) -> None:
     tasks.append(
         getters['event_getter'].get_newest(
