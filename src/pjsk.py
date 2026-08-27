@@ -194,6 +194,7 @@ class Story_reader(Pjsk_fetcher):
         self.gameCharacterUnits_url = Constant.get_srcs_url(
             lang, src, 'master', 'gameCharacterUnits'
         )
+        self.events_url = Constant.get_srcs_url(lang, src, 'master', 'events')
 
     async def init(
         self,
@@ -202,18 +203,22 @@ class Story_reader(Pjsk_fetcher):
     ) -> None:
         await super().init(session, network_semaphore)
 
-        self.gameCharacters, self.character2ds, self.gameCharacterUnits = (
-            await asyncio.gather(
-                self.fetch_url_json(
-                    self.gameCharacters_url, force_online=self.force_master_online
-                ),
-                self.fetch_url_json(
-                    self.character2ds_url, force_online=self.force_master_online
-                ),
-                self.fetch_url_json(
-                    self.gameCharacterUnits_url, force_online=self.force_master_online
-                ),
-            )
+        (
+            self.gameCharacters,
+            self.character2ds,
+            self.gameCharacterUnits,
+            self.events_json,
+        ) = await asyncio.gather(
+            self.fetch_url_json(
+                self.gameCharacters_url, force_online=self.force_master_online
+            ),
+            self.fetch_url_json(
+                self.character2ds_url, force_online=self.force_master_online
+            ),
+            self.fetch_url_json(
+                self.gameCharacterUnits_url, force_online=self.force_master_online
+            ),
+            self.fetch_url_json(self.events_url, force_online=self.force_master_online),
         )
 
         self.gameCharacters_lookup = util.DictLookup(self.gameCharacters, 'id')
@@ -477,9 +482,6 @@ class Event_story_getter(Pjsk_getter):
 
         self.maxlen_eventId_episode = maxlen_eventId_episode
 
-        self.events_url = Constant.get_srcs_url(
-            self.reader.lang, src, 'master', 'events'
-        )
         self.eventStories_url = Constant.get_srcs_url(
             self.reader.lang, src, 'master', 'eventStories'
         )
@@ -498,8 +500,7 @@ class Event_story_getter(Pjsk_getter):
     ) -> None:
         await super().init(session, network_semaphore)
 
-        self.events_json, self.eventStories_json, actionSets_jp = await asyncio.gather(
-            self.fetch_url_json(self.events_url, force_online=self.force_master_online),
+        self.eventStories_json, actionSets_jp = await asyncio.gather(
             self.fetch_url_json(
                 self.eventStories_url, force_online=self.force_master_online
             ),
@@ -509,6 +510,8 @@ class Event_story_getter(Pjsk_getter):
                 force_online=self.force_master_online,
             ),
         )
+
+        self.events_json = self.reader.events_json
 
         self.gameCharacterUnits = self.reader.gameCharacterUnits
 
@@ -2231,19 +2234,27 @@ class Virtual_live_getter(Pjsk_getter):
     ) -> None:
         await super().init(session, network_semaphore)
 
-        (
-            self.virtualLives_json,
-            self.character3ds_json,
-            self.musics_json,
-        ) = await asyncio.gather(
-            self.fetch_url_json(
-                self.virtualLives_url, force_online=self.force_master_online
-            ),
-            self.fetch_url_json(
-                self.character3ds_url, force_online=self.force_master_online
-            ),
-            self.fetch_url_json(self.musics_url, force_online=self.force_master_online),
+        self.virtualLives_json, self.character3ds_json, self.musics_json = (
+            await asyncio.gather(
+                self.fetch_url_json(
+                    self.virtualLives_url, force_online=self.force_master_online
+                ),
+                self.fetch_url_json(
+                    self.character3ds_url, force_online=self.force_master_online
+                ),
+                self.fetch_url_json(
+                    self.musics_url, force_online=self.force_master_online
+                ),
+            )
         )
+
+        self.events_json = self.reader.events_json
+
+        # virtualLiveId → event id 映射（events.json 数据，一对一）
+        self.virtual_live_event_map: dict[int, int] = {}
+        for event in self.events_json:
+            if 'virtualLiveId' in event:
+                self.virtual_live_event_map[event['virtualLiveId']] = event['id']
 
         self.virtualLives_lookup = util.DictLookup(self.virtualLives_json, 'id')
         self.character3ds_lookup = util.DictLookup(self.character3ds_json, 'id')
@@ -2437,8 +2448,13 @@ class Virtual_live_getter(Pjsk_getter):
                     text = self.parse_mc_scenario(result)
                 entries[meta['entry_index']] += f"\n\n{text}" if text else ''
 
+            # 关联活动（events.json 的 virtualLiveId）时在名字后附加 (event_xx)
+            event_suffix = ''
+            if target in self.virtual_live_event_map:
+                event_suffix = f" (event_{self.virtual_live_event_map[target]})"
+
             filename = util.valid_filename(
-                f"{target:0{self.maxlen_id}} {vl['name']}" + '.txt'
+                f"{target:0{self.maxlen_id}} {vl['name']}{event_suffix}" + '.txt'
             )
             filepath = os.path.join(self.save_dir, filename)
             util.remove_olds_or_rename_old(filepath, r'(\d+) ')
@@ -2450,7 +2466,7 @@ class Virtual_live_getter(Pjsk_getter):
                     if i > 0:
                         out.append('\n\n\n' if is_mc_block[i - 1] else '\n\n')
                     out.append(entry)
-                f.write(f"{target} {vl['name']}\n\n")
+                f.write(f"{target} {vl['name']}{event_suffix}\n\n")
                 f.write(''.join(out) + '\n')
 
             logging.info(f'get virtual live {filename} done.')
@@ -2489,6 +2505,7 @@ async def main():
     self_getter = Self_intro_getter(reader, online=online)
     special_getter = Special_story_getter(reader, online=online)
     mysekai_getter = Mysekai_talk_getter(reader, online=online)
+    virtual_getter = Virtual_live_getter(reader, online=online)
 
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=net_connect_limit)
@@ -2502,6 +2519,7 @@ async def main():
             self_getter.init(session),
             special_getter.init(session),
             mysekai_getter.init(session),
+            virtual_getter.init(session),
         )
 
         tasks = []
@@ -2520,6 +2538,8 @@ async def main():
             tasks.append(special_getter.get(i))
         for i in range(1, 5):
             tasks.append(mysekai_getter.get_id(i))
+        for i in range(1, 4):
+            tasks.append(virtual_getter.get(i))
 
         await asyncio.gather(*tasks)
 
