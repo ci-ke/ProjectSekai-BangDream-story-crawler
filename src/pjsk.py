@@ -691,7 +691,7 @@ class Event_story_getter(Pjsk_getter):
 
     async def get_newest(
         self,
-        quantity: int = 10,
+        quantity: int = 1,
         timestamp13: int | None = None,
         area_getter: Optional['Area_talk_getter'] = None,
         exclude_new: int | None = None,
@@ -1148,7 +1148,7 @@ class Card_story_getter(Pjsk_getter):
 
     async def get_newest(
         self,
-        quantity: int = 50,
+        quantity: int = 1,
         timestamp13: int | None = None,
         exclude_new: int | None = None,
     ) -> None:
@@ -1677,6 +1677,35 @@ class Special_story_getter(Pjsk_getter):
         for sp in self.specialStories_json:
             ret.append(sp['id'])
         return ret
+
+    async def get_newest(
+        self,
+        quantity: int = 1,
+        timestamp13: int | None = None,
+        exclude_new: int | None = None,
+    ) -> None:
+        '''
+        quantity 0 = all
+        '''
+        if timestamp13 is None:
+            timestamp13 = util.LATE_TIMESTAMP13
+
+        old_stories: list[tuple[int, int]] = []
+
+        for story in self.specialStories_json:
+            if story['startAt'] <= timestamp13:
+                old_stories.append((story['startAt'], story['id']))
+
+        new_stories = sorted(old_stories)[-quantity:]
+        new_storyids = [x[1] for x in new_stories]
+
+        if exclude_new:
+            new_storyids = new_storyids[:-exclude_new]
+
+        tasks = []
+        for i in new_storyids:
+            tasks.append(self.get(i))
+        await asyncio.gather(*tasks)
 
 
 class Mysekai_talk_getter(Pjsk_getter):
@@ -2484,6 +2513,35 @@ class Virtual_live_getter(Pjsk_getter):
         for vl in self.virtualLives_json:
             ret.append(vl['id'])
         return ret
+
+    async def get_newest(
+        self,
+        quantity: int = 1,
+        timestamp13: int | None = None,
+        exclude_new: int | None = None,
+    ) -> None:
+        '''
+        quantity 0 = all
+        '''
+        if timestamp13 is None:
+            timestamp13 = util.LATE_TIMESTAMP13
+
+        old_lives: list[tuple[int, int]] = []
+
+        for live in self.virtualLives_json:
+            if live['startAt'] <= timestamp13:
+                old_lives.append((live['startAt'], live['id']))
+
+        new_lives = sorted(old_lives)[-quantity:]
+        new_liveids = [x[1] for x in new_lives]
+
+        if exclude_new:
+            new_liveids = new_liveids[:-exclude_new]
+
+        tasks = []
+        for i in new_liveids:
+            tasks.append(self.get(i))
+        await asyncio.gather(*tasks)
 
 
 async def main():

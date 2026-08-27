@@ -80,10 +80,6 @@ def add_common_tasks(
         tasks.extend(unit_getter.get(story_id) for story_id in unit_getter.tell_ids())
         self_getter = getters['self_getter']
         tasks.extend(self_getter.get(story_id) for story_id in self_getter.tell_ids())
-        special_getter = getters['special_getter']
-        tasks.extend(
-            special_getter.get(story_id) for story_id in special_getter.tell_ids()
-        )
         area_getter = getters['area_getter']
         tasks.extend(
             area_getter.get(category)
@@ -94,10 +90,6 @@ def add_common_tasks(
         tasks.extend(
             mysekai_getter.get(chara_unit_id)
             for chara_unit_id in mysekai_getter.tell_ids()
-        )
-        virtual_getter = getters['virtual_getter']
-        tasks.extend(
-            virtual_getter.get(live_id) for live_id in virtual_getter.tell_ids()
         )
 
 
@@ -120,6 +112,9 @@ def add_timestamp_tasks(
             0, timestamp13=timestamp13, exclude_new=10 if if_exclude_new else None
         )
     )
+    # special / live 不做最末排除：new 增量任务不覆盖它们
+    tasks.append(getters['special_getter'].get_newest(0, timestamp13=timestamp13))
+    tasks.append(getters['virtual_getter'].get_newest(0, timestamp13=timestamp13))
 
 
 async def main() -> None:

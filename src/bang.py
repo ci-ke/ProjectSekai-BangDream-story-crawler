@@ -376,7 +376,7 @@ class Event_story_getter(util.Base_getter):
         self,
         lang: str = 'cn',
         mark_lang: str = 'cn',
-        quantity: int = 10,
+        quantity: int = 1,
         timestamp13: int | None = None,
         exclude_new: int | None = None,
     ) -> None:
@@ -845,7 +845,7 @@ class Card_story_getter(util.Base_getter):
         self,
         lang: str = 'cn',
         mark_lang: str = 'cn',
-        quantity: int = 50,
+        quantity: int = 1,
         timestamp13: int | None = None,
         exclude: list[int] | None = None,
         exclude_new: int | None = None,
