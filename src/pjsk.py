@@ -718,7 +718,7 @@ class Event_story_getter(Pjsk_getter):
         for i in new_eventids:
             tasks.append(self.get(i))
             if area_getter is not None:
-                tasks.append(area_getter.get(i))
+                tasks.append(area_getter.get(i, timestamp13=timestamp13))
         await asyncio.gather(*tasks)
 
     def tell_ids(self) -> list[int]:
@@ -1283,15 +1283,30 @@ class Area_talk_getter(Pjsk_getter):
             assert 'scenarioId' not in action or action['scenarioId'] == 'op_02area'
             return ''
 
-    async def get(self, target: int | str) -> None:
+    async def get(self, target: int | str, timestamp13: int | None = None) -> None:
         '''
         target: int: event_id; str: grade1, grade2, theater, limited_{area_id}, aprilfool2022+
+
+        timestamp13: 只抓 archivePublishedAt <= timestamp13 的 talk
+        （默认 util.LATE_TIMESTAMP13 = now + 365 天：未来一年内纳入，
+        超远未来（一年以上）不抓）
         '''
+        if timestamp13 is None:
+            timestamp13 = util.LATE_TIMESTAMP13
 
         actions = [
             action
             for action in self.actionSets_json
             if self.__get_category(action) == target
+        ]
+
+        # archivePublishedAt 结构上可选：仅特例 id=2373（mzk5）
+        # 缺失该键，缺失视为最早，必通过过滤
+        actions = [
+            action
+            for action in actions
+            if (action['archivePublishedAt'] if 'archivePublishedAt' in action else 0)
+            <= timestamp13
         ]
 
         if len(actions) == 0:

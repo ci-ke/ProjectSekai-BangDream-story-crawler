@@ -80,12 +80,6 @@ def add_common_tasks(
         tasks.extend(unit_getter.get(story_id) for story_id in unit_getter.tell_ids())
         self_getter = getters['self_getter']
         tasks.extend(self_getter.get(story_id) for story_id in self_getter.tell_ids())
-        area_getter = getters['area_getter']
-        tasks.extend(
-            area_getter.get(category)
-            for category in area_getter.tell_categories()
-            if not isinstance(category, int)
-        )
         mysekai_getter = getters['mysekai_getter']
         tasks.extend(
             mysekai_getter.get(chara_unit_id)
@@ -115,6 +109,14 @@ def add_timestamp_tasks(
     # special / live 不做最末排除：new 增量任务不覆盖它们
     tasks.append(getters['special_getter'].get_newest(0, timestamp13=timestamp13))
     tasks.append(getters['virtual_getter'].get_newest(0, timestamp13=timestamp13))
+    # area 非事件类别（grade/limited/theater/aprilfool）按时间戳过滤；
+    # 事件类别（int）已由 event_getter.get_newest 内部处理
+    area_getter = getters['area_getter']
+    tasks.extend(
+        area_getter.get(category, timestamp13=timestamp13)
+        for category in area_getter.tell_categories()
+        if not isinstance(category, int)
+    )
 
 
 async def init_getters(
