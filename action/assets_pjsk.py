@@ -11,6 +11,7 @@ from .all_pjsk import (
     TaskList_type,
     add_common_tasks,
     add_timestamp_tasks,
+    init_getters,
     NET_CONNECT_LIMIT,
     TIMESTAMP13,
 )
@@ -38,13 +39,7 @@ async def main() -> None:
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=NET_CONNECT_LIMIT)
     ) as session:
-        await asyncio.gather(
-            *[
-                cast(pjsk.Pjsk_fetcher, obj).init(session)
-                for getters in lang_getters.values()
-                for obj in getters.values()
-            ]
-        )
+        await init_getters(lang_getters, session)
 
         tasks: TaskList_type = []
         add_common_tasks(tasks, lang_getters)

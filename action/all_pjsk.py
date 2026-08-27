@@ -117,6 +117,36 @@ def add_timestamp_tasks(
     tasks.append(getters['virtual_getter'].get_newest(0, timestamp13=timestamp13))
 
 
+async def init_getters(
+    lang_getters: dict[str, Getters_type],
+    session: ClientSession,
+    init_names: tuple[str, ...] | None = None,
+) -> None:
+    '''
+    reader 最先 init：各 getter 的 init 依赖 reader 的 master 数据
+    （如 events_json / gameCharacterUnits）；其余 getter 并发 init。
+    init_names 为 None 时 init 除 reader 外的全部 getter。
+    '''
+    await asyncio.gather(
+        *[
+            cast(pjsk.Pjsk_fetcher, getters['reader']).init(session)
+            for getters in lang_getters.values()
+        ]
+    )
+
+    if init_names is None:
+        sample = next(iter(lang_getters.values()))
+        init_names = tuple(name for name in sample.keys() if name != 'reader')
+
+    await asyncio.gather(
+        *[
+            cast(pjsk.Pjsk_fetcher, getters[name]).init(session)  # type: ignore[literal-required]
+            for getters in lang_getters.values()
+            for name in init_names
+        ]
+    )
+
+
 async def main() -> None:
 
     args = {'online': False, 'missing_download': True}
@@ -131,13 +161,7 @@ async def main() -> None:
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=NET_CONNECT_LIMIT)
     ) as session:
-        await asyncio.gather(
-            *[
-                cast(pjsk.Pjsk_fetcher, obj).init(session)
-                for getters in lang_getters.values()
-                for obj in getters.values()
-            ]
-        )
+        await init_getters(lang_getters, session)
 
         tasks: TaskList_type = []
         add_common_tasks(tasks, lang_getters)

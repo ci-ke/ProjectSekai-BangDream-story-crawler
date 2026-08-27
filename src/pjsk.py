@@ -2568,8 +2568,10 @@ async def main():
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=net_connect_limit)
     ) as session:
+        # reader 最先 init：各 getter 的 init 依赖 reader 的 master 数据
+        # （如 events_json / gameCharacterUnits）
+        await reader.init(session)
         await asyncio.gather(
-            reader.init(session),
             unit_getter.init(session),
             event_getter.init(session),
             card_getter.init(session),
