@@ -92,21 +92,13 @@ def add_timestamp_tasks(
     tasks: TaskList_type,
     getters: Getters_type,
     timestamp13: int | None = util.LATE_TIMESTAMP13,
-    if_exclude_new: bool = False,
 ) -> None:
     tasks.append(
         getters['event_getter'].get_newest(
-            0,
-            area_getter=getters['area_getter'],
-            timestamp13=timestamp13,
-            exclude_new=2 if if_exclude_new else None,
+            0, area_getter=getters['area_getter'], timestamp13=timestamp13
         )
     )
-    tasks.append(
-        getters['card_getter'].get_newest(
-            0, timestamp13=timestamp13, exclude_new=10 if if_exclude_new else None
-        )
-    )
+    tasks.append(getters['card_getter'].get_newest(0, timestamp13=timestamp13))
     # special / live 不做最末排除：new 增量任务不覆盖它们
     tasks.append(getters['special_getter'].get_newest(0, timestamp13=timestamp13))
     tasks.append(getters['virtual_getter'].get_newest(0, timestamp13=timestamp13))
@@ -168,11 +160,9 @@ async def main() -> None:
 
         tasks: TaskList_type = []
         add_common_tasks(tasks, lang_getters)
-        add_timestamp_tasks(tasks, lang_getters['jp'], if_exclude_new=True)
+        add_timestamp_tasks(tasks, lang_getters['jp'])
         for lang in ('cn', 'tw', 'en'):
-            add_timestamp_tasks(
-                tasks, lang_getters[lang], TIMESTAMP13, if_exclude_new=True
-            )
+            add_timestamp_tasks(tasks, lang_getters[lang], TIMESTAMP13)
         await asyncio.gather(*tasks)
 
 
