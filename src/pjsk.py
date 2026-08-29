@@ -2333,6 +2333,44 @@ class Virtual_live_getter(Pjsk_getter):
         # reader 的 gameCharacters 已按服务器语言加载
         return self.reader.get_chara_unitAbbr_names(chara3d['characterId'])[2]
 
+    def get_chara3d_unitAbbr_names_isVS(
+        self, character3dId: int | None
+    ) -> tuple[str, str, str, bool]:
+        '''仿 get_chara2d_unitAbbr_names_isVS：character3ds id →
+        (实际组合缩写, 全名, 短名, 是否为 VS 角色)。
+
+        character3ds 无 characterType 字段，直接按角色 unit 判断；
+        VS 角色的 3d 模型可能属于其它组合（如 N25），此时返回其实际组合缩写。
+        '''
+        if character3dId is None:
+            return '', '', '', False
+        index = self.character3ds_lookup.find_index(character3dId)
+        if index == -1:
+            return '', '', '', False
+        chara3d = self.character3ds_json[index]
+        actual_unit = chara3d['unit']
+        chara_id = chara3d['characterId']
+        chara_unit, fullname, givenname = self.reader.get_chara_unitAbbr_names(chara_id)
+        if chara_unit != 'VS':
+            return chara_unit, fullname, givenname, False
+        else:
+            return Constant.unit_code_abbr[actual_unit], fullname, givenname, True
+
+    def _annotate_vs_unit(
+        self, chara_name: str, character3dId: int | None, style: str
+    ) -> str:
+        '''VS 角色在名字后追加实际组合缩写注释（非 VS 角色原样返回）：
+        style='paren' 说话人用括号（同 story reader 的解析），
+        style='dash' 登场/退场用短横（外层已有括号包裹）。'''
+        unit, _, _, isVS = self.get_chara3d_unitAbbr_names_isVS(character3dId)
+        if not isVS or unit in ('VS', 'none'):
+            return chara_name
+        if style == 'dash':
+            return f'{chara_name}-{unit}'
+        lparen = Mark_multi_lang['('][self.reader.mark_lang]
+        rparen = Mark_multi_lang[')'][self.reader.mark_lang]
+        return f'{chara_name}{lparen}{unit}{rparen}'
+
     def parse_mc_scenario(self, mc_asset: dict[str, Any]) -> str:
         '''解析 mc 类型（.asset，scenario 目录）的对话。
 
@@ -2356,10 +2394,18 @@ class Virtual_live_getter(Pjsk_getter):
                 serif = re.sub(r'\r\n|\r|\n', ' ', ev['Serif']).strip()
                 if not serif:
                     continue
-                chara_name = self._get_chara_name(ev['Character3dId'])
+                chara_name = self._annotate_vs_unit(
+                    self._get_chara_name(ev['Character3dId']),
+                    ev['Character3dId'],
+                    'paren',
+                )
                 lines.append(f'{chara_name}{Mark_multi_lang[":"][mark_lang]}{serif}')
             else:  # spawn / unspawn: 登场 / 退场
-                chara_name = self._get_chara_name(ev['Character3dId'])
+                chara_name = self._annotate_vs_unit(
+                    self._get_chara_name(ev['Character3dId']),
+                    ev['Character3dId'],
+                    'dash',
+                )
                 lines.append(
                     f'{Mark_multi_lang[ev_type][mark_lang]}{chara_name}'
                     f'{Mark_multi_lang[")"][mark_lang]}'
@@ -2368,14 +2414,14 @@ class Virtual_live_getter(Pjsk_getter):
 
     def _event_chara_name(
         self, ev: dict[str, Any], chara3d_map: dict[str, list[int]]
-    ) -> str:
-        '''事件角色名 → 服务器语言角色名；映射失败回退原文。'''
+    ) -> tuple[str, int | None]:
+        '''事件角色名 → (服务器语言角色名, character3dId)；映射失败回退原文。'''
         raw_name: str = ev['character']
         for cid in chara3d_map[raw_name]:
             localized = self._get_chara_name(cid)
             if localized:
-                return localized
-        return raw_name
+                return localized, cid
+        return raw_name, None
 
     def parse_mc_timeline(self, playable: dict[str, Any]) -> str:
         '''解析 mc_timeline / virtual_message 类型（.playable）的对话。'''
@@ -2399,11 +2445,13 @@ class Virtual_live_getter(Pjsk_getter):
                 serif = re.sub(r'\r\n|\r|\n', ' ', ev['serif']).strip()
                 if not serif:
                     continue
-                chara_name = self._event_chara_name(ev, chara3d_map)
+                chara_name, cid = self._event_chara_name(ev, chara3d_map)
+                chara_name = self._annotate_vs_unit(chara_name, cid, 'paren')
                 lines.append(f'{chara_name}{Mark_multi_lang[":"][mark_lang]}{serif}')
             elif ev_type in ('spawn', 'unspawn'):
                 # 登场 / 退场
-                chara_name = self._event_chara_name(ev, chara3d_map)
+                chara_name, cid = self._event_chara_name(ev, chara3d_map)
+                chara_name = self._annotate_vs_unit(chara_name, cid, 'dash')
                 lines.append(
                     f'{Mark_multi_lang[ev_type][mark_lang]}{chara_name}'
                     f'{Mark_multi_lang[")"][mark_lang]}'
