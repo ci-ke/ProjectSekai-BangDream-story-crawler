@@ -93,22 +93,14 @@ def add_timestamp_tasks(
     getters: Getters_type,
     timestamp13: int | None = util.LATE_TIMESTAMP13,
 ) -> None:
-    tasks.append(
-        getters['event_getter'].get_newest(
-            0, area_getter=getters['area_getter'], timestamp13=timestamp13
-        )
-    )
+    tasks.append(getters['event_getter'].get_newest(0, timestamp13=timestamp13))
     tasks.append(getters['card_getter'].get_newest(0, timestamp13=timestamp13))
-    # special / live 不做最末排除：new 增量任务不覆盖它们
     tasks.append(getters['special_getter'].get_newest(0, timestamp13=timestamp13))
     tasks.append(getters['virtual_getter'].get_newest(0, timestamp13=timestamp13))
-    # area 非事件类别（grade/limited/theater/aprilfool）按时间戳过滤；
-    # 事件类别（int）已由 event_getter.get_newest 内部处理
     area_getter = getters['area_getter']
     tasks.extend(
         area_getter.get(category, timestamp13=timestamp13)
         for category in area_getter.tell_categories()
-        if not isinstance(category, int)
     )
 
 
