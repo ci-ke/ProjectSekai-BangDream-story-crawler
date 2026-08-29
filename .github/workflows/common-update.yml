@@ -6,6 +6,10 @@ on:
       run_command:
         required: true
         type: string
+      run_command_extra:
+        required: false
+        type: string
+        default: ""
       commit_message:
         required: true
         type: string
@@ -63,6 +67,11 @@ jobs:
       - name: Execute command
         working-directory: ./crawler
         run: ${{ inputs.run_command }}
+
+      - name: Execute command extra
+        if: ${{ inputs.run_command_extra != '' }}
+        working-directory: ./crawler
+        run: ${{ inputs.run_command_extra }}
 
       - name: Commit and push changes
         run: |
