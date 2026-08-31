@@ -1,0 +1,170 @@
+name: Common Update Template
+
+on:
+  workflow_call:
+    inputs:
+      run_command:
+        required: true
+        type: string
+      run_command_extra:
+        required: false
+        type: string
+        default: ""
+      commit_message:
+        required: true
+        type: string
+      need_assets:
+        required: false
+        type: boolean
+        default: false
+      skip_run_command:
+        required: false
+        type: boolean
+        default: false
+      skip_run_command_extra:
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      PAT_TOKEN:
+        required: false
+
+jobs:
+  common-update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      UV_INDEX_URL: https://pypi.org/simple/
+      PAT_TOKEN: ""
+
+    steps:
+      - name: Set PAT token env
+        run: echo "PAT_TOKEN=${{ secrets.PAT_TOKEN }}" >> $GITHUB_ENV
+
+      - name: Checkout current branch (with PAT)
+        if: ${{ env.PAT_TOKEN != '' }}
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 1
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Checkout current branch (default token)
+        if: ${{ env.PAT_TOKEN == '' }}
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 1
+
+      - name: Clone crawler project
+        run: git clone -b ${{ github.ref_name }} --single-branch https://github.com/ci-ke/ProjectSekai-BangDream-story-crawler.git crawler
+
+      - name: Clone assets project
+        if: ${{ inputs.need_assets }}
+        working-directory: ./crawler
+        run: |
+          git clone -b ${{ github.ref_name }} --single-branch https://github.com/ci-ke/pjsk-bang-story-assets.git __assets_repo__
+          mv __assets_repo__/assets .
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      # 替换原来的两个 Execute command 步骤为一个并行执行步骤
+      - name: Execute commands in parallel
+        working-directory: ./crawler
+        env:
+          CMD1: ${{ inputs.run_command }}
+          CMD2: ${{ inputs.run_command_extra }}
+          SKIP1: ${{ inputs.skip_run_command }}
+          SKIP2: ${{ inputs.skip_run_command_extra }}
+        run: |
+          set -e
+
+          # 定义一个函数：运行命令，添加前缀，记录耗时
+          run_with_prefix() {
+            local cmd="$1"
+            local prefix="$2"
+            
+            echo "→ Starting [${prefix}]: $cmd"
+            local start=$(date +%s%N)
+            
+            # 执行命令，stdout+stderr 合并，每行加前缀
+            bash -c "$cmd" 2>&1 | sed "s/^/[${prefix}] /"
+            local exit_code=${PIPESTATUS[0]}
+            
+            local end=$(date +%s%N)
+            local elapsed=$(( (end - start) / 1000000 ))  # 毫秒
+            
+            # 将结果写入临时文件供汇总使用
+            echo "${prefix}|${elapsed}|${exit_code}" >> /tmp/task_results.txt
+            
+            if [ $exit_code -ne 0 ]; then
+              echo "[${prefix}] ❌ Failed with exit code $exit_code" >&2
+              return $exit_code
+            else
+              echo "[${prefix}] ✅ Completed in $((elapsed/1000)).$((elapsed%1000))s"
+              return 0
+            fi
+          }
+
+          # 清空临时文件
+          > /tmp/task_results.txt
+
+          pids=""
+
+          # 启动主命令（若未跳过）
+          if [ "$SKIP1" != "true" ]; then
+            run_with_prefix "$CMD1" "PJSK" &
+            pids="$pids $!"
+          else
+            echo "⏭️ Skipping main command (PJSK)"
+          fi
+
+          # 启动额外命令（若未跳过且命令非空）
+          if [ -n "$CMD2" ] && [ "$SKIP2" != "true" ]; then
+            run_with_prefix "$CMD2" "BANG" &
+            pids="$pids $!"
+          else
+            echo "⏭️ Skipping extra command (BANG)"
+          fi
+
+          # 等待所有后台进程完成，收集退出状态
+          fail=0
+          for pid in $pids; do
+            wait $pid || fail=1
+          done
+
+          # 打印汇总时间统计
+          echo ""
+          echo "==================== Task Summary ===================="
+          if [ -f /tmp/task_results.txt ]; then
+            while IFS='|' read -r prefix elapsed exit_code; do
+              seconds=$((elapsed / 1000))
+              millis=$((elapsed % 1000))
+              status="✅" 
+              [ "$exit_code" -ne 0 ] && status="❌"
+              printf "  %-8s %s  %d.%03d s (exit %d)\n" "$prefix" "$status" "$seconds" "$millis" "$exit_code"
+            done < /tmp/task_results.txt
+          else
+            echo "  No tasks were executed."
+          fi
+          echo "======================================================"
+
+          # 如果有任何任务失败，整体失败
+          if [ $fail -ne 0 ]; then
+            echo "❌ One or more tasks failed." >&2
+            exit 1
+          else
+            echo "✅ All executed tasks completed successfully."
+          fi
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "${{ inputs.commit_message }}" || echo "No changes to commit"
+          git push
