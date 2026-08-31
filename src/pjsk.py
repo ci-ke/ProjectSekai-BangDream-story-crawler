@@ -40,8 +40,8 @@ class Constant:
             return False
 
     urls: dict[str, dict[str, Any]] = json.load(
-        open(Path(__file__).parent / 'urls_pjsk.json', encoding='utf8')
-    )
+        open(Path(__file__).parent / 'config.json', encoding='utf8')
+    )['urls_pjsk']
 
     @staticmethod
     def get_srcs_url(

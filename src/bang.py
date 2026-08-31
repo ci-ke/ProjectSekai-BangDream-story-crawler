@@ -8,9 +8,10 @@ from aiohttp import ClientSession, TCPConnector
 from . import util
 from .util import Mark_multi_lang
 
-URLS: dict[str, dict[str, str]] = json.load(
-    open(Path(__file__).parent / 'urls_bang.json', encoding='utf8')
+CONFIG: dict[str, Any] = json.load(
+    open(Path(__file__).parent / 'config.json', encoding='utf8')
 )
+URLS: dict[str, dict[str, str]] = CONFIG['urls_bang']['bestdori.com']
 
 
 class Constant:
@@ -62,7 +63,7 @@ class Story_reader(util.Base_fetcher):
 
         self.debug_parse = debug_parse
 
-        self.characters_main_url = URLS['bestdori.com']['characters_main_3']
+        self.characters_main_url = URLS['characters_main_3']
 
     async def init(
         self,
@@ -267,9 +268,9 @@ class Event_story_getter(util.Base_getter):
         self.reader = reader
         self.maxlen_eventId = maxlen_eventId
 
-        self.events_all_url = URLS['bestdori.com']['events_all_3']
-        self.events_id_url = URLS['bestdori.com']['events_id']
-        self.event_asset_url = URLS['bestdori.com']['event_asset']
+        self.events_all_url = URLS['events_all_3']
+        self.events_id_url = URLS['events_id']
+        self.event_asset_url = URLS['event_asset']
 
     async def init(
         self,
@@ -432,9 +433,9 @@ class Band_story_getter(util.Base_getter):
         self.reader = reader
         self.maxlen_bandId = maxlen_bandId
 
-        self.bands_main_url = URLS['bestdori.com']['bands_main_1']
-        self.bandstories_5_url = URLS['bestdori.com']['bandstories_5']
-        self.band_asset_url = URLS['bestdori.com']['band_asset']
+        self.bands_main_url = URLS['bands_main_1']
+        self.bandstories_5_url = URLS['bandstories_5']
+        self.band_asset_url = URLS['band_asset']
 
     async def init(
         self,
@@ -581,8 +582,8 @@ class Main_story_getter(util.Base_getter):
 
         self.reader = reader
 
-        self.mainstories_5_url = URLS['bestdori.com']['mainstories_5']
-        self.main_asset_url = URLS['bestdori.com']['main_asset']
+        self.mainstories_5_url = URLS['mainstories_5']
+        self.main_asset_url = URLS['main_asset']
 
     async def init(
         self,
@@ -684,9 +685,9 @@ class Card_story_getter(util.Base_getter):
         self.reader = reader
         self.maxlen_charaId_cardId = maxlen_charaId_cardId
 
-        self.cards_all_5_url = URLS['bestdori.com']['cards_all_5']
-        self.cards_id_url = URLS['bestdori.com']['cards_id']
-        self.card_asset_url = URLS['bestdori.com']['card_asset']
+        self.cards_all_5_url = URLS['cards_all_5']
+        self.cards_id_url = URLS['cards_id']
+        self.card_asset_url = URLS['card_asset']
 
     async def init(
         self,
@@ -905,10 +906,10 @@ class Area_talk_getter(util.Base_getter):
 
         self.types = ('normal', 'birthday', 'period_limited_area', 'area_item')
 
-        self.areas_url = URLS['bestdori.com']['areas_1']
-        self.actionSets_url = URLS['bestdori.com']['actionsets_5']
-        self.talk_actionset_asset = URLS['bestdori.com']['talk_actionset_asset']
-        self.talk_scenario_asset = URLS['bestdori.com']['talk_scenario_asset']
+        self.areas_url = URLS['areas_1']
+        self.actionSets_url = URLS['actionsets_5']
+        self.talk_actionset_asset = URLS['talk_actionset_asset']
+        self.talk_scenario_asset = URLS['talk_scenario_asset']
 
     async def init(
         self,

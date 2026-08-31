@@ -115,9 +115,9 @@ Mark_multi_lang = {
 
 
 class RateLimit:
-    """按 host 限制 QPS；配置见 qps.json（键按子串匹配 hostname，'default' 兜底）。"""
+    """按 host 限制 QPS；配置见 config.json 的 "qps" 键（键按子串匹配 hostname，'default' 兜底）。"""
 
-    _qps_file = Path(__file__).parent / 'qps.json'
+    _qps_file = Path(__file__).parent / 'config.json'
 
     _qps_config: dict[str, float] = {}
     _default_qps: float | None = None  # None 表示不限速
@@ -134,6 +134,9 @@ class RateLimit:
         try:
             with open(path, encoding='utf8') as f:
                 data = json.load(f)
+            # 统一配置文件 config.json 中 QPS 配置位于顶层 "qps" 键下
+            if isinstance(data, dict) and isinstance(data.get('qps'), dict):
+                data = data['qps']
             if isinstance(data, dict):
                 for key, value in data.items():
                     if not isinstance(value, (int, float)) or isinstance(value, bool):
@@ -160,7 +163,7 @@ class RateLimit:
 
     @staticmethod
     async def wait(url: str) -> None:
-        """按 host 静态限速：同一 host 两次请求至少间隔 qps.json 配置的秒数。"""
+        """按 host 静态限速：同一 host 两次请求至少间隔 config.json 配置的秒数。"""
         host = urlsplit(url).hostname or ''
         interval = RateLimit.interval_for(host)
         if interval <= 0:
