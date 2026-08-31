@@ -17,6 +17,14 @@ on:
         required: false
         type: boolean
         default: false
+      skip_run_command:
+        required: false
+        type: boolean
+        default: false
+      skip_run_command_extra:
+        required: false
+        type: boolean
+        default: false
     secrets:
       PAT_TOKEN:
         required: false
@@ -65,11 +73,12 @@ jobs:
           enable-cache: true
 
       - name: Execute command
+        if: ${{ !inputs.skip_run_command }}
         working-directory: ./crawler
         run: ${{ inputs.run_command }}
 
       - name: Execute command extra
-        if: ${{ inputs.run_command_extra != '' }}
+        if: ${{ inputs.run_command_extra != '' && !inputs.skip_run_command_extra }}
         working-directory: ./crawler
         run: ${{ inputs.run_command_extra }}
 
