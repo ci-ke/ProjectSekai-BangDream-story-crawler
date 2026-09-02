@@ -11,7 +11,7 @@ from .util import Mark_multi_lang
 CONFIG: dict[str, Any] = json.load(
     open(Path(__file__).parent / 'config.json', encoding='utf8')
 )
-URLS: dict[str, dict[str, str]] = CONFIG['urls_bang']['bestdori.com']
+URLS: dict[str, str] = CONFIG['urls_bang']['bestdori.com']
 
 
 class Constant:

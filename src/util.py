@@ -18,6 +18,25 @@ LATE_TIMESTAMP13 = int(
 
 MISSING_MSG = 'Missing asset'
 
+
+def load_bypass_urls(file: str | Path = 'bypass.txt') -> frozenset[str]:
+    """读取每行一个 URL 的名单文件（纯文件名时相对本文件所在目录，# 开头为注释行）。"""
+    path = Path(file)
+    if path.parent == Path('.'):
+        path = Path(__file__).parent / path
+    try:
+        urls: set[str] = set()
+        for line in path.read_text(encoding='utf8').splitlines():
+            line = line.strip()
+            if line and not line.startswith('#'):
+                urls.add(line)
+        return frozenset(urls)
+    except OSError:
+        return frozenset()
+
+
+_bypass_urls = load_bypass_urls()
+
 _net_semaphore = asyncio.Semaphore(20)
 
 
@@ -249,6 +268,7 @@ class Base_fetcher:
         skip_read: bool = False,
         content_save_edit: Callable | None = None,
         format: str = 'json',
+        bypass_urls: frozenset[str] | None = None,
     ) -> Any:
         if force_local:
             online = False
@@ -272,6 +292,7 @@ class Base_fetcher:
             skip_read=skip_read,
             content_save_edit=content_save_edit,
             format=format,
+            bypass_urls=bypass_urls,
         )
 
 
@@ -469,6 +490,10 @@ async def read_json_from_url(
         return _MISSING_FILE
 
 
+class _BypassError(Exception):
+    """URL 在 bypass 名单中时不发起请求，直接构造该虚拟异常。"""
+
+
 async def fetch_url_json(
     url: str | list[str],
     online: bool,
@@ -490,6 +515,7 @@ async def fetch_url_json(
     skip_read: bool = False,
     content_save_edit: Callable | None = None,
     format: str = 'json',
+    bypass_urls: frozenset[str] | None = None,
 ) -> Any:
 
     is_json = format == 'json'
@@ -498,6 +524,9 @@ async def fetch_url_json(
         network_semaphore = _net_semaphore
 
     urls = [url] if isinstance(url, str) else url
+
+    if bypass_urls is None:
+        bypass_urls = _bypass_urls
 
     if online:
         assert session is not None
@@ -511,6 +540,8 @@ async def fetch_url_json(
                 await RateLimit.wait(current_url)
                 async with network_semaphore:
                     try:
+                        if current_url in bypass_urls:
+                            raise _BypassError('url in bypass list')
                         async with session.get(current_url) as res:
                             retry_after = res.headers.get('Retry-After')
                             res.raise_for_status()
@@ -537,11 +568,17 @@ async def fetch_url_json(
                         is_rate_limited = RateLimit.is_rate_limited(e)
                         # 429/5xx 需重试且每次警告，不按普通 4xx 放弃
                         no_retry = (
-                            (
-                                isinstance(e, aiohttp.ClientResponseError)
-                                and 400 <= e.status < 500
+                            isinstance(e, _BypassError)
+                            or (
+                                (
+                                    isinstance(e, aiohttp.ClientResponseError)
+                                    and 400 <= e.status < 500
+                                )
+                                or (
+                                    is_json
+                                    and isinstance(e, json.decoder.JSONDecodeError)
+                                )
                             )
-                            or (is_json and isinstance(e, json.decoder.JSONDecodeError))
                         ) and not is_rate_limited
                         retryable = is_rate_limited or (
                             isinstance(e, aiohttp.ClientResponseError)

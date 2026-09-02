@@ -116,6 +116,7 @@ class Pjsk_fetcher(util.Base_fetcher):
         skip_read: bool = False,
         content_save_edit: Callable | None = None,
         format: str = 'json',
+        bypass_urls: frozenset[str] | None = None,
         lang_for_path: str | None = None,
         actual_ext: str | None = None,
     ) -> Any:
@@ -151,6 +152,7 @@ class Pjsk_fetcher(util.Base_fetcher):
             skip_read=skip_read,
             content_save_edit=content_save_edit,
             format=format,
+            bypass_urls=bypass_urls,
         )
 
 
