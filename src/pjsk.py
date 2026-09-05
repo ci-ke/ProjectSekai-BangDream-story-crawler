@@ -518,6 +518,8 @@ class Event_story_getter(Pjsk_getter):
             ),
         )
 
+        util.apply_patches(self.eventStories_json, 'pjsk_eventStories')
+
         self.events_json = self.reader.events_json
 
         self.gameCharacterUnits = self.reader.gameCharacterUnits
@@ -536,6 +538,8 @@ class Event_story_getter(Pjsk_getter):
         ret[5] = 'idol'
         ret[6] = 'street'
         ret[9] = 'shuffle'
+
+        ret[16] = 'shuffle'  # areatalk_ev_wonder_03_006 is 101508(=16)
 
         for action in actionSets:
             releaseConditionId = str(action['releaseConditionId'])
@@ -593,9 +597,6 @@ class Event_story_getter(Pjsk_getter):
         assetbundleName = event['assetbundleName']
         banner_chara_unit_id = eventStory.get('bannerGameCharacterUnitId')
         event_outline = eventStory['outline'].replace('\n', ' ')
-
-        if event_id == 97:  # special case
-            banner_chara_unit_id = 10
 
         event_unit_abbr = self.get_event_unit_abbr(event_id)
 

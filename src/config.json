@@ -3,6 +3,14 @@
         "default": null,
         "sekai.best": 20
     },
+    "patches": {
+        "pjsk_eventStories": {
+            "key": "eventId",
+            "items": {
+                "97": { "bannerGameCharacterUnitId": 10 }
+            }
+        }
+    },
     "urls_bang": {
         "bestdori.com": {
             "characters_main_3": "https://bestdori.com/api/characters/main.3.json",

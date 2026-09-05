@@ -37,6 +37,44 @@ def load_bypass_urls(file: str | Path = 'bypass.txt') -> frozenset[str]:
 
 _bypass_urls = load_bypass_urls()
 
+
+def load_patches(file: str | Path = 'config.json') -> dict[str, dict[str, Any]]:
+    """读取配置文件中的 "patches" 段（master 数据手动纠错配置）。"""
+    path = Path(file)
+    if path.parent == Path('.'):
+        path = Path(__file__).parent / path
+    try:
+        data = json.loads(path.read_text(encoding='utf8'))
+    except (OSError, ValueError):
+        return {}
+    patches = data.get('patches', {}) if isinstance(data, dict) else {}
+    return patches if isinstance(patches, dict) else {}
+
+
+def apply_patches(
+    data: list[dict[str, Any]], table: str
+) -> int:
+    """按 config.json patches 段中 table 的配置修正 master 数据记录；返回应用条数。"""
+    patch = PATCHES.get(table)
+    if patch is None:
+        return 0
+    applied = 0
+    key = patch['key']
+    for key_val, fields in patch['items'].items():
+        for record in data:
+            if str(record.get(key)) == str(key_val):
+                record.update(fields)
+                applied += 1
+                break
+        else:
+            logging.warning(
+                f'master patch not applied: {table}.{key}={key_val} record not found'
+            )
+    return applied
+
+
+PATCHES = load_patches()
+
 _net_semaphore = asyncio.Semaphore(20)
 
 
