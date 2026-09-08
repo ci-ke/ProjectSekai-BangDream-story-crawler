@@ -9,7 +9,10 @@ import src.pjsk as pjsk
 import src.util as util
 
 NET_CONNECT_LIMIT = 20
-TIMESTAMP13 = int((datetime.now(timezone.utc) + timedelta(hours=36)).timestamp() * 1000)
+TIMESTAMP13 = int(
+    (cn_time := (datetime.now(timezone.utc) + timedelta(hours=36))).timestamp() * 1000
+)
+TIMESTAMP13_EN = int((cn_time + timedelta(hours=15)).timestamp() * 1000)
 
 TaskList_type = list[Coroutine[Any, Any, Any]]
 
@@ -153,8 +156,9 @@ async def main() -> None:
         tasks: TaskList_type = []
         add_common_tasks(tasks, lang_getters)
         add_timestamp_tasks(tasks, lang_getters['jp'])
-        for lang in ('cn', 'tw', 'en'):
+        for lang in ('cn', 'tw'):
             add_timestamp_tasks(tasks, lang_getters[lang], TIMESTAMP13)
+        add_timestamp_tasks(tasks, lang_getters['en'], TIMESTAMP13_EN)
         await asyncio.gather(*tasks)
 
 
