@@ -1299,6 +1299,10 @@ class Area_talk_getter(Pjsk_getter):
         （None 为不过滤；默认 util.LATE_TIMESTAMP13 = now + 365 天：
         未来一年内纳入，超远未来（一年以上）不抓）
         '''
+        if target == 38 and self.reader.lang == 'en':  # special case of EN
+            logging.info(f'talk {target} does not exist.')
+            return
+
         actions = [
             action
             for action in self.actionSets_json
