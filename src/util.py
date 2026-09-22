@@ -51,9 +51,7 @@ def load_patches(file: str | Path = 'config.json') -> dict[str, dict[str, Any]]:
     return patches if isinstance(patches, dict) else {}
 
 
-def apply_patches(
-    data: list[dict[str, Any]], table: str
-) -> int:
+def apply_patches(data: list[dict[str, Any]], table: str) -> int:
     """按 config.json patches 段中 table 的配置修正 master 数据记录；返回应用条数。"""
     patch = PATCHES.get(table)
     if patch is None:
@@ -380,7 +378,7 @@ class DictLookup:
 def valid_filename(filename: str) -> str:
     cleaned = filename.strip()
     while cleaned.endswith('.'):
-        cleaned = cleaned[:-1]
+        cleaned = cleaned[:-1] # windows folder can't end with dot
     cleaned = (
         cleaned.replace('*', '＊')
         .replace(': ', '：')

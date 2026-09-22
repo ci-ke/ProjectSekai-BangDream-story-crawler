@@ -2103,7 +2103,8 @@ class Mysekai_talk_getter(Pjsk_getter):
             os.makedirs(self.save_dir, exist_ok=True)
             filepath = os.path.join(self.save_dir, f'mysekai_talk_{talk_id}.txt')
             self._write_entries(filepath, entries, lua_map)
-            logging.info(f'wrote talk {talk_id} to mysekai_talk_{talk_id}.txt')
+
+        logging.info(f'get mysekai talk {talk_id} done.')
 
     async def get(self, gameCharacterUnitId: int) -> None:
         """Fetch all mysekai talks for one character (by gameCharacterUnitId),
@@ -2168,7 +2169,8 @@ class Mysekai_talk_getter(Pjsk_getter):
             filepath = os.path.join(self.save_dir, filename)
             util.remove_olds_or_rename_old(filepath, r'(\d+) ')
             self._write_entries(filepath, entries, lua_map, is_first_group_id)
-            logging.info(f'wrote {len(entries)} talks to {filename}')
+
+        logging.info(f'get mysekai talk of character {gameCharacterUnitId} done.')
 
     async def get_tutorial(self) -> None:
         """Fetch all mysekai tutorial talks, save to _tutorial.txt."""
@@ -2207,7 +2209,8 @@ class Mysekai_talk_getter(Pjsk_getter):
             )
             with open(filepath, 'w', encoding='utf8') as f:
                 f.write('\n'.join(parts) + '\n')
-            logging.info(f'wrote {len(ttalk_list)} tutorial talks to tutorial.txt')
+
+        logging.info('get mysekai talk tutorial done.')
 
     def tell_ids(self) -> list[int]:
         """Return gameCharacterUnitIds for mysekai talks.
@@ -2586,15 +2589,7 @@ class Virtual_live_getter(Pjsk_getter):
                 f.write(f"{target} {vl['name']}{event_suffix}\n\n")
                 f.write(''.join(out) + '\n')
 
-            logging.info(f'get virtual live {filename} done.')
-        elif pending_results:
-            logging.info(
-                f'get virtual live {target} skipped (fetch error: '
-                + '; '.join(r if isinstance(r, str) else 'ok' for r in pending_results)
-                + ')'
-            )
-        else:
-            logging.info(f'get virtual live {target} done. (no MC segments)')
+        logging.info(f'get virtual live {target} done.')
 
     def tell_ids(self, timestamp13: int | None = None) -> list[int]:
         '''timestamp13: 只返回 startAt <= timestamp13 的 live id（None 为全部）'''
