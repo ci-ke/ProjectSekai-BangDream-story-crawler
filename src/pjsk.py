@@ -621,7 +621,8 @@ class Event_story_getter(Pjsk_getter):
             banner_name = f'{event_unit_abbr}_{banner_chara_name}'
 
         save_folder_name = util.valid_filename(
-            f'{event_id:0{self.maxlen_eventId_episode[0]}} {event_name} ({banner_name})'
+            f'{event_id:0{self.maxlen_eventId_episode[0]}} {event_name} ({banner_name})',
+            True,
         )
 
         event_save_dir = os.path.join(self.save_dir, save_folder_name)
@@ -828,7 +829,7 @@ class Unit_story_getter(Pjsk_getter):
             return
 
         save_folder_name = util.valid_filename(
-            f'{unit_id:0{self.maxlen_unitId}} {unitName}'
+            f'{unit_id:0{self.maxlen_unitId}} {unitName}', True
         )
 
         unit_save_dir = os.path.join(self.save_dir, save_folder_name)
@@ -1016,7 +1017,8 @@ class Card_story_getter(Pjsk_getter):
         card_save_dir = os.path.join(
             self.save_dir,
             util.valid_filename(
-                f"{card['characterId']:0{self.maxlen_charaId_cardId[0]}} {chara_unit_and_name}"
+                f"{card['characterId']:0{self.maxlen_charaId_cardId[0]}} {chara_unit_and_name}",
+                True,
             ),
         )
 

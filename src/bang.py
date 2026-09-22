@@ -303,7 +303,7 @@ class Event_story_getter(util.Base_getter):
             logging.info(f'event {event_id} has no story.')
             return
 
-        event_filename = util.valid_filename(event_name)
+        event_filename = util.valid_filename(event_name, True)
 
         save_folder_name = f'{event_id:0{self.maxlen_eventId}} {event_filename}'
 
@@ -488,11 +488,13 @@ class Band_story_getter(util.Base_getter):
 
             mainTitle = band_story["mainTitle"][Constant.lang_index[lang]]
             subTitle = band_story["subTitle"][Constant.lang_index[lang]]
-            save_folder_name = util.valid_filename(f'{mainTitle}: {subTitle}')
+            save_folder_name = util.valid_filename(f'{mainTitle}: {subTitle}', True)
 
             band_save_dir = os.path.join(
                 self.save_dir.format(lang=lang),
-                f'{band_id:0{self.maxlen_bandId}} {band_name}',
+                util.valid_filename(
+                    f'{band_id:0{self.maxlen_bandId}} {band_name}', True
+                ),
                 save_folder_name,
             )
             if self.parse:
@@ -745,7 +747,10 @@ class Card_story_getter(util.Base_getter):
 
         card_save_dir = os.path.join(
             self.save_dir.format(lang=lang),
-            f"{card['characterId']:0{self.maxlen_charaId_cardId[0]}} {chara_band_and_name}",
+            util.valid_filename(
+                f"{card['characterId']:0{self.maxlen_charaId_cardId[0]}} {chara_band_and_name}",
+                True,
+            ),
         )
 
         card_story_filename = util.valid_filename(

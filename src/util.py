@@ -375,10 +375,11 @@ class DictLookup:
         return insert_pos - 1
 
 
-def valid_filename(filename: str) -> str:
+def valid_filename(filename: str, is_folder: bool = False) -> str:
     cleaned = filename.strip()
-    while cleaned.endswith('.'):
-        cleaned = cleaned[:-1] # windows folder can't end with dot
+    if is_folder:
+        while cleaned.endswith('.'):
+            cleaned = cleaned[:-1]  # windows folder can't end with dot
     cleaned = (
         cleaned.replace('*', '＊')
         .replace(': ', '：')
