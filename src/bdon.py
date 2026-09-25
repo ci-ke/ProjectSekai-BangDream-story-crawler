@@ -100,7 +100,7 @@ class AdvCommand(int, Enum):
     SetExpression = 17         # 【实测】expressionName 100%，切换表情
     Op18 = 18                  # targetName 99%（角色相关）
     Op19 = 19                  # targetName 100%（角色相关）
-    Narration = 20             # 【实测】旁白/独白：仅 advTextID（站点解析器）
+    Telop = 20                 # 【实测】场景字幕（地点/时间标题卡；全量 573 条均无句读，等价 pjsk 的 Telop，站点误作 narration）
     CharacterMotion = 21       # 【实测】motionName 96% + expressionName 99%，角色动作+表情同步（行数与对话同量级）
     LoadCharacterModel = 23    # 【推断】targetName + targetAssetName 100%（Live2D 模型路径），登场/换装
     Op24 = 24                  # targetName 100%（角色相关）
@@ -362,7 +362,9 @@ class Story_reader(Bdon_fetcher):
         text_lookup = {str(row['id']): row for row in normalize_rows(text_json)}
 
         body = ''
-        prev_is_text = False
+        telop_pending = False  # Telop 之后的下一条输出需先补一个空行（Telop 独立段落、上下恰好各一空行）
+        last_marker = ''  # 上一条输出的标记身份（bg:/still: 前缀 + 资源名）；仅相邻同资源名的标记去重，台词输出后清空
+        last_chat_line = ''  # 上一条手机消息行：相邻完全相同的消息重发行（渲染对）只出一次
 
         # 遍历 Episode 指令流（数组顺序即剧本顺序，勿用 _index 当行号）
         for row in episode_rows:
@@ -374,14 +376,24 @@ class Story_reader(Bdon_fetcher):
             adv_text_id = row.get('advTextID')
 
             if adv_text_id:
-                # 凡 _advTextID 非空即一行台词（Talk / Narration / ChatMessage / ChatMessageEx /
+                # 凡 _advTextID 非空即有文本输出（Talk / Telop / ChatMessage / ChatMessageEx /
                 # Monologue 均可携带），不按 command 白名单筛选，否则会丢聊天气泡与独白内容
                 text = self.get_text_marked(
                     text_lookup.get(str(adv_text_id)), lang, mark_lang
                 ).replace('\n', ' ')
 
-                if command is AdvCommand.Narration:  # 旁白/独白，无说话人
-                    body += text + '\n'
+                if command is AdvCommand.Telop:  # 场景字幕，独立段落（pjsk Telop 样式：上下恰好各一空行，不叠加）
+                    if body and not body.endswith('\n\n'):
+                        body += '\n'
+                    body += (
+                        Mark_multi_lang['['][mark_lang]
+                        + text
+                        + Mark_multi_lang[']'][mark_lang]
+                        + '\n'
+                    )
+                    telop_pending = True
+                    last_marker = ''
+                    last_chat_line = ''
                 else:
                     target_ids = row.get('targetTextIDs') or []
                     speaker_id = (
@@ -396,29 +408,54 @@ class Story_reader(Bdon_fetcher):
                         else ''
                     )
                     speaker = (speaker or speaker_id).replace('\n', ' ')
-                    body += f"{speaker}{Mark_multi_lang[':'][mark_lang]}{text}\n"
-                prev_is_text = True
+                    line = f"{speaker}{Mark_multi_lang[':'][mark_lang]}{text}\n"
+                    if command is AdvCommand.ChatMessage or command is AdvCommand.ChatMessageEx:
+                        # 手机消息（聊天窗气泡）：行前加（消息）标记；相邻完全相同的消息重发行只出一次
+                        line = Mark_multi_lang['message'][mark_lang] + line
+                        if line != last_chat_line:
+                            if telop_pending:
+                                body += '\n'
+                                telop_pending = False
+                            body += line
+                            last_chat_line = line
+                    else:
+                        if telop_pending:
+                            body += '\n'
+                            telop_pending = False
+                        body += line
+                        last_chat_line = ''
+                    last_marker = ''
             elif command is AdvCommand.ChangeBackground:  # 切换背景（背景图仅在 legacy 桶，此处只留标记）
-                if prev_is_text:
-                    body += '\n'
-                body += Mark_multi_lang['background'][mark_lang] + '\n'
-                prev_is_text = False
+                bg_asset = str(row.get('targetAssetName') or '')
+                # 仅相邻同资源的背景切换去重；不同资源的连续背景切换各自保留
+                if last_marker != f'bg:{bg_asset}':
+                    if telop_pending:
+                        body += '\n'
+                        telop_pending = False
+                    body += Mark_multi_lang['background'][mark_lang] + '\n'
+                    last_marker = f'bg:{bg_asset}'
+                    last_chat_line = ''
             elif command is AdvCommand.ShowStill:  # 过场大图
-                if prev_is_text:
-                    body += '\n'
                 asset = str(row.get('targetAssetName') or '').replace('\\', '/').strip('/')
                 dir_name, still_name = asset.split('/')[0], asset.rsplit('/', 1)[-1]
-                if self.cg_add_link:  # 仿 pjsk：链接替换资源名
-                    cg_text = self.cg_link.format(dir=dir_name, name=still_name)
-                else:
-                    cg_text = still_name
-                body += (
-                    Mark_multi_lang['cg'][mark_lang]
-                    + cg_text
-                    + Mark_multi_lang[')'][mark_lang]
-                    + '\n'
-                )
-                prev_is_text = False
+                # 仅相邻同资源的过场大图去重（显示/隐藏对导致的相邻重发只出一次），非相邻的重现照常输出
+                if last_marker != f'still:{asset}':
+                    if telop_pending:
+                        body += '\n'
+                        telop_pending = False
+                    if self.cg_add_link:  # 仿 pjsk：链接替换资源名
+                        cg_text = self.cg_link.format(dir=dir_name, name=still_name)
+                    else:
+                        cg_text = still_name
+                    body += (
+                        Mark_multi_lang['cg'][mark_lang]
+                        + cg_text
+                        + Mark_multi_lang[')'][mark_lang]
+                        + '\n'
+                    )
+                    last_marker = f'still:{asset}'
+                    last_chat_line = ''
+                    prev_is_text = False
             elif self.debug_parse:
                 body += f"cmd-{command}: {row.get('targetName')}\n"
 
@@ -672,8 +709,11 @@ class Friendship_story_getter(Bdon_getter):
 
         def filename(lang: str) -> str:
             title = reader.get_adv_title(adv_id, lang)
+            # 文件名带完整编号 friendshipId-话号（如 0102-01），全局唯一
             return util.valid_filename(
-                f'{ep_number:0{self.maxlen_friendshipId_episodeNumber[1]}d} {title}' + '.txt'
+                f'{friendship_id:0{self.maxlen_friendshipId_episodeNumber[0]}d}'
+                + f'-{ep_number:0{self.maxlen_friendshipId_episodeNumber[1]}d} {title}'
+                + '.txt'
             )
 
         def title_of(lang: str) -> str:
@@ -682,7 +722,7 @@ class Friendship_story_getter(Bdon_getter):
         def synopsis_of(lang: str) -> str | None:
             return None  # 羁绊话主表无简介字段
 
-        await self.write_script(adv_id, script, langs, r'(\d+) ', path_of, title_of, synopsis_of)
+        await self.write_script(adv_id, script, langs, r'(\d+-\d+) ', path_of, title_of, synopsis_of)
 
 
 class Home_talk_getter(Bdon_getter):

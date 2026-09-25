@@ -153,6 +153,7 @@ Mark_multi_lang = {
     'video': {'cn': '（播放视频：', 'en': '(Video: '},
     'mv': {'cn': '（播放MV：', 'en': '(Music video: '},
     'cg': {'cn': '（插入CG：', 'en': '(CG insert: '},
+    'message': {'cn': '（消息）', 'en': '(message) '},
     'background': {'cn': '（背景切换）', 'en': '(Background change)'},
     'memory in': {'cn': '（回忆切入）', 'en': '(Memory cut-in)'},
     'memory out': {'cn': '（回忆切出）', 'en': '(Memory cut-out)'},
