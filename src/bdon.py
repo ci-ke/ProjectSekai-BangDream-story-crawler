@@ -1,6 +1,7 @@
 import os, asyncio, json, logging
 from pathlib import Path
 from collections.abc import Iterable
+from enum import Enum
 from typing import Any, Callable
 from asyncio import Semaphore
 
@@ -73,8 +74,75 @@ class Constant:
         5: 'kadan',
     }
 
-    # 不计入（登场角色）的说话人 id
-    narrator_ids = {'adv_storyteller'}
+
+# Episode 表 _command 列的枚举（游戏内类型名 AdvCommand，见剧本表 _header 列定义）。
+# 游戏 2026-09-24 才上线、无公开枚举对照，以下语义由全量 946 个 Episode 表（约 13 万行）
+# 的字段关联审计推导（2026-09-25）：【实测】= 站点解析器行为或资源名/字段自证；
+# 【推断】= 仅由字段相关性得出，命名未必与游戏内部一致，待后续修正。
+# 审计中未出现的值（8/22/40/41/42/45/55/58）不收录；新版本新增值在解析时退回裸数值。
+class AdvCommand(int, Enum):
+    CharacterIn = 0            # 【推断】targetName=角色名 + positionType 100% + duration 91%，角色移入/入场
+    CharacterOut = 1           # 【推断】同 0 但 duration 56%、positionType 23%，角色移出/退场
+    Talk = 2                   # 【实测】对话：说话人 + 文本 + 语音（站点解析器）
+    Wait = 3                   # 【实测】等待 duration 秒（duration 100%）
+    WaitParam = 4              # 【推断】duration 100% + parameter1 99%，带参数的条件等待？
+    TransitionIn = 5           # 【推断】转场，少量携带 adv_transition_*，与 6 成对、方向未定
+    TransitionOut = 6          # 【推断】转场，同上
+    MoveCamera = 7             # 【实测】cameraDistance 93% + positionType 99%，相机移动到目标站位
+    Op9 = 9                    # positionType 100%，仅 74 行
+    Op10 = 10                  # positionType 96%，仅 72 行
+    Op11 = 11                  # duration 71%，仅 112 行
+    Op12 = 12                  # parameter1 100% + positionType 22%
+    Op13 = 13                  # positionType 100% + parameter1 100%
+    Op14 = 14                  # 同 13
+    PlayBgm = 15               # 【实测】bgmID 52%（PlayBgm 指令，报告推断）
+    Op16 = 16                  # duration 66% + parameter1 100%
+    SetExpression = 17         # 【实测】expressionName 100%，切换表情
+    Op18 = 18                  # targetName 99%（角色相关）
+    Op19 = 19                  # targetName 100%（角色相关）
+    Narration = 20             # 【实测】旁白/独白：仅 advTextID（站点解析器）
+    CharacterMotion = 21       # 【实测】motionName 96% + expressionName 99%，角色动作+表情同步（行数与对话同量级）
+    LoadCharacterModel = 23    # 【推断】targetName + targetAssetName 100%（Live2D 模型路径），登场/换装
+    Op24 = 24                  # targetName 100%（角色相关）
+    ChangeBackground = 25      # 【实测】targetAssetName 100% = adv_bkg_*（站点解析器 + 资源名自证）
+    PlayVideo = 26             # 【推断】videoID 93%
+    StopVideo = 27             # 【推断】videoID 50%
+    Monologue = 28             # 【实测】带 advTextID + 说话人、无语音（705 行）；推断为内心独白类对话变体
+    Op29 = 29                  # 仅 12 行
+    ShowStill = 30             # 【实测】targetAssetName 100% = adv_still_*（站点解析器 + 资源名自证）
+    PlaySe = 31                # 【实测】seID 99%
+    Op32 = 32                  # targetName 100% + parameter1 100%
+    Op33 = 33                  # 仅 1 行
+    Op34 = 34                  # duration 54% + parameter1 100%
+    ChangeTalkWindow = 35      # 【实测】targetAssetName = UICenterTalkWindow / UIDefaultTalkWindow
+    ChatOpen = 36              # 【推断】说话人 + targetTextIDs + targetChatID，无文本，打开聊天窗口
+    ChatMessage = 37           # 【实测】聊天气泡（带文本 + targetChatID，站点解析器遗漏）
+    ChatStamp = 38             # 【实测】聊天贴图（adv_data_chat_*_stamp + System）
+    Op39 = 39                  # 仅 1 行
+    PostEffect = 43            # 【实测】targetAssetName = adv_effect_posteffect_*（含 reminiscence 回忆滤镜）
+    FrameOverlay = 44          # 【实测】targetAssetName = adv_frame_*（遮幅/相框/速度线等）
+    CharacterTransform1 = 46   # 【推断】targetName 100% + parameter1 93% + duration 64%，角色变形/位移
+    CharacterTransform2 = 47   # 【推断】parameter1 100%
+    CharacterTransform3 = 48   # 【推断】parameter1 100%
+    CharacterTransform4 = 49   # 【推断】parameter1 100% + positionType 76%
+    Op50 = 50                  # duration 19% + parameter1 99%
+    Op51 = 51                  # duration 48%
+    PlayVoice = 52             # 【实测】voiceIDs 100%（仅 7 行）
+    Op53 = 53                  # duration 76% + parameter1 100%
+    StageEffect = 54           # 【实测】targetAssetName = adv_effect_spotlight / adv_effect_stage_*
+    Op56 = 56                  # 仅 57 行
+    Op57 = 57                  # parameter1 100%
+    Op59 = 59                  # 仅 688 行
+    Op60 = 60                  # positionType 100%
+    Op61 = 61                  # positionType 100%
+    Op62 = 62                  # positionType 100%
+    Op63 = 63                  # positionType 100%
+    Op64 = 64                  # positionType 100%
+    ChatMessageEx = 65         # 【实测】聊天气泡变体（带文本，站点解析器遗漏）
+    CharacterMoveTo = 66       # 【推断】targetName 100% + positionType 100% + duration 75%，与 0 近似
+    Op67 = 67                  # duration 85% + parameter1 100%
+    Op68 = 68                  # motionName 57%，仅 14 行
+    Op69 = 69                  # targetName 100%，仅 65 行
 
 
 def normalize_rows(table_json: Any) -> list[dict[str, Any]]:
@@ -138,6 +206,7 @@ class Story_reader(Bdon_fetcher):
         save_assets: bool = True,
         missing_download: bool = True,
         debug_parse: bool = False,
+        cg_add_link: bool = True,
         force_master_online: bool = False,
         **args,
     ) -> None:
@@ -151,6 +220,11 @@ class Story_reader(Bdon_fetcher):
         )
 
         self.debug_parse = debug_parse
+        self.cg_add_link = cg_add_link
+
+        # 过场大图（cmd 30）链接：assets.bdon.moe 发布服务；图片语言固定 zh-Hans，与站点行为一致。
+        # 注意比 legacy 桶 S3 key 多一层 <name>/ 段且为 .webp；全量 333 张中 21 张上游未导出（死链不可避免）。
+        self.cg_link = 'https://assets.bdon.moe/zh-Hans/Adv/Still/{dir}/{name}/data/{name}/{name}.webp'
 
     async def init(
         self,
@@ -287,24 +361,26 @@ class Story_reader(Bdon_fetcher):
         episode_rows = normalize_rows(episode_json)
         text_lookup = {str(row['id']): row for row in normalize_rows(text_json)}
 
-        speakers: list[str] = []
-        speaker_seen: set[str] = set()
         body = ''
         prev_is_text = False
 
         # 遍历 Episode 指令流（数组顺序即剧本顺序，勿用 _index 当行号）
         for row in episode_rows:
-            command = row.get('command')
+            raw_command: Any = row.get('command')
+            try:
+                command = AdvCommand(raw_command)
+            except ValueError:
+                command = raw_command  # 新版本新增指令：退回裸数值
             adv_text_id = row.get('advTextID')
 
             if adv_text_id:
-                # 凡 _advTextID 非空即一行台词（2 对话 / 20 旁白 / 37 65 聊天气泡），
-                # 不按 command 白名单筛选，否则会丢聊天气泡内容
+                # 凡 _advTextID 非空即一行台词（Talk / Narration / ChatMessage / ChatMessageEx /
+                # Monologue 均可携带），不按 command 白名单筛选，否则会丢聊天气泡与独白内容
                 text = self.get_text_marked(
                     text_lookup.get(str(adv_text_id)), lang, mark_lang
                 ).replace('\n', ' ')
 
-                if command == 20:  # 旁白/独白，无说话人
+                if command is AdvCommand.Narration:  # 旁白/独白，无说话人
                     body += text + '\n'
                 else:
                     target_ids = row.get('targetTextIDs') or []
@@ -320,32 +396,25 @@ class Story_reader(Bdon_fetcher):
                         else ''
                     )
                     speaker = (speaker or speaker_id).replace('\n', ' ')
-                    if (
-                        speaker_id
-                        and speaker_id not in Constant.narrator_ids
-                        and speaker not in speaker_seen
-                    ):
-                        speaker_seen.add(speaker)
-                        speakers.append(speaker)
                     body += f"{speaker}{Mark_multi_lang[':'][mark_lang]}{text}\n"
                 prev_is_text = True
-            elif command == 25:  # 切换背景（背景图仅在 legacy 桶，此处只留标记）
+            elif command is AdvCommand.ChangeBackground:  # 切换背景（背景图仅在 legacy 桶，此处只留标记）
                 if prev_is_text:
                     body += '\n'
                 body += Mark_multi_lang['background'][mark_lang] + '\n'
                 prev_is_text = False
-            elif command == 30:  # 过场大图
+            elif command is AdvCommand.ShowStill:  # 过场大图
                 if prev_is_text:
                     body += '\n'
-                asset_name = (
-                    str(row.get('targetAssetName') or '')
-                    .replace('\\', '/')
-                    .strip('/')
-                    .rsplit('/', 1)[-1]
-                )
+                asset = str(row.get('targetAssetName') or '').replace('\\', '/').strip('/')
+                dir_name, still_name = asset.split('/')[0], asset.rsplit('/', 1)[-1]
+                if self.cg_add_link:  # 仿 pjsk：链接替换资源名
+                    cg_text = self.cg_link.format(dir=dir_name, name=still_name)
+                else:
+                    cg_text = still_name
                 body += (
                     Mark_multi_lang['cg'][mark_lang]
-                    + asset_name
+                    + cg_text
                     + Mark_multi_lang[')'][mark_lang]
                     + '\n'
                 )
@@ -353,15 +422,7 @@ class Story_reader(Bdon_fetcher):
             elif self.debug_parse:
                 body += f"cmd-{command}: {row.get('targetName')}\n"
 
-        ret0 = ''
-        if speakers:
-            ret0 = (
-                Mark_multi_lang['characters'][mark_lang]
-                + Mark_multi_lang[','][mark_lang].join(speakers)
-                + Mark_multi_lang[')'][mark_lang]
-            )
-
-        return (ret0 + '\n\n' + body).strip()
+        return body.strip()
 
 
 class Bdon_getter(Bdon_fetcher, util.Base_getter):
@@ -442,14 +503,17 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
 
     async def write_script(
         self,
+        adv_id: int,
         script: str,
         langs: Iterable[tuple[str, str]],
         index_regex: str,
         path_of: Callable[[str], str],
-        name_of: Callable[[str], str],
+        title_of: Callable[[str], str],
         synopsis_of: Callable[[str], str | None],
     ) -> None:
-        """抓取剧本两表并向各语言目录写出；index_regex 匹配文件名中稳定的首段索引用于改名/清理。"""
+        """抓取剧本两表并向各语言目录写出；文件头首行固定 `advId:脚本名 标题`
+        （advId = MasterAdv._id，对应站点 /story/<advId>）。
+        index_regex 匹配文件名中稳定的首段索引用于改名/清理。"""
         episode_json, text_json = await self.fetch_script(script)
 
         if not self.parse:
@@ -465,8 +529,10 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
             file_path = path_of(lang)
             os.makedirs(os.path.split(file_path)[0], exist_ok=True)
             util.remove_olds_or_rename_old(file_path, index_regex)
+            title = title_of(lang)
+            name = f'{adv_id}:{script} {title}'.strip() if title else f'{adv_id}:{script}'
             with open(file_path, 'w', encoding='utf8') as f:
-                f.write(name_of(lang) + '\n\n')
+                f.write(name + '\n\n')
                 synopsis = synopsis_of(lang)
                 if synopsis:
                     f.write(synopsis.replace('\n', ' ') + '\n\n')
@@ -478,16 +544,17 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
         logging.info(f'get bdon script {script} done.')
 
 
-class Main_story_getter(Bdon_getter):
+class Band_story_getter(Bdon_getter):
     def __init__(
         self,
         reader: Story_reader,
-        save_dir: str = './story_{lang}/main',
+        save_dir: str = './story_{lang}/band',
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
+        maxlen_episodeNumber: int = 2,
         compress_assets: bool = False,
         force_master_online: bool = False,
         **args,
@@ -503,6 +570,7 @@ class Main_story_getter(Bdon_getter):
             compress_assets,
             force_master_online,
         )
+        self.maxlen_episodeNumber = maxlen_episodeNumber
 
     def all_ids(self) -> list[int]:
         return sorted(self.reader.story_episodes)
@@ -518,18 +586,22 @@ class Main_story_getter(Bdon_getter):
         )
         ep_number: int = episode['episodeNumber']
         is_another: bool = bool(episode['isAnotherEpisode'])
+        is_extra: bool = bool(episode['isExtraEpisode'])
         chara_id = episode.get('characterId')
         description_id = episode.get('descriptionTextId')
 
         def filename(lang: str) -> str:
             title = reader.get_adv_title(adv_id, lang)
-            # 另一视角的 episodeNumber 与正篇重叠（1..5），加 a 后缀并附角色名区分
+            # 视角故事（another story）的 episodeNumber 1..5 与正篇重叠，用 another- 前缀并附角色名；
+            # 番外（extra）的 episodeNumber 为 21..23，用 extra- 前缀；编号均为主表原值
             if is_another:
                 return util.valid_filename(
-                    f'{ep_number:02d}a {reader.get_chara_name(chara_id, lang, short=True)} {title}'
+                    f'another-{ep_number:0{self.maxlen_episodeNumber}d} {reader.get_chara_name(chara_id, lang, short=True)} {title}'
                     + '.txt'
                 )
-            return util.valid_filename(f'{ep_number:02d} {title}' + '.txt')
+            if is_extra:
+                return util.valid_filename(f'extra-{ep_number:0{self.maxlen_episodeNumber}d} {title}' + '.txt')
+            return util.valid_filename(f'{ep_number:0{self.maxlen_episodeNumber}d} {title}' + '.txt')
 
         def path_of(lang: str) -> str:
             folder = util.valid_filename(
@@ -537,14 +609,15 @@ class Main_story_getter(Bdon_getter):
             )
             return os.path.join(self.save_dir.format(lang=lang), folder, filename(lang))
 
-        def name_of(lang: str) -> str:
-            title = reader.get_adv_title(adv_id, lang)
-            return f'{script} {title}'.strip() if title else script
+        def title_of(lang: str) -> str:
+            return reader.get_adv_title(adv_id, lang)
 
         def synopsis_of(lang: str) -> str | None:
             return reader.get_master_text(description_id, lang)
 
-        await self.write_script(script, langs, r'(\d+[ab]?) ', path_of, name_of, synopsis_of)
+        await self.write_script(
+            adv_id, script, langs, r'(another-\d+|extra-\d+|\d+) ', path_of, title_of, synopsis_of
+        )
 
 
 class Friendship_story_getter(Bdon_getter):
@@ -557,6 +630,7 @@ class Friendship_story_getter(Bdon_getter):
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
+        maxlen_friendshipId_episodeNumber: tuple[int, int] = (4, 2),
         compress_assets: bool = False,
         force_master_online: bool = False,
         **args,
@@ -572,6 +646,7 @@ class Friendship_story_getter(Bdon_getter):
             compress_assets,
             force_master_online,
         )
+        self.maxlen_friendshipId_episodeNumber = maxlen_friendshipId_episodeNumber
 
     def all_ids(self) -> list[int]:
         return sorted(self.reader.friendship_episodes)
@@ -582,12 +657,14 @@ class Friendship_story_getter(Bdon_getter):
         script: str = reader.advs[adv_id]['advEpisodeAsset']
         pair = reader.friendships[episode['characterFriendshipId']]
         id_a, id_b = pair['masterCharacterIdA'], pair['masterCharacterIdB']
-        pair_index = sorted(reader.friendships).index(episode['characterFriendshipId']) + 1
+        # 组合编号直接用 master 的 friendshipId（角色A id + 角色B id 拼接码，如 102=灯×爱音），
+        # 不连续但稳定；补零到 4 位保证目录按数值排序
+        friendship_id: int = pair['id']
         ep_number: int = episode['episodeNumber']
 
         def path_of(lang: str) -> str:
             folder = util.valid_filename(
-                f'{pair_index:02d} '
+                f'{friendship_id:0{self.maxlen_friendshipId_episodeNumber[0]}d} '
                 + f'{reader.get_chara_name(id_a, lang)}×{reader.get_chara_name(id_b, lang)}',
                 True,
             )
@@ -595,16 +672,17 @@ class Friendship_story_getter(Bdon_getter):
 
         def filename(lang: str) -> str:
             title = reader.get_adv_title(adv_id, lang)
-            return util.valid_filename(f'{ep_number:02d} {title}' + '.txt')
+            return util.valid_filename(
+                f'{ep_number:0{self.maxlen_friendshipId_episodeNumber[1]}d} {title}' + '.txt'
+            )
 
-        def name_of(lang: str) -> str:
-            title = reader.get_adv_title(adv_id, lang)
-            return f'{script} {title}'.strip() if title else script
+        def title_of(lang: str) -> str:
+            return reader.get_adv_title(adv_id, lang)
 
         def synopsis_of(lang: str) -> str | None:
             return None  # 羁绊话主表无简介字段
 
-        await self.write_script(script, langs, r'(\d+) ', path_of, name_of, synopsis_of)
+        await self.write_script(adv_id, script, langs, r'(\d+) ', path_of, title_of, synopsis_of)
 
 
 class Home_talk_getter(Bdon_getter):
@@ -617,6 +695,7 @@ class Home_talk_getter(Bdon_getter):
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
+        maxlen_spotIndex: int = 2,
         compress_assets: bool = False,
         force_master_online: bool = False,
         **args,
@@ -632,6 +711,7 @@ class Home_talk_getter(Bdon_getter):
             compress_assets,
             force_master_online,
         )
+        self.maxlen_spotIndex = maxlen_spotIndex
 
     def all_ids(self) -> list[int]:
         # 首页 spot 点触对话 + 场景自带开场白，合并为 home 类
@@ -670,9 +750,11 @@ class Home_talk_getter(Bdon_getter):
                 reader.get_master_text(spot.get('nameTextId'), lang) if spot else None
             )
             folder = (
-                util.valid_filename(f'{spot_index:02d} {spot_name}', True)
+                util.valid_filename(
+                    f'{spot_index:0{self.maxlen_spotIndex}d} {spot_name}', True
+                )
                 if spot_name
-                else f'spot_{spot_index:02d}'
+                else f'spot_{spot_index:0{self.maxlen_spotIndex}d}'
             )
             return os.path.join(self.save_dir.format(lang=lang), folder, filename(lang))
 
@@ -680,26 +762,23 @@ class Home_talk_getter(Bdon_getter):
             title = title_of(lang)
             return util.valid_filename(f'{adv_id} {title}'.strip() + '.txt')
 
-        def name_of(lang: str) -> str:
-            title = title_of(lang)
-            return f'{script} {title}'.strip() if title else script
-
         def synopsis_of(lang: str) -> str | None:
             return None
 
-        await self.write_script(script, langs, r'(\d+)', path_of, name_of, synopsis_of)
+        await self.write_script(adv_id, script, langs, r'(\d+)', path_of, title_of, synopsis_of)
 
 
-class Live_result_getter(Bdon_getter):
+class Live_result_story_getter(Bdon_getter):
     def __init__(
         self,
         reader: Story_reader,
-        save_dir: str = './story_{lang}/live',
+        save_dir: str = './story_{lang}/live_result',
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
+        maxlen_episodeId: int = 3,
         compress_assets: bool = False,
         force_master_online: bool = False,
         **args,
@@ -715,6 +794,7 @@ class Live_result_getter(Bdon_getter):
             compress_assets,
             force_master_online,
         )
+        self.maxlen_episodeId = maxlen_episodeId
 
     def all_ids(self) -> list[int]:
         return sorted(self.reader.live_result_episodes)
@@ -723,6 +803,7 @@ class Live_result_getter(Bdon_getter):
         reader = self.reader
         episode = reader.live_result_episodes[adv_id]
         script: str = reader.advs[adv_id]['advEpisodeAsset']
+        episode_id: int = episode['id']  # MasterStoryLiveResultEpisode._id（1..325，master 原值）
         chara_ids = episode.get('characterIds') or []
 
         def title_of(lang: str) -> str:
@@ -740,16 +821,14 @@ class Live_result_getter(Bdon_getter):
 
         def filename(lang: str) -> str:
             title = title_of(lang)
-            return util.valid_filename(f'{adv_id} {title}'.strip() + '.txt')
-
-        def name_of(lang: str) -> str:
-            title = title_of(lang)
-            return f'{script} {title}'.strip() if title else script
+            return util.valid_filename(
+                f'{episode_id:0{self.maxlen_episodeId}d} {title}'.strip() + '.txt'
+            )
 
         def synopsis_of(lang: str) -> str | None:
             return None
 
-        await self.write_script(script, langs, r'(\d+)', path_of, name_of, synopsis_of)
+        await self.write_script(adv_id, script, langs, r'(\d+)', path_of, title_of, synopsis_of)
 
 
 class Tutorial_story_getter(Bdon_getter):
@@ -800,14 +879,13 @@ class Tutorial_story_getter(Bdon_getter):
             title = reader.get_adv_title(adv_id, lang)
             return util.valid_filename(f'{script} {title}'.strip() + '.txt')
 
-        def name_of(lang: str) -> str:
-            title = reader.get_adv_title(adv_id, lang)
-            return f'{script} {title}'.strip() if title else script
+        def title_of(lang: str) -> str:
+            return reader.get_adv_title(adv_id, lang)
 
         def synopsis_of(lang: str) -> str | None:
             return None
 
-        await self.write_script(script, langs, r'(adv_script_\w+)', path_of, name_of, synopsis_of)
+        await self.write_script(adv_id, script, langs, r'(adv_script_\w+)', path_of, title_of, synopsis_of)
 
 
 async def main():
@@ -819,10 +897,10 @@ async def main():
     online = False
 
     reader = Story_reader(online=online)
-    main_getter = Main_story_getter(reader, online=online)
+    band_getter = Band_story_getter(reader, online=online)
     friendship_getter = Friendship_story_getter(reader, online=online)
     home_getter = Home_talk_getter(reader, online=online)
-    live_getter = Live_result_getter(reader, online=online)
+    live_result_getter = Live_result_story_getter(reader, online=online)
     tutorial_getter = Tutorial_story_getter(reader, online=online)
 
     async with ClientSession(
@@ -831,19 +909,19 @@ async def main():
 
         await asyncio.gather(
             reader.init(session),
-            main_getter.init(session),
+            band_getter.init(session),
             friendship_getter.init(session),
             home_getter.init(session),
-            live_getter.init(session),
+            live_result_getter.init(session),
             tutorial_getter.init(session),
         )
 
         tasks = []
 
-        tasks.append(main_getter.get())
+        tasks.append(band_getter.get())
         tasks.append(friendship_getter.get())
         tasks.append(home_getter.get())
-        tasks.append(live_getter.get())
+        tasks.append(live_result_getter.get())
         tasks.append(tutorial_getter.get())
 
         await asyncio.gather(*tasks)
