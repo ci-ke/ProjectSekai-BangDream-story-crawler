@@ -565,7 +565,7 @@ class Band_story_getter(Bdon_getter):
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
-        maxlen_episodeNumber: int = 2,
+        maxlen_chapterId_episodeNumber: tuple[int, int] = (2, 2),
         compress_assets: bool = False,
         force_master_online: bool = False,
         **args,
@@ -581,7 +581,7 @@ class Band_story_getter(Bdon_getter):
             compress_assets,
             force_master_online,
         )
-        self.maxlen_episodeNumber = maxlen_episodeNumber
+        self.maxlen_chapterId_episodeNumber = maxlen_chapterId_episodeNumber
 
     def tell_ids(self) -> list[int]:
         return sorted(self.reader.story_episodes)  # MasterStoryEpisode._id
@@ -595,6 +595,7 @@ class Band_story_getter(Bdon_getter):
             c for c in reader.story_chapters if c['id'] == episode['chapterId']
         )
         band_id = chapter['bandId']
+        chapter_id: int = chapter['id']
         ep_number: int = episode['episodeNumber']
         is_another: bool = bool(episode['isAnotherEpisode'])
         is_extra: bool = bool(episode['isExtraEpisode'])
@@ -603,16 +604,20 @@ class Band_story_getter(Bdon_getter):
 
         def filename(lang: str) -> str:
             title = reader.get_adv_title(adv_id, lang)
-            # 视角故事（another story）的 episodeNumber 1..5 与正篇重叠，用 another- 前缀并附角色名；
-            # 番外（extra）的 episodeNumber 为 21..23，用 extra- 前缀；编号均为主表原值
+            # 编号 = 章节-话（均为主表原值）：视角故事（another story）的 episodeNumber 1..5 与正篇重叠，
+            # 用 another- 前缀并附角色名；番外（extra）的 episodeNumber 为 21..23，用 extra- 前缀
+            chapter_episode = (
+                f'{chapter_id:0{self.maxlen_chapterId_episodeNumber[0]}d}'
+                + f'-{ep_number:0{self.maxlen_chapterId_episodeNumber[1]}d}'
+            )
             if is_another:
                 return util.valid_filename(
-                    f'another-{ep_number:0{self.maxlen_episodeNumber}d} {reader.get_chara_name(chara_id, lang, short=True)} {title}'
+                    f'another-{chapter_episode} {reader.get_chara_name(chara_id, lang, short=True)} {title}'
                     + '.txt'
                 )
             if is_extra:
-                return util.valid_filename(f'extra-{ep_number:0{self.maxlen_episodeNumber}d} {title}' + '.txt')
-            return util.valid_filename(f'{ep_number:0{self.maxlen_episodeNumber}d} {title}' + '.txt')
+                return util.valid_filename(f'extra-{chapter_episode} {title}' + '.txt')
+            return util.valid_filename(f'{chapter_episode} {title}' + '.txt')
 
         def path_of(lang: str) -> str:
             chapter_name = reader.get_master_text(chapter['nameTextId'], lang)
@@ -630,7 +635,13 @@ class Band_story_getter(Bdon_getter):
             return reader.get_master_text(description_id, lang)
 
         await self.write_script(
-            adv_id, script, langs, r'(another-\d+|extra-\d+|\d+) ', path_of, title_of, synopsis_of
+            adv_id,
+            script,
+            langs,
+            r'(another-\d+-\d+|extra-\d+-\d+|\d+-\d+) ',
+            path_of,
+            title_of,
+            synopsis_of,
         )
 
 
@@ -713,7 +724,7 @@ class Home_talk_getter(Bdon_getter):
         save_assets: bool = True,
         parse: bool = True,
         missing_download: bool = True,
-        maxlen_spotIndex: int = 2,
+        maxlen_spotId: int = 5,
         compress_assets: bool = False,
         force_master_online: bool = False,
         **args,
@@ -729,7 +740,7 @@ class Home_talk_getter(Bdon_getter):
             compress_assets,
             force_master_online,
         )
-        self.maxlen_spotIndex = maxlen_spotIndex
+        self.maxlen_spotId = maxlen_spotId
 
     def tell_ids(self) -> list[int]:
         # 点触对话（TapTalk._id 1000101+）与场景开场（HomeSpot._id 10001+）两个 id 空间不重叠，合并返回
@@ -751,7 +762,6 @@ class Home_talk_getter(Bdon_getter):
             spot_id = spot['id']
         script: str = reader.advs[adv_id]['advEpisodeAsset']
         spot = reader.home_spots.get(spot_id)
-        spot_index = sorted(reader.home_spots).index(spot_id) + 1
 
         def title_of(lang: str) -> str:
             title = reader.get_adv_title(adv_id, lang)
@@ -767,18 +777,20 @@ class Home_talk_getter(Bdon_getter):
             spot_name = (
                 reader.get_master_text(spot.get('nameTextId'), lang) if spot else None
             )
+            # 文件夹编号 = MasterHomeSpot._id（master 原值，5 位补零保证排序）
             folder = (
                 util.valid_filename(
-                    f'{spot_index:0{self.maxlen_spotIndex}d} {spot_name}', True
+                    f'{spot_id:0{self.maxlen_spotId}d} {spot_name}', True
                 )
                 if spot_name
-                else f'spot_{spot_index:0{self.maxlen_spotIndex}d}'
+                else f'spot_{spot_id:0{self.maxlen_spotId}d}'
             )
             return os.path.join(self.save_dir.format(lang=lang), folder, filename(lang))
 
         def filename(lang: str) -> str:
             title = title_of(lang)
-            return util.valid_filename(f'{adv_id} {title}'.strip() + '.txt')
+            # 文件名用所在主表行的 id（点触 = TapTalk._id，场景开场 = HomeSpot._id），不用 advId
+            return util.valid_filename(f'{master_id} {title}'.strip() + '.txt')
 
         def synopsis_of(lang: str) -> str | None:
             return None
