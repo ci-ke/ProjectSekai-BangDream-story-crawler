@@ -33,6 +33,13 @@
             "talk_scenario_asset": "https://bestdori.com/assets/{lang}/scenario/actionset/group{group}_rip/Scenario{scenario_id}.asset"
         }
     },
+    "urls_bdon": {
+        "bdon.moe": {
+            "master": "https://metadata.bdon.moe/master/{table}.json",
+            "episode_asset": "https://storage.bdon.moe/moenotes/Adv/Episode/{script}/{script}-Episode/{script}-Episode.json",
+            "text_asset": "https://storage.bdon.moe/moenotes/Adv/Episode/{script}/{script}-Text/{script}-Text.json"
+        }
+    },
     "urls_pjsk": {
         "sekai.best": {
             "master": "https://sekai-world.github.io/sekai-master-db-{lang}diff/{file}.json",
