@@ -13,7 +13,8 @@ from .util import Mark_multi_lang
 CONFIG: dict[str, Any] = json.load(
     open(Path(__file__).parent / 'config.json', encoding='utf8')
 )
-URLS: dict[str, str] = CONFIG['urls_bdon']['bdon.moe']
+URLS: dict[str, Any] = CONFIG['urls_bdon']['bdon.moe']
+_SAVE_ROOTS: dict[str, str] = URLS['save_roots']  # 服务基址 → 存盘根
 
 # 输出语言列表：(输出语言, 标记语言)。剧本 Text 表自带 5 语言，
 # 每个脚本只需抓一次即可输出全部语言目录；按需增删此表即可。
@@ -158,11 +159,11 @@ def normalize_rows(table_json: Any) -> list[dict[str, Any]]:
 class Bdon_fetcher(util.Base_fetcher):
     @staticmethod
     def __url_to_save_path(url: str) -> str:
-        # URL 路径过长，仿 pjsk 拆成两个短存盘根：
-        # bdon-master/（master 表）、bdon-assets/Adv/Episode/（剧本表，保留源桶路径层级）
-        if '/master/' in url:
-            return os.path.join('bdon-master', url[url.rindex('/') + 1 :])
-        return os.path.join('bdon-assets', 'Adv', 'Episode', url[url.rindex('/') + 1 :])
+        # 存盘路径 = 剥掉基址（config 的 save_roots：基址 → 存盘根）后的资源路径
+        for base, root in _SAVE_ROOTS.items():
+            if url.startswith(base):
+                return os.path.join(root, url[len(base) :])
+        raise RuntimeError(url)
 
     async def fetch_url_json(
         self,
