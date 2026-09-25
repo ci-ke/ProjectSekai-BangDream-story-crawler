@@ -62,12 +62,16 @@ def create_getters(
 
 
 def add_all_tasks(tasks: TaskList_type, getters: Getters_type) -> None:
-    # bdon 的剧本 Text 表自带全部语言，每个脚本一次抓取即可
-    tasks.append(getters['band_getter'].get(langs=LANGS))
-    tasks.append(getters['friendship_getter'].get(langs=LANGS))
-    tasks.append(getters['home_getter'].get(langs=LANGS))
-    tasks.append(getters['live_result_getter'].get(langs=LANGS))
-    tasks.append(getters['tutorial_getter'].get(langs=LANGS))
+    # 剧本 Text 表自带全部语言，每脚本一次抓取；按 pjsk/bang 惯例遍历各自 master 的 tell_ids
+    for getter in (
+        getters['band_getter'],
+        getters['friendship_getter'],
+        getters['home_getter'],
+        getters['live_result_getter'],
+        getters['tutorial_getter'],
+    ):
+        for master_id in getter.tell_ids():
+            tasks.append(getter.get(master_id, langs=LANGS))
 
 
 async def main() -> None:

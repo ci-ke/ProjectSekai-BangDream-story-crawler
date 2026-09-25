@@ -267,20 +267,19 @@ class Story_reader(Bdon_fetcher):
         self.characters = {row['id']: row for row in rows['MasterCharacter']}
         self.bands = {row['id']: row for row in rows['MasterBand']}
         self.story_chapters = rows['MasterStoryChapter']
-        self.story_episodes = {
-            row['advId']: row for row in rows['MasterStoryEpisode']
-        }
+        # 剧情表各自以本表 _id 为键（getter 的入口 id），行内 advId 用于定位脚本
+        self.story_episodes = {row['id']: row for row in rows['MasterStoryEpisode']}
         self.friendship_episodes = {
-            row['advId']: row for row in rows['MasterStoryFriendshipEpisode']
+            row['id']: row for row in rows['MasterStoryFriendshipEpisode']
+        }
+        self.live_result_episodes = {
+            row['id']: row for row in rows['MasterStoryLiveResultEpisode']
+        }
+        self.home_talk_episodes = {
+            row['id']: row for row in rows['MasterStoryHomeSpotTapTalkEpisode']
         }
         self.friendships = {
             row['id']: row for row in rows['MasterCharacterFriendship']
-        }
-        self.live_result_episodes = {
-            row['advId']: row for row in rows['MasterStoryLiveResultEpisode']
-        }
-        self.home_talk_episodes = {
-            row['advId']: row for row in rows['MasterStoryHomeSpotTapTalkEpisode']
         }
         self.home_spots = {row['id']: row for row in rows['MasterHomeSpot']}
         self.home_spots_by_adv = {
@@ -288,10 +287,10 @@ class Story_reader(Bdon_fetcher):
         }
         # 被各剧情主表引用的 advId（归属判定时引用优先于脚本名前缀）
         self.referenced_advs: set[int] = (
-            set(self.story_episodes)
-            | set(self.friendship_episodes)
-            | set(self.live_result_episodes)
-            | set(self.home_talk_episodes)
+            {row['advId'] for row in self.story_episodes.values()}
+            | {row['advId'] for row in self.friendship_episodes.values()}
+            | {row['advId'] for row in self.live_result_episodes.values()}
+            | {row['advId'] for row in self.home_talk_episodes.values()}
             | set(self.home_spots_by_adv)
         )
 
@@ -490,38 +489,12 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
 
         self.reader = reader
 
-    def all_ids(self) -> list[int]:
-        """该类别全部脚本 advId，升序。"""
+    def tell_ids(self) -> list[int]:
+        """该类别各自 master 表的全部 id，升序。"""
         raise NotImplementedError
 
-    async def get_id(self, adv_id: int, langs: Iterable[tuple[str, str]]) -> None:
+    async def get(self, master_id: int, langs: Iterable[tuple[str, str]] = LANGS) -> None:
         raise NotImplementedError
-
-    async def get(
-        self,
-        langs: Iterable[tuple[str, str]] = LANGS,
-        id_range: Iterable[int] | None = None,
-    ) -> None:
-        ids = self.all_ids()
-        if id_range is not None:
-            id_set = set(id_range)
-            ids = [i for i in ids if i in id_set]
-
-        await asyncio.gather(*[self.get_id(adv_id, langs) for adv_id in ids])
-
-    async def get_newest(
-        self,
-        langs: Iterable[tuple[str, str]] = LANGS,
-        quantity: int = 1,
-    ) -> None:
-        '''
-        增量抓取最新的 quantity 个脚本（advId 单调递增且目前连续无空洞）；quantity 0 = 全部
-        '''
-        ids = self.all_ids()
-        if quantity > 0:
-            ids = ids[-quantity:]
-
-        await asyncio.gather(*[self.get_id(adv_id, langs) for adv_id in ids])
 
     async def fetch_script(self, script: str) -> tuple[Any, Any]:
         return await asyncio.gather(
@@ -610,18 +583,18 @@ class Band_story_getter(Bdon_getter):
         )
         self.maxlen_episodeNumber = maxlen_episodeNumber
 
-    def all_ids(self) -> list[int]:
-        return sorted(self.reader.story_episodes)
+    def tell_ids(self) -> list[int]:
+        return sorted(self.reader.story_episodes)  # MasterStoryEpisode._id
 
-    async def get_id(self, adv_id: int, langs: Iterable[tuple[str, str]]) -> None:
+    async def get(self, episode_id: int, langs: Iterable[tuple[str, str]] = LANGS) -> None:
         reader = self.reader
-        episode = reader.story_episodes[adv_id]
+        episode = reader.story_episodes[episode_id]
+        adv_id: int = episode['advId']
         script: str = reader.advs[adv_id]['advEpisodeAsset']
-        band_id = next(
-            chapter['bandId']
-            for chapter in reader.story_chapters
-            if chapter['id'] == episode['chapterId']
+        chapter = next(
+            c for c in reader.story_chapters if c['id'] == episode['chapterId']
         )
+        band_id = chapter['bandId']
         ep_number: int = episode['episodeNumber']
         is_another: bool = bool(episode['isAnotherEpisode'])
         is_extra: bool = bool(episode['isExtraEpisode'])
@@ -642,8 +615,11 @@ class Band_story_getter(Bdon_getter):
             return util.valid_filename(f'{ep_number:0{self.maxlen_episodeNumber}d} {title}' + '.txt')
 
         def path_of(lang: str) -> str:
+            chapter_name = reader.get_master_text(chapter['nameTextId'], lang)
             folder = util.valid_filename(
-                f'{band_id:02d} {reader.get_band_name(band_id, lang)}', True
+                f'{band_id:02d} {reader.get_band_name(band_id, lang)}'
+                + (f'：{chapter_name}' if chapter_name else ''),
+                True,
             )
             return os.path.join(self.save_dir.format(lang=lang), folder, filename(lang))
 
@@ -686,12 +662,13 @@ class Friendship_story_getter(Bdon_getter):
         )
         self.maxlen_friendshipId_episodeNumber = maxlen_friendshipId_episodeNumber
 
-    def all_ids(self) -> list[int]:
-        return sorted(self.reader.friendship_episodes)
+    def tell_ids(self) -> list[int]:
+        return sorted(self.reader.friendship_episodes)  # MasterStoryFriendshipEpisode._id
 
-    async def get_id(self, adv_id: int, langs: Iterable[tuple[str, str]]) -> None:
+    async def get(self, episode_id: int, langs: Iterable[tuple[str, str]] = LANGS) -> None:
         reader = self.reader
-        episode = reader.friendship_episodes[adv_id]
+        episode = reader.friendship_episodes[episode_id]
+        adv_id: int = episode['advId']
         script: str = reader.advs[adv_id]['advEpisodeAsset']
         pair = reader.friendships[episode['characterFriendshipId']]
         id_a, id_b = pair['masterCharacterIdA'], pair['masterCharacterIdB']
@@ -754,27 +731,27 @@ class Home_talk_getter(Bdon_getter):
         )
         self.maxlen_spotIndex = maxlen_spotIndex
 
-    def all_ids(self) -> list[int]:
-        # 首页 spot 点触对话 + 场景自带开场白，合并为 home 类
-        entries: set[int] = set(self.reader.home_talk_episodes)
-        entries |= set(self.reader.home_spots_by_adv)
-        return sorted(entries)
+    def tell_ids(self) -> list[int]:
+        # 点触对话（TapTalk._id 1000101+）与场景开场（HomeSpot._id 10001+）两个 id 空间不重叠，合并返回
+        return sorted(
+            set(self.reader.home_talk_episodes)
+            | {row['id'] for row in self.reader.home_spots_by_adv.values()}
+        )
 
-    def __spot_of(self, adv_id: int) -> int | None:
-        episode = self.reader.home_talk_episodes.get(adv_id)
-        if episode is not None:
-            return episode['spotId']
-        spot = self.reader.home_spots_by_adv.get(adv_id)
-        return spot['id'] if spot else None
-
-    async def get_id(self, adv_id: int, langs: Iterable[tuple[str, str]]) -> None:
+    async def get(self, master_id: int, langs: Iterable[tuple[str, str]] = LANGS) -> None:
         reader = self.reader
-        adv = reader.advs.get(adv_id)
-        script: str = adv['advEpisodeAsset'] if adv else f'adv_{adv_id}'
-        spot_id = self.__spot_of(adv_id)
-        spot = reader.home_spots.get(spot_id) if spot_id is not None else None
-        episode = reader.home_talk_episodes.get(adv_id)
-        spot_index = sorted(reader.home_spots).index(spot_id) + 1 if spot_id is not None else 0
+        episode = reader.home_talk_episodes.get(master_id)
+        spot = reader.home_spots.get(master_id) if episode is None else None
+        if episode is not None:
+            adv_id = episode['advId']
+            spot_id = episode['spotId']
+        else:
+            assert spot is not None  # tell_ids 保证 id 必属于两表之一
+            adv_id = spot['advId']
+            spot_id = spot['id']
+        script: str = reader.advs[adv_id]['advEpisodeAsset']
+        spot = reader.home_spots.get(spot_id)
+        spot_index = sorted(reader.home_spots).index(spot_id) + 1
 
         def title_of(lang: str) -> str:
             title = reader.get_adv_title(adv_id, lang)
@@ -837,14 +814,14 @@ class Live_result_story_getter(Bdon_getter):
         )
         self.maxlen_episodeId = maxlen_episodeId
 
-    def all_ids(self) -> list[int]:
-        return sorted(self.reader.live_result_episodes)
+    def tell_ids(self) -> list[int]:
+        return sorted(self.reader.live_result_episodes)  # MasterStoryLiveResultEpisode._id（1..325）
 
-    async def get_id(self, adv_id: int, langs: Iterable[tuple[str, str]]) -> None:
+    async def get(self, episode_id: int, langs: Iterable[tuple[str, str]] = LANGS) -> None:
         reader = self.reader
-        episode = reader.live_result_episodes[adv_id]
+        episode = reader.live_result_episodes[episode_id]
+        adv_id: int = episode['advId']
         script: str = reader.advs[adv_id]['advEpisodeAsset']
-        episode_id: int = episode['id']  # MasterStoryLiveResultEpisode._id（1..325，master 原值）
         chara_ids = episode.get('characterIds') or []
 
         def title_of(lang: str) -> str:
@@ -898,8 +875,8 @@ class Tutorial_story_getter(Bdon_getter):
             force_master_online,
         )
 
-    def all_ids(self) -> list[int]:
-        # 教程本不被任何剧情主表引用，仅能按脚本名前缀识别
+    def tell_ids(self) -> list[int]:
+        # 教程本不被任何剧情主表引用，仅能按脚本名前缀识别；入口 id 只能是 MasterAdv._id
         return sorted(
             adv_id
             for adv_id, adv in self.reader.advs.items()
@@ -909,7 +886,7 @@ class Tutorial_story_getter(Bdon_getter):
             )
         )
 
-    async def get_id(self, adv_id: int, langs: Iterable[tuple[str, str]]) -> None:
+    async def get(self, adv_id: int, langs: Iterable[tuple[str, str]] = LANGS) -> None:
         reader = self.reader
         script: str = reader.advs[adv_id]['advEpisodeAsset']
 
@@ -918,7 +895,7 @@ class Tutorial_story_getter(Bdon_getter):
 
         def filename(lang: str) -> str:
             title = reader.get_adv_title(adv_id, lang)
-            return util.valid_filename(f'{script} {title}'.strip() + '.txt')
+            return util.valid_filename(f'{adv_id} {title}'.strip() + '.txt')
 
         def title_of(lang: str) -> str:
             return reader.get_adv_title(adv_id, lang)
@@ -926,7 +903,7 @@ class Tutorial_story_getter(Bdon_getter):
         def synopsis_of(lang: str) -> str | None:
             return None
 
-        await self.write_script(adv_id, script, langs, r'(adv_script_\w+)', path_of, title_of, synopsis_of)
+        await self.write_script(adv_id, script, langs, r'(\d+)', path_of, title_of, synopsis_of)
 
 
 async def main():
@@ -959,11 +936,16 @@ async def main():
 
         tasks = []
 
-        tasks.append(band_getter.get())
-        tasks.append(friendship_getter.get())
-        tasks.append(home_getter.get())
-        tasks.append(live_result_getter.get())
-        tasks.append(tutorial_getter.get())
+        # 每类各抓少量各自 master 的 id，检测各功能可运行：
+        # 正篇两乐队（mujica 含聊天气泡）+ 番外 + 视角（覆盖文件名各分支）、羁绊、首页点触、演出后、教程
+        tasks.append(band_getter.get(101))  # 10000 MyGO 正篇
+        tasks.append(band_getter.get(201))  # 10020 Ave Mujica 正篇（聊天气泡）
+        tasks.append(band_getter.get(121))  # 10100 番外
+        tasks.append(band_getter.get(124))  # 10434 视角
+        tasks.append(friendship_getter.get(1))  # 10459 灯×爱音
+        tasks.append(home_getter.get(1000101))  # 10611 首页点触
+        tasks.append(live_result_getter.get(1))  # 10109 演出后
+        tasks.append(tutorial_getter.get(10609))  # 教程（无主表，入口为 advId）
 
         await asyncio.gather(*tasks)
 
