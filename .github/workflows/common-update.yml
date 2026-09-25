@@ -6,10 +6,6 @@ on:
       run_command:
         required: true
         type: string
-      run_command_extra:
-        required: false
-        type: string
-        default: ""
       commit_message:
         required: true
         type: string
@@ -17,14 +13,6 @@ on:
         required: false
         type: string
         default: ""
-      skip_run_command:
-        required: false
-        type: boolean
-        default: false
-      skip_run_command_extra:
-        required: false
-        type: boolean
-        default: false
     secrets:
       PAT_TOKEN:
         required: false
@@ -73,14 +61,8 @@ jobs:
           enable-cache: true
 
       - name: Execute command
-        if: ${{ !inputs.skip_run_command }}
         working-directory: ./crawler
         run: ${{ inputs.run_command }}
-
-      - name: Execute command extra
-        if: ${{ inputs.run_command_extra != '' && !inputs.skip_run_command_extra }}
-        working-directory: ./crawler
-        run: ${{ inputs.run_command_extra }}
 
       - name: Commit and push changes
         run: |
