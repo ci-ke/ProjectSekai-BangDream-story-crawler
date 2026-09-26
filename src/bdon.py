@@ -428,8 +428,9 @@ class Story_reader(Bdon_fetcher):
         }
 
         body = ''
+        debug = self.debug_parse
         telop_pending = False  # Telop 之后的下一条输出需先补一个空行（Telop 独立段落、上下恰好各一空行）
-        last_marker = ''  # 上一条输出的背景标记资源名；仅相邻同资源的背景切换去重，台词输出后清空
+        last_marker = ''  # 上一条输出的背景资源名；仅紧邻的同资源背景指令折叠，台词输出后清空
         last_chat_line = ''  # 上一条手机消息行：相邻完全相同的消息重发行（渲染对）只出一次
         shown_still: str | None = None  # 当前显示中的过场大图（站点同款语义：再次点名 = 隐藏）
         last_still: str | None = None  # 最近一次输出过的大图资源；背景切换后允许再次输出
@@ -442,6 +443,8 @@ class Story_reader(Bdon_fetcher):
                 command = AdvCommand(raw_command)
             except ValueError:
                 command = raw_command  # 新版本新增指令：退回裸数值
+            # debug_parse：输出行前缀该行所属的 Episode 行号（_index），便于与原始指令流逐行对照
+            prefix = f"[{row['index']}]" if debug and row.get('index') is not None else ''
             if command in (AdvCommand.Clip, AdvCommand.SkippableClip):
                 video_id = row.get('videoID')
                 video_row = video_rows.get(int(video_id)) if video_id else None
@@ -453,14 +456,20 @@ class Story_reader(Bdon_fetcher):
                         telop_pending = False
                     path = str(video_row['assetName']).replace('\\', '/').strip('/')
                     body += (
-                        Mark_multi_lang['video'][mark_lang]
+                        prefix
+                        + Mark_multi_lang['video'][mark_lang]
                         + self.video_link.format(path=path, name=path.rsplit('/', 1)[-1])
                         + Mark_multi_lang[')'][mark_lang]
                         + '\n'
                     )
                     note = str(video_row.get('note') or '').replace('\n', ' ').strip()
                     if note:
-                        body += Mark_multi_lang['still caption'][mark_lang] + note + '\n'
+                        body += (
+                            prefix
+                            + Mark_multi_lang['still caption'][mark_lang]
+                            + note
+                            + '\n'
+                        )
                     last_marker = ''
                     last_chat_line = ''
                 elif row.get('parameter3') == 'SkipClipTarget':
@@ -485,7 +494,8 @@ class Story_reader(Bdon_fetcher):
                     if subtitle_name and mark_lang != 'cn':
                         subtitle_name = ' ' + subtitle_name  # 英文标记与名字间补空格
                     body += (
-                        Mark_multi_lang['subtitle'][mark_lang]
+                        prefix
+                        + Mark_multi_lang['subtitle'][mark_lang]
                         + subtitle_name
                         + Mark_multi_lang[':'][mark_lang]
                         + text
@@ -497,7 +507,8 @@ class Story_reader(Bdon_fetcher):
                     if body and not body.endswith('\n\n'):
                         body += '\n'
                     body += (
-                        Mark_multi_lang['['][mark_lang]
+                        prefix
+                        + Mark_multi_lang['['][mark_lang]
                         + text
                         + Mark_multi_lang[']'][mark_lang]
                         + '\n'
@@ -527,37 +538,49 @@ class Story_reader(Bdon_fetcher):
                             if telop_pending:
                                 body += '\n'
                                 telop_pending = False
-                            body += line
+                            body += prefix + line
                             last_chat_line = line
                     else:
                         if telop_pending:
                             body += '\n'
                             telop_pending = False
-                        body += line
+                        body += prefix + line
+                        last_marker = ''
                         last_chat_line = ''
-                    last_marker = ''
-            elif command is AdvCommand.ChangeBackground:  # 切换背景（背景图仅在 legacy 桶，此处只留标记）
+            elif command is AdvCommand.ChangeBackground:
+                # 背景采用"老实标记"，与站点的渲染模型刻意不同：
+                # 站点只渲染"当前画面"，会吞掉两类指令——与当前显示相同的重指（A→台词→A）、
+                # 未落地就被覆盖的过渡切换（A→B→台词 只出 B）；纯色转场图（217/333 白、218 黑，
+                # 发布服务未导出图）也不渲染。全语料 2638 条 cmd 25 会被它吞掉约四成。
+                # 文本输出是线性记录，这些事件各有含义（时间/镜头的切分），因此每条 cmd 25 都
+                # 输出（背景切换），仅紧邻同资源的重复指令折叠为一条；空白屏同样按（背景切换）标记。
                 bg_asset = str(row.get('targetAssetName') or '')
                 if not bg_asset:
                     continue  # 无资源的背景指令：站点忽略
-                # 仅相邻同资源的背景切换去重；不同资源的连续背景切换各自保留
-                if last_marker != f'bg:{bg_asset}':
+                if last_marker != bg_asset:
                     if telop_pending:
                         body += '\n'
                         telop_pending = False
-                    body += Mark_multi_lang['background'][mark_lang] + '\n'
-                    last_marker = f'bg:{bg_asset}'
+                    body += prefix + Mark_multi_lang['background'][mark_lang] + '\n'
+                    last_marker = bg_asset
                     last_chat_line = ''
-                    last_still = None  # 场景已切换：同一张大图可在新场景中重现
+                    last_still = None  # 场景切换：同一张大图可重新输出
             elif command is AdvCommand.ShowStill:  # 过场大图（站点同款状态机）
+                # 每条 cmd 30（资源 A）的判定：
+                #   1) A == shown_still（A 正在屏幕上）？——是：本条是"隐藏"指令，收起并不输出；
+                #   2) 否则是"显示"指令：A == last_still（A 最近输出过、且期间背景未变）？
+                #      ——是：同场景重显（显示/隐藏对的回摆），压掉不输出；
+                #   3) 否则输出（插入CG）行（行号命中 MasterBiliAnimeStillSubTitle 区间再带（说明））。
+                # shown_still 只被显示/隐藏指令对翻转，回答"这条指令是开还是关"；
+                # last_still 只在真正输出时更新、在背景切换时清空，回答"这次要不要再写一行"。
+                # 注意 last_still 只记"上一次输出的那张"：A→B→A 会输出两次（站点同样如此）。
                 asset = str(row.get('targetAssetName') or '').replace('\\', '/').strip('/')
                 if not asset:
-                    continue
+                    continue  # 无资源的 still 指令：站点忽略
                 if asset == shown_still:
-                    shown_still = None  # 再次点名当前显示中的大图 = 隐藏，不输出
+                    shown_still = None  # 隐藏
                 else:
                     shown_still = asset
-                    # 背景未切换时同一张大图只输出一次；切换后重现（新场景）照常输出
                     if asset != last_still:
                         last_still = asset
                         dir_name, still_name = (
@@ -572,7 +595,8 @@ class Story_reader(Bdon_fetcher):
                         else:
                             cg_text = still_name
                         body += (
-                            Mark_multi_lang['cg'][mark_lang]
+                            prefix
+                            + Mark_multi_lang['cg'][mark_lang]
                             + cg_text
                             + Mark_multi_lang[')'][mark_lang]
                             + '\n'
@@ -580,14 +604,15 @@ class Story_reader(Bdon_fetcher):
                         caption = self.get_still_caption(asset, row.get('index'), lang)
                         if caption:
                             body += (
-                                Mark_multi_lang['still caption'][mark_lang]
+                                prefix
+                                + Mark_multi_lang['still caption'][mark_lang]
                                 + caption
                                 + '\n'
                             )
                         last_marker = ''
                         last_chat_line = ''
             elif self.debug_parse:
-                body += f"cmd-{command}: {row.get('targetName')}\n"
+                body += prefix + f"cmd-{command}: {row.get('targetName')}\n"
 
         return body.strip()
 
