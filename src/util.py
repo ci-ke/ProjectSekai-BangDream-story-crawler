@@ -108,7 +108,7 @@ class SpecialEffectType(int, Enum):
     PlayScenarioEffect = 15
     StopScenarioEffect = 16
     ChangeBackgroundStill = 17
-    PlaceInfo = 18
+    PlaceInfo = 18 # pjsk start
     Movie = 19
     SekaiIn = 20
     SekaiOut = 21

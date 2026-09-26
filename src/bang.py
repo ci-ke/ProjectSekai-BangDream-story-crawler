@@ -64,6 +64,7 @@ class Story_reader(util.Base_fetcher):
         self.debug_parse = debug_parse
 
         self.characters_main_url = URLS['characters_main_3']
+        self.cards_all_5_url = URLS['cards_all_5']
 
     async def init(
         self,
@@ -75,6 +76,26 @@ class Story_reader(util.Base_fetcher):
         self.characters_json = await self.fetch_url_json(
             self.characters_main_url, force_online=self.force_master_online
         )
+
+        # 卡面 master（原由 Card_story_getter 自持，现统一由 reader 持有供解析反查）。
+        # resourceSetName（如 res001097）→ 卡号：res 编号与卡号并无规律，必须查表
+        cards_all_json = await self.fetch_url_json(
+            self.cards_all_5_url, force_online=self.force_master_online
+        )
+        self.cards_all_json: dict[str, dict[str, Any]] = (
+            cards_all_json if isinstance(cards_all_json, dict) else {}
+        )
+        self.card_ids_by_resource: dict[str, str] = {}
+        for str_id, card in self.cards_all_json.items():
+            resource_set = card.get('resourceSetName')
+            if not resource_set:
+                continue
+            # 111 个 resourceSetName 被复刻卡复用，取最早（最小）卡号
+            if (
+                resource_set not in self.card_ids_by_resource
+                or int(str_id) < int(self.card_ids_by_resource[resource_set])
+            ):
+                self.card_ids_by_resource[resource_set] = str_id
 
     def get_chara_bandAbbr_and_names(
         self, chara_id: int, lang: str
@@ -165,6 +186,35 @@ class Story_reader(util.Base_fetcher):
                     ret += (
                         Mark_multi_lang['background'][mark_lang]
                         + (f": {specialEffect}" if self.debug_parse else '')
+                        + '\n'
+                    )
+                    next_talk_need_newline = False
+                elif specialEffect['effectType'] == util.SpecialEffectType.ChangeCardStill:
+                    # 【实测】卡面立绘全屏插入（jp 语料 166 行：stringVal = characters/resourceset/
+                    # resXXXXXX，stringValSub = card_normal / card_after_training；haneoka 前端
+                    # 证明官方查看器按宽幅全屏渲染该资源）。资源路径是冗余的固定前缀不输出，
+                    # 只输出卡面状态并查卡面 master 把卡号以下划线拼在后面（res 编号与卡号
+                    # 无规律，必须查表）
+                    if next_talk_need_newline:
+                        ret += '\n'
+                    card_id = self.card_ids_by_resource.get(
+                        specialEffect['stringVal'].rsplit('/', 1)[-1]
+                    ) or ''
+                    sub = specialEffect.get('stringValSub') or ''
+                    tail = '_'.join(x for x in (sub, card_id) if x)
+                    # 兜底：状态与卡号都缺失时退回原始路径，避免空标记
+                    content = tail or specialEffect['stringVal']
+                    ret += f"{Mark_multi_lang['cg'][mark_lang]}{content}{Mark_multi_lang[')'][mark_lang]}\n"
+                    next_talk_need_newline = False
+                elif specialEffect['effectType'] == util.SpecialEffectType.ChangeBackgroundStill:
+                    # 【实测】静止图背景切换（jp 语料 21 行，载荷与 7 号同构的 bg 资源；haneoka
+                    # 按 4:3 背景渲染），以 ：Still 后缀与 7 号普通背景区分
+                    if next_talk_need_newline:
+                        ret += '\n'
+                    ret += (
+                        Mark_multi_lang['background'][mark_lang]
+                        + Mark_multi_lang[':'][mark_lang]
+                        + 'Still'
                         + '\n'
                     )
                     next_talk_need_newline = False
@@ -687,7 +737,6 @@ class Card_story_getter(util.Base_getter):
         self.reader = reader
         self.maxlen_charaId_cardId = maxlen_charaId_cardId
 
-        self.cards_all_5_url = URLS['cards_all_5']
         self.cards_id_url = URLS['cards_id']
         self.card_asset_url = URLS['card_asset']
 
@@ -698,11 +747,8 @@ class Card_story_getter(util.Base_getter):
     ) -> None:
         await super().init(session, network_semaphore)
 
-        self.cards_all_json: dict[str, dict[str, Any]] = await self.fetch_url_json(
-            self.cards_all_5_url, force_online=self.force_master_online
-        )
-
-        self.cards_ids: set[int] = {int(id) for id in self.cards_all_json.keys()}
+        # 卡面 master 由 reader 统一持有并拉取，getter 只派生自己的 id 集合
+        self.cards_ids: set[int] = {int(id) for id in self.reader.cards_all_json.keys()}
 
     @staticmethod
     def __card_info_cut(content: dict[str, Any]) -> dict[str, Any]:
@@ -858,7 +904,7 @@ class Card_story_getter(util.Base_getter):
         '''
         old_cards: list[tuple[int, int]] = []
 
-        for str_id, card in self.cards_all_json.items():
+        for str_id, card in self.reader.cards_all_json.items():
             if (
                 (releaseAt := card['releasedAt'][Constant.lang_index[lang]]) is not None
             ) and (timestamp13 is None or int(releaseAt) <= timestamp13):

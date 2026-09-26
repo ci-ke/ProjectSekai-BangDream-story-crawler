@@ -373,6 +373,29 @@ class Story_reader(Pjsk_fetcher):
                             + '\n'
                         )
                     next_talk_need_newline = False
+                elif specialEffect['EffectType'] == util.SpecialEffectType.ChangeCardStill:
+                    # 卡面立绘全屏插入，按插入 CG 输出（与 bang.py 同步；注意 pjsk 字段为
+                    # 大写驼峰。当前 ProSeka 语料无此特效，为枚举语义完备而保留）
+                    if next_talk_need_newline:
+                        ret += '\n'
+                    pic = specialEffect['StringVal']
+                    if specialEffect.get('StringValSub'):
+                        # 分隔符统一用英文逗号，不随标记语言本地化
+                        pic += ', ' + specialEffect['StringValSub']
+                    ret += f"{Mark_multi_lang['cg'][self.mark_lang]}{pic}{Mark_multi_lang[')'][self.mark_lang]}\n"
+                    next_talk_need_newline = False
+                elif specialEffect['EffectType'] == util.SpecialEffectType.ChangeBackgroundStill:
+                    # 静止图背景切换，以 ：Still 后缀与 7 号普通背景区分（与 bang.py 同步；
+                    # 当前 ProSeka 语料无此特效，为枚举语义完备而保留）
+                    if next_talk_need_newline:
+                        ret += '\n'
+                    ret += (
+                        Mark_multi_lang['background'][self.mark_lang]
+                        + Mark_multi_lang[':'][self.mark_lang]
+                        + 'Still'
+                        + '\n'
+                    )
+                    next_talk_need_newline = False
                 elif specialEffect['EffectType'] == util.SpecialEffectType.FlashbackIn:
                     ret += '\n' + Mark_multi_lang['memory in'][self.mark_lang] + '\n'
                     next_talk_need_newline = True
