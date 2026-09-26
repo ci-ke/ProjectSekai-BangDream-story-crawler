@@ -26,6 +26,7 @@ class Getters_type(TypedDict):
     event_getter: bang.Event_story_getter
     card_getter: bang.Card_story_getter
     area_getter: bang.Area_talk_getter
+    after_live_getter: bang.After_live_getter
 
 
 def create_getters(
@@ -57,6 +58,9 @@ def create_getters(
         'area_getter': bang.Area_talk_getter(
             reader, save_dir=get_save_dir(bang.Area_talk_getter), **args
         ),
+        'after_live_getter': bang.After_live_getter(
+            reader, save_dir=get_save_dir(bang.After_live_getter), **args
+        ),
     }
 
 
@@ -69,6 +73,8 @@ def add_all_tasks(tasks: TaskList_type, getters: Getters_type) -> None:
         for area_id in (area_getter := getters['area_getter']).tell_area_ids():
             for talk_type in area_getter.types:
                 tasks.append(area_getter.get(area_id, talk_type, lang, mark_lang))
+        for talk_id in (after_live_getter := getters['after_live_getter']).tell_ids():
+            tasks.append(after_live_getter.get(talk_id, lang, mark_lang))
 
 
 async def main() -> None:

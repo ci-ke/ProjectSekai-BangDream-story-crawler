@@ -30,7 +30,9 @@
             "areas_1": "https://bestdori.com/api/misc/areas.1.json",
             "actionsets_5": "https://bestdori.com/api/misc/actionsets.5.json",
             "talk_actionset_asset": "https://bestdori.com/assets/{lang}/actionset/group{group}_rip/ActionSet{id}.asset",
-            "talk_scenario_asset": "https://bestdori.com/assets/{lang}/scenario/actionset/group{group}_rip/Scenario{scenario_id}.asset"
+            "talk_scenario_asset": "https://bestdori.com/assets/{lang}/scenario/actionset/group{group}_rip/Scenario{scenario_id}.asset",
+            "afterlivetalks_5": "https://bestdori.com/api/misc/afterlivetalks.5.json",
+            "afterlive_scenario_asset": "https://bestdori.com/assets/{lang}/scenario/afterlivetalk/group{group}_rip/Scenario{scenarioId}.asset"
         }
     },
     "urls_bdon": {

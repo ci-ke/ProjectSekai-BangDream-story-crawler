@@ -1124,6 +1124,94 @@ class Area_talk_getter(util.Base_getter):
         return [int(x) for x in self.area_name_json]
 
 
+class After_live_getter(util.Base_getter):
+    def __init__(
+        self,
+        reader: Story_reader,
+        save_dir: str = './story_{lang}/after_live',
+        assets_save_dir: str = './assets',
+        online: bool = True,
+        save_assets: bool = True,
+        parse: bool = True,
+        missing_download: bool = True,
+        maxlen_talkId: int = 4,
+        compress_assets: bool = False,
+        force_master_online: bool = False,
+        **args,
+    ) -> None:
+        super().__init__(
+            save_dir,
+            assets_save_dir,
+            online,
+            save_assets,
+            parse,
+            missing_download,
+            compress_assets,
+            force_master_online,
+        )
+
+        self.reader = reader
+        self.maxlen_talkId = maxlen_talkId
+
+        self.afterlivetalks_url = URLS['afterlivetalks_5']
+        self.afterlive_scenario_asset = URLS['afterlive_scenario_asset']
+
+    async def init(
+        self,
+        session: ClientSession | None = None,
+        network_semaphore: Semaphore | None = None,
+    ) -> None:
+        await super().init(session, network_semaphore)
+
+        self.afterlivetalks_json: dict[str, dict[str, Any]] = await self.fetch_url_json(
+            self.afterlivetalks_url, force_online=self.force_master_online
+        )
+
+    def tell_ids(self) -> list[int]:
+        return sorted(int(x) for x in self.afterlivetalks_json)
+
+    async def get(self, talk_id: int, lang: str = 'cn', mark_lang: str = 'cn') -> None:
+        if str(talk_id) not in self.afterlivetalks_json:
+            logging.info(f'after live talk {talk_id} does not exist.')
+            return
+
+        talk = self.afterlivetalks_json[str(talk_id)]
+        title = talk['description'][Constant.lang_index[lang]]
+        if title is None:
+            logging.info(f'after live talk {talk_id} has no {lang.upper()}.')
+            return
+
+        scenario_id: str = talk['scenarioId']
+        name = f'{talk_id} {title}'
+
+        filename = util.valid_filename(
+            f'{talk_id:0{self.maxlen_talkId}} {title}' + '.txt'
+        )
+        file_path = os.path.join(self.save_dir.format(lang=lang), filename)
+
+        story_json = await self.fetch_url_json(
+            self.afterlive_scenario_asset.format(
+                lang=lang, group=math.floor(talk_id / 256), scenarioId=scenario_id
+            ),
+            name,
+            compress=self.compress_assets,
+            skip_read=not self.parse,
+        )
+        story_json = bypass_asset_missing(story_json)[1]
+
+        if self.parse and not util.judge_need_skip(story_json):
+            os.makedirs(self.save_dir.format(lang=lang), exist_ok=True)
+            util.remove_olds_or_rename_old(file_path, r'(\d+) ')
+
+            text = self.reader.read_story_in_json(story_json, lang, mark_lang)
+
+            with open(file_path, 'w', encoding='utf8') as f:
+                f.write(name + '\n\n')
+                f.write(text + '\n')
+
+        logging.info(f'get after live talk {name} done.')
+
+
 async def main():
 
     logging.basicConfig(level=logging.INFO)
@@ -1138,6 +1226,7 @@ async def main():
     event_getter = Event_story_getter(reader, online=online)
     card_getter = Card_story_getter(reader, online=online)
     area_getter = Area_talk_getter(reader, online=online)
+    after_live_getter = After_live_getter(reader, online=online)
 
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=net_connect_limit)
@@ -1150,6 +1239,7 @@ async def main():
             event_getter.init(session),
             card_getter.init(session),
             area_getter.init(session),
+            after_live_getter.init(session),
         )
 
         tasks = []
@@ -1166,6 +1256,8 @@ async def main():
             tasks.append(card_getter.get(i, *text_mark_lang))
         for i in range(1, 6):
             tasks.append(area_getter.get_id_to_single_file(i, *text_mark_lang))
+        for i in (1, 512):  # group0 / group2 各验一个
+            tasks.append(after_live_getter.get(i, *text_mark_lang))
 
         await asyncio.gather(*tasks)
 
