@@ -2262,7 +2262,7 @@ class Virtual_live_getter(Pjsk_getter):
         self,
         reader: Story_reader,
         src: list[str] = ['sekai.best'],
-        save_dir: str = './story_{lang}/live',
+        save_dir: str = './story_{lang}/virtual_live',
         assets_save_dir: str = './assets',
         online: bool = True,
         save_assets: bool = True,
