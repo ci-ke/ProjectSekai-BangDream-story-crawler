@@ -6,14 +6,12 @@
 
 `uv run -m src.bang`
 
-## Related repositories
+`uv run -m src.bdon`
 
-### Crawled stories (txt)
+## Related repositories
 
 [ProjectSekai-story repository](https://github.com/ci-ke/ProjectSekai-story)
 
 [BangDream-story repository](https://github.com/ci-ke/BangDream-story)
 
-### Crawled assets (brotli compressed json)
-
-[Story-assets repository](https://github.com/ci-ke/pjsk-bang-story-assets)
+[OurNotes-story repository](https://github.com/ci-ke/OurNotes-story)
