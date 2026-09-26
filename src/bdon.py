@@ -611,8 +611,10 @@ class Band_story_getter(Bdon_getter):
                 + f'-{ep_number:0{self.maxlen_chapterId_episodeNumber[1]}d}'
             )
             if is_another:
+                chara_name = reader.get_chara_name(chara_id, lang, short=True)
                 return util.valid_filename(
-                    f'another-{chapter_episode} {reader.get_chara_name(chara_id, lang, short=True)} {title}'
+                    f'another-{chapter_episode} {title}'
+                    + (f' ({chara_name})' if chara_name else '')
                     + '.txt'
                 )
             if is_extra:
@@ -743,59 +745,77 @@ class Home_talk_getter(Bdon_getter):
         self.maxlen_spotId = maxlen_spotId
 
     def tell_ids(self) -> list[int]:
-        # 点触对话（TapTalk._id 1000101+）与场景开场（HomeSpot._id 10001+）两个 id 空间不重叠，合并返回
-        return sorted(
-            set(self.reader.home_talk_episodes)
-            | {row['id'] for row in self.reader.home_spots_by_adv.values()}
+        # 入口 id = HomeSpot._id：一个 spot 一个合并文件（场景开场 + 全部点触对话）
+        return sorted(self.reader.home_spots)
+
+    async def get(self, spot_id: int, langs: Iterable[tuple[str, str]] = LANGS) -> None:
+        reader = self.reader
+        spot = reader.home_spots[spot_id]
+
+        # 该 spot 的全部脚本：场景开场在前，点触对话按 TapTalk._id 升序
+        segments: list[tuple[int, dict[str, Any] | None]] = []
+        if spot.get('advId'):
+            segments.append((spot['advId'], None))
+        segments.extend(
+            (episode['advId'], episode)
+            for tid, episode in sorted(self.reader.home_talk_episodes.items())
+            if episode['spotId'] == spot_id
+        )
+        if not segments:
+            logging.info(f'home spot {spot_id} has no scripts.')
+            return
+
+        fetched = await asyncio.gather(
+            *[
+                self.fetch_script(reader.advs[adv_id]['advEpisodeAsset'])
+                for adv_id, _ in segments
+            ]
         )
 
-    async def get(self, master_id: int, langs: Iterable[tuple[str, str]] = LANGS) -> None:
-        reader = self.reader
-        episode = reader.home_talk_episodes.get(master_id)
-        spot = reader.home_spots.get(master_id) if episode is None else None
-        if episode is not None:
-            adv_id = episode['advId']
-            spot_id = episode['spotId']
-        else:
-            assert spot is not None  # tell_ids 保证 id 必属于两表之一
-            adv_id = spot['advId']
-            spot_id = spot['id']
-        script: str = reader.advs[adv_id]['advEpisodeAsset']
-        spot = reader.home_spots.get(spot_id)
+        if not self.parse:
+            logging.info(f'fetch bdon home spot {spot_id} done (assets only).')
+            return
 
-        def title_of(lang: str) -> str:
+        def segment_title(adv_id: int, episode: dict[str, Any] | None, lang: str) -> str:
             title = reader.get_adv_title(adv_id, lang)
             if title:
                 return title
             if episode is not None and episode.get('characterId'):
                 return reader.get_chara_name(episode['characterId'], lang)
-            if spot is not None:
-                return reader.get_master_text(spot.get('advNameTextId'), lang) or ''
-            return ''
+            return reader.get_master_text(spot.get('advNameTextId'), lang) or ''
 
-        def path_of(lang: str) -> str:
-            spot_name = (
-                reader.get_master_text(spot.get('nameTextId'), lang) if spot else None
-            )
-            # 文件夹编号 = MasterHomeSpot._id（master 原值，5 位补零保证排序）
-            folder = (
+        for lang, mark_lang in langs:
+            parts = []
+            for i, ((adv_id, episode), (episode_json, text_json)) in enumerate(
+                zip(segments, fetched), 1
+            ):
+                if isinstance(episode_json, str) or isinstance(text_json, str):
+                    logging.warning(f'skip home segment {adv_id} (fetch failed).')
+                    continue
+                title = segment_title(adv_id, episode, lang)
+                script = reader.advs[adv_id]['advEpisodeAsset']
+                head = f'{i} {adv_id}:{script} {title}'.strip()
+                text = reader.read_script(episode_json, text_json, lang, mark_lang)
+                parts.append(f'{head}\n\n{text}\n')
+
+            spot_name = reader.get_master_text(spot.get('nameTextId'), lang)
+            # 文件名 = MasterHomeSpot._id + spot 名（master 原值，5 位补零保证排序）
+            file_name = (
                 util.valid_filename(
-                    f'{spot_id:0{self.maxlen_spotId}d} {spot_name}', True
+                    f'{spot_id:0{self.maxlen_spotId}d} {spot_name}', False
                 )
                 if spot_name
                 else f'spot_{spot_id:0{self.maxlen_spotId}d}'
             )
-            return os.path.join(self.save_dir.format(lang=lang), folder, filename(lang))
+            file_path = os.path.join(
+                self.save_dir.format(lang=lang), file_name + '.txt'
+            )
+            os.makedirs(self.save_dir.format(lang=lang), exist_ok=True)
+            util.remove_olds_or_rename_old(file_path, r'(\d+)')
+            with open(file_path, 'w', encoding='utf8') as f:
+                f.write('\n\n'.join(parts))
 
-        def filename(lang: str) -> str:
-            title = title_of(lang)
-            # 文件名用所在主表行的 id（点触 = TapTalk._id，场景开场 = HomeSpot._id），不用 advId
-            return util.valid_filename(f'{master_id} {title}'.strip() + '.txt')
-
-        def synopsis_of(lang: str) -> str | None:
-            return None
-
-        await self.write_script(adv_id, script, langs, r'(\d+)', path_of, title_of, synopsis_of)
+        logging.info(f'get bdon home spot {spot_id} done.')
 
 
 class Live_result_story_getter(Bdon_getter):
