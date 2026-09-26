@@ -610,16 +610,8 @@ class Band_story_getter(Bdon_getter):
                 f'{chapter_id:0{self.maxlen_chapterId_episodeNumber[0]}d}'
                 + f'-{ep_number:0{self.maxlen_chapterId_episodeNumber[1]}d}'
             )
-            if is_another:
-                chara_name = reader.get_chara_name(chara_id, lang, short=True)
-                return util.valid_filename(
-                    f'another-{chapter_episode} {title}'
-                    + (f' ({chara_name})' if chara_name else '')
-                    + '.txt'
-                )
-            if is_extra:
-                return util.valid_filename(f'extra-{chapter_episode} {title}' + '.txt')
-            return util.valid_filename(f'{chapter_episode} {title}' + '.txt')
+            prefix = 'another-' if is_another else 'extra-' if is_extra else ''
+            return util.valid_filename(f'{prefix}{chapter_episode} {title_of(lang)}' + '.txt')
 
         def path_of(lang: str) -> str:
             chapter_name = reader.get_master_text(chapter['nameTextId'], lang)
@@ -631,7 +623,13 @@ class Band_story_getter(Bdon_getter):
             return os.path.join(self.save_dir.format(lang=lang), folder, filename(lang))
 
         def title_of(lang: str) -> str:
-            return reader.get_adv_title(adv_id, lang)
+            title = reader.get_adv_title(adv_id, lang)
+            # 视角故事标题后附角色短名（文件名与文件头一致）
+            if is_another:
+                chara_name = reader.get_chara_name(chara_id, lang, short=True)
+                if chara_name:
+                    title = f'{title} ({chara_name})' if title else chara_name
+            return title
 
         def synopsis_of(lang: str) -> str | None:
             return reader.get_master_text(description_id, lang)
