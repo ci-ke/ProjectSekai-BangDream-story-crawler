@@ -627,12 +627,12 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
         raise NotImplementedError
 
     async def fetch_script(self, script: str) -> tuple[Any, Any, Any]:
+        # Episode 需读出内容才能判断是否引用视频（不可 skip_read），文本仍按需跳读
         episode_json, text_json = await asyncio.gather(
             self.fetch_url_json(
                 URLS['episode_asset'].format(script=script),
                 script,
                 compress=self.compress_assets,
-                skip_read=not self.parse,
             ),
             self.fetch_url_json(
                 URLS['text_asset'].format(script=script),
