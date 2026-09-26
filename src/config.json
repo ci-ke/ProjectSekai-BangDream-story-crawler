@@ -40,6 +40,7 @@
             "master": "https://metadata.bdon.moe/master/{table}.json",
             "episode_asset": "https://storage.bdon.moe/moenotes/Adv/Episode/{script}/{script}-Episode/{script}-Episode.json",
             "text_asset": "https://storage.bdon.moe/moenotes/Adv/Episode/{script}/{script}-Text/{script}-Text.json",
+            "video_asset": "https://storage.bdon.moe/moenotes/Adv/Episode/{script}/{script}-Video/{script}-Video.json",
             "save_roots": {
                 "https://metadata.bdon.moe/master/": "bdon-master",
                 "https://storage.bdon.moe/moenotes/": "bdon-assets"

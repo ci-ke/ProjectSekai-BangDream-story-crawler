@@ -1,4 +1,4 @@
-import os, asyncio, json, logging
+import os, asyncio, json, logging, re
 from pathlib import Path
 from collections.abc import Iterable
 from enum import Enum
@@ -106,9 +106,11 @@ class AdvCommand(int, Enum):
     LoadCharacterModel = 23    # 【推断】targetName + targetAssetName 100%（Live2D 模型路径），登场/换装
     Op24 = 24                  # targetName 100%（角色相关）
     ChangeBackground = 25      # 【实测】targetAssetName 100% = adv_bkg_*（站点解析器 + 资源名自证）
-    PlayVideo = 26             # 【推断】videoID 93%
-    StopVideo = 27             # 【推断】videoID 50%
-    Monologue = 28             # 【实测】带 advTextID + 说话人、无语音（705 行）；推断为内心独白类对话变体
+    Clip = 26                  # 【实测】带 videoID = 播放视频（14 行；1 行无 videoID，站点解析器忽略）
+    SkippableClip = 27         # 【实测】双语义：带 videoID = 播放视频（24 行）；无 videoID 且
+                               # parameter3 = SkipClipTarget = 视频结束/跳过恢复点（24 行）
+    ClipLine = 28              # 【实测】视频字幕行：454 行全部位于视频段内（916 个无视频脚本 0 行），
+                               # 其中 406 行带 targetName（模型名），48 行无说话人
     Op29 = 29                  # 仅 12 行
     ShowStill = 30             # 【实测】targetAssetName 100% = adv_still_*（站点解析器 + 资源名自证）
     PlaySe = 31                # 【实测】seID 99%
@@ -154,6 +156,27 @@ def normalize_rows(table_json: Any) -> list[dict[str, Any]]:
         {k[1:] if k.startswith('_') else k: v for k, v in row.items()}
         for row in table_json.get('_allData', [])
     ]
+
+
+# TextMeshPro 富文本标签全集（与站点解析器一致）：纯文本输出时剥除，未知标签原样保留
+RICH_TAGS = frozenset((
+    'align', 'alpha', 'b', 'br', 'color', 'cspace', 'font', 'font-weight', 'gradient', 'i',
+    'indent', 'line-height', 'line-indent', 'link', 'lowercase', 'margin', 'mark', 'mspace',
+    'nobr', 'noparse', 'page', 'pos', 'r', 'rotate', 'ruby', 's', 'size', 'smallcaps', 'space',
+    'sprite', 'strikethrough', 'style', 'sub', 'sup', 'u', 'uppercase', 'voffset', 'width',
+))
+RICH_TAG = re.compile(r'<(/?)([a-zA-Z][a-zA-Z-]*)(?:\s*=\s*"?[^">]*"?)?\s*>')
+
+
+def strip_rich_text(text: str) -> str:
+    """剥除 TextMeshPro 富文本标签；<br> 转换行，标签外的正文保留。"""
+    def replace(match: re.Match[str]) -> str:
+        name = match.group(2).lower()
+        if name not in RICH_TAGS:
+            return match.group(0)
+        return '\n' if name == 'br' else ''
+
+    return RICH_TAG.sub(replace, text)
 
 
 class Bdon_fetcher(util.Base_fetcher):
@@ -226,6 +249,8 @@ class Story_reader(Bdon_fetcher):
         # 过场大图（cmd 30）链接：assets.bdon.moe 发布服务；图片语言固定 zh-Hans，与站点行为一致。
         # 注意比 legacy 桶 S3 key 多一层 <name>/ 段且为 .webp；全量 333 张中 21 张上游未导出（死链不可避免）。
         self.cg_link = 'https://assets.bdon.moe/zh-Hans/Adv/Still/{dir}/{name}/data/{name}/{name}.webp'
+        # 视频（cmd 26/27）链接：Video 表 assetName → Cri/Video/<path>/<name>.mp4，语言段同样固定 zh-Hans。
+        self.video_link = 'https://assets.bdon.moe/zh-Hans/Cri/Video/{path}/{name}.mp4'
 
     async def init(
         self,
@@ -246,6 +271,7 @@ class Story_reader(Bdon_fetcher):
             'MasterStoryLiveResultEpisode',
             'MasterStoryHomeSpotTapTalkEpisode',
             'MasterHomeSpot',
+            'MasterBiliAnimeStillSubTitle',
         )
         jsons = await asyncio.gather(
             *[
@@ -282,6 +308,19 @@ class Story_reader(Bdon_fetcher):
             row['id']: row for row in rows['MasterCharacterFriendship']
         }
         self.home_spots = {row['id']: row for row in rows['MasterHomeSpot']}
+        # 动画 still 内嵌文字的翻译（站点用 MasterBiliAnimeStillSubTitle 叠加显示字幕）：
+        # asset 名 → [(episodeIndexOpen, episodeIndexClose, textID)]
+        self.still_captions: dict[str, list[tuple[int, int, str]]] = {}
+        for row in rows['MasterBiliAnimeStillSubTitle']:
+            asset = str(row.get('episodeAssetName') or '')
+            if asset and row.get('textID'):
+                self.still_captions.setdefault(asset, []).append(
+                    (
+                        int(row.get('episodeIndexOpen') or 0),
+                        int(row.get('episodeIndexClose') or 0),
+                        str(row['textID']),
+                    )
+                )
         self.home_spots_by_adv = {
             row['advId']: row for row in rows['MasterHomeSpot'] if row.get('advId')
         }
@@ -309,10 +348,11 @@ class Story_reader(Bdon_fetcher):
     def get_text_marked(
         self, text_row: dict[str, Any] | None, lang: str, mark_lang: str
     ) -> str:
-        """台词文本：缺失时按回落链取值并在行尾标注实际语言。"""
+        """台词文本：剥除富文本标签；缺失时按回落链取值并在行尾标注实际语言。"""
         text, field = self.localize_row(text_row, lang)
         if text is None:
             return ''
+        text = strip_rich_text(text)
         if field and field != Constant.text_field[lang]:
             text += Constant.fallback_mark[field][mark_lang]
         return text
@@ -346,10 +386,31 @@ class Story_reader(Bdon_fetcher):
             or Constant.band_id_name.get(band_id, '')
         )
 
+    def get_still_caption(self, asset: str, index: Any, lang: str) -> str:
+        """动画 still 图内文字（站点由 MasterBiliAnimeStillSubTitle 叠加显示）。
+        行号需落在条目区间内；日文列是图内文字的原文转录，jp 直接取用（为空则无，
+        不回落其他语言），其余语言按回落链取翻译。不在显示区间内的重现不配说明。"""
+        if index is None:
+            return ''
+        try:
+            position = int(index)
+        except (TypeError, ValueError):
+            return ''
+        for open_, close_, text_id in self.still_captions.get(asset, ()):
+            if open_ <= position <= close_:
+                row = self.master_text.get(str(text_id))
+                if lang == 'jp':
+                    caption = (row or {}).get('japanese') or ''
+                else:
+                    caption = self.get_master_text(text_id, lang) or ''
+                return re.sub(r'\s*\n+\s*', ' ', strip_rich_text(caption)).strip()
+        return ''
+
     def read_script(
         self,
         episode_json: dict[str, Any] | str,
         text_json: dict[str, Any] | str,
+        video_json: dict[str, Any] | str,
         lang: str,
         mark_lang: str,
     ) -> str:
@@ -360,29 +421,79 @@ class Story_reader(Bdon_fetcher):
 
         episode_rows = normalize_rows(episode_json)
         text_lookup = {str(row['id']): row for row in normalize_rows(text_json)}
+        video_rows = {
+            int(row['id']): row
+            for row in normalize_rows(video_json)
+            if row.get('id') is not None
+        }
 
         body = ''
         telop_pending = False  # Telop 之后的下一条输出需先补一个空行（Telop 独立段落、上下恰好各一空行）
-        last_marker = ''  # 上一条输出的标记身份（bg:/still: 前缀 + 资源名）；仅相邻同资源名的标记去重，台词输出后清空
+        last_marker = ''  # 上一条输出的背景标记资源名；仅相邻同资源的背景切换去重，台词输出后清空
         last_chat_line = ''  # 上一条手机消息行：相邻完全相同的消息重发行（渲染对）只出一次
+        shown_still: str | None = None  # 当前显示中的过场大图（站点同款语义：再次点名 = 隐藏）
+        last_still: str | None = None  # 最近一次输出过的大图资源；背景切换后允许再次输出
 
         # 遍历 Episode 指令流（数组顺序即剧本顺序，勿用 _index 当行号）
+        in_clip = False  # 视频播放中：26/27 带 videoID 开始，27 带 SkipClipTarget 参数结束
         for row in episode_rows:
             raw_command: Any = row.get('command')
             try:
                 command = AdvCommand(raw_command)
             except ValueError:
                 command = raw_command  # 新版本新增指令：退回裸数值
+            if command in (AdvCommand.Clip, AdvCommand.SkippableClip):
+                video_id = row.get('videoID')
+                video_row = video_rows.get(int(video_id)) if video_id else None
+                if video_row and video_row.get('assetName'):
+                    # 视频段开始：输出视频链接与 Video 表的场景说明（note 为官方日文原文）
+                    in_clip = True
+                    if telop_pending:
+                        body += '\n'
+                        telop_pending = False
+                    path = str(video_row['assetName']).replace('\\', '/').strip('/')
+                    body += (
+                        Mark_multi_lang['video'][mark_lang]
+                        + self.video_link.format(path=path, name=path.rsplit('/', 1)[-1])
+                        + Mark_multi_lang[')'][mark_lang]
+                        + '\n'
+                    )
+                    note = str(video_row.get('note') or '').replace('\n', ' ').strip()
+                    if note:
+                        body += Mark_multi_lang['still caption'][mark_lang] + note + '\n'
+                    last_marker = ''
+                    last_chat_line = ''
+                elif row.get('parameter3') == 'SkipClipTarget':
+                    in_clip = False
             adv_text_id = row.get('advTextID')
 
             if adv_text_id:
                 # 凡 _advTextID 非空即有文本输出（Talk / Telop / ChatMessage / ChatMessageEx /
-                # Monologue 均可携带），不按 command 白名单筛选，否则会丢聊天气泡与独白内容
+                # ClipLine 均可携带），不按 command 白名单筛选，否则会丢聊天气泡与视频字幕
                 text = self.get_text_marked(
                     text_lookup.get(str(adv_text_id)), lang, mark_lang
                 ).replace('\n', ' ')
+                if not text.strip():
+                    continue  # 文本缺失/全空的行不输出（站点同样跳过），避免孤立的"说话人："
 
-                if command is AdvCommand.Telop:  # 场景字幕，独立段落（pjsk Telop 样式：上下恰好各一空行，不叠加）
+                if command is AdvCommand.ClipLine and in_clip:
+                    # 视频字幕行（全语料仅存在于视频段内）：带 targetName（模型名）时附在标记后
+                    if telop_pending:
+                        body += '\n'
+                        telop_pending = False
+                    subtitle_name = row.get('targetName') or ''
+                    if subtitle_name and mark_lang != 'cn':
+                        subtitle_name = ' ' + subtitle_name  # 英文标记与名字间补空格
+                    body += (
+                        Mark_multi_lang['subtitle'][mark_lang]
+                        + subtitle_name
+                        + Mark_multi_lang[':'][mark_lang]
+                        + text
+                        + '\n'
+                    )
+                    last_marker = ''
+                    last_chat_line = ''
+                elif command is AdvCommand.Telop:  # 场景字幕，独立段落（pjsk Telop 样式：上下恰好各一空行，不叠加）
                     if body and not body.endswith('\n\n'):
                         body += '\n'
                     body += (
@@ -395,19 +506,19 @@ class Story_reader(Bdon_fetcher):
                     last_marker = ''
                     last_chat_line = ''
                 else:
-                    target_ids = row.get('targetTextIDs') or []
-                    speaker_id = (
-                        target_ids[0] if target_ids else (row.get('targetName') or '')
-                    )
-                    speaker_row = (
-                        text_lookup.get(str(speaker_id)) if speaker_id else None
-                    )
+                    # 说话人可多人（_targetTextIDs 列表），逐个解析后用英文 " & " 连接
+                    names = []
+                    for target_id in row.get('targetTextIDs') or []:
+                        speaker_row = text_lookup.get(str(target_id))
+                        name = (
+                            self.get_text_marked(speaker_row, lang, mark_lang)
+                            if speaker_row
+                            else ''
+                        )
+                        names.append((name or target_id).replace('\n', ' '))
                     speaker = (
-                        self.get_text_marked(speaker_row, lang, mark_lang)
-                        if speaker_row
-                        else ''
+                        ' & '.join(names) if names else (row.get('targetName') or '')
                     )
-                    speaker = (speaker or speaker_id).replace('\n', ' ')
                     line = f"{speaker}{Mark_multi_lang[':'][mark_lang]}{text}\n"
                     if command is AdvCommand.ChatMessage or command is AdvCommand.ChatMessageEx:
                         # 手机消息（聊天窗气泡）：行前加（消息）标记；相邻完全相同的消息重发行只出一次
@@ -427,6 +538,8 @@ class Story_reader(Bdon_fetcher):
                     last_marker = ''
             elif command is AdvCommand.ChangeBackground:  # 切换背景（背景图仅在 legacy 桶，此处只留标记）
                 bg_asset = str(row.get('targetAssetName') or '')
+                if not bg_asset:
+                    continue  # 无资源的背景指令：站点忽略
                 # 仅相邻同资源的背景切换去重；不同资源的连续背景切换各自保留
                 if last_marker != f'bg:{bg_asset}':
                     if telop_pending:
@@ -435,27 +548,44 @@ class Story_reader(Bdon_fetcher):
                     body += Mark_multi_lang['background'][mark_lang] + '\n'
                     last_marker = f'bg:{bg_asset}'
                     last_chat_line = ''
-            elif command is AdvCommand.ShowStill:  # 过场大图
+                    last_still = None  # 场景已切换：同一张大图可在新场景中重现
+            elif command is AdvCommand.ShowStill:  # 过场大图（站点同款状态机）
                 asset = str(row.get('targetAssetName') or '').replace('\\', '/').strip('/')
-                dir_name, still_name = asset.split('/')[0], asset.rsplit('/', 1)[-1]
-                # 仅相邻同资源的过场大图去重（显示/隐藏对导致的相邻重发只出一次），非相邻的重现照常输出
-                if last_marker != f'still:{asset}':
-                    if telop_pending:
-                        body += '\n'
-                        telop_pending = False
-                    if self.cg_add_link:  # 仿 pjsk：链接替换资源名
-                        cg_text = self.cg_link.format(dir=dir_name, name=still_name)
-                    else:
-                        cg_text = still_name
-                    body += (
-                        Mark_multi_lang['cg'][mark_lang]
-                        + cg_text
-                        + Mark_multi_lang[')'][mark_lang]
-                        + '\n'
-                    )
-                    last_marker = f'still:{asset}'
-                    last_chat_line = ''
-                    prev_is_text = False
+                if not asset:
+                    continue
+                if asset == shown_still:
+                    shown_still = None  # 再次点名当前显示中的大图 = 隐藏，不输出
+                else:
+                    shown_still = asset
+                    # 背景未切换时同一张大图只输出一次；切换后重现（新场景）照常输出
+                    if asset != last_still:
+                        last_still = asset
+                        dir_name, still_name = (
+                            asset.split('/')[0],
+                            asset.rsplit('/', 1)[-1],
+                        )
+                        if telop_pending:
+                            body += '\n'
+                            telop_pending = False
+                        if self.cg_add_link:  # 仿 pjsk：链接替换资源名
+                            cg_text = self.cg_link.format(dir=dir_name, name=still_name)
+                        else:
+                            cg_text = still_name
+                        body += (
+                            Mark_multi_lang['cg'][mark_lang]
+                            + cg_text
+                            + Mark_multi_lang[')'][mark_lang]
+                            + '\n'
+                        )
+                        caption = self.get_still_caption(asset, row.get('index'), lang)
+                        if caption:
+                            body += (
+                                Mark_multi_lang['still caption'][mark_lang]
+                                + caption
+                                + '\n'
+                            )
+                        last_marker = ''
+                        last_chat_line = ''
             elif self.debug_parse:
                 body += f"cmd-{command}: {row.get('targetName')}\n"
 
@@ -496,8 +626,8 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
     async def get(self, master_id: int, langs: Iterable[tuple[str, str]] = LANGS) -> None:
         raise NotImplementedError
 
-    async def fetch_script(self, script: str) -> tuple[Any, Any]:
-        return await asyncio.gather(
+    async def fetch_script(self, script: str) -> tuple[Any, Any, Any]:
+        episode_json, text_json = await asyncio.gather(
             self.fetch_url_json(
                 URLS['episode_asset'].format(script=script),
                 script,
@@ -511,6 +641,18 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
                 skip_read=not self.parse,
             ),
         )
+        # 仅引用了视频的脚本（全语料 30 个）才抓 Video 表（含视频 URL 的 assetName 与场景说明 note）
+        video_json: Any = ''
+        if isinstance(episode_json, dict) and any(
+            row.get('_videoID') for row in episode_json.get('_allData', [])
+        ):
+            video_json = await self.fetch_url_json(
+                URLS['video_asset'].format(script=script),
+                script,
+                compress=self.compress_assets,
+                skip_read=not self.parse,
+            )
+        return episode_json, text_json, video_json
 
     async def write_script(
         self,
@@ -525,14 +667,19 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
         """抓取剧本两表并向各语言目录写出；文件头首行固定 `advId:脚本名 标题`
         （advId = MasterAdv._id，对应站点 /story/<advId>）。
         index_regex 匹配文件名中稳定的首段索引用于改名/清理。"""
-        episode_json, text_json = await self.fetch_script(script)
+        episode_json, text_json, video_json = await self.fetch_script(script)
 
         if not self.parse:
             logging.info(f'fetch bdon script {script} done (assets only).')
             return
 
-        if isinstance(episode_json, str) or isinstance(text_json, str):
-            # 'ERROR: ...'（抓取失败）或 'Missing asset'（离线且本地缺失）
+        if (
+            isinstance(episode_json, str)
+            or isinstance(text_json, str)
+            or (isinstance(video_json, str) and video_json)
+        ):
+            # 'ERROR: ...'（抓取失败）或 'Missing asset'（离线且本地缺失）；
+            # video_json 非空串的 str 同为失败（无视频的脚本为空串，放行）
             logging.warning(f'skip bdon script {script} (fetch failed).')
             return
 
@@ -548,7 +695,9 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
                 if synopsis:
                     f.write(synopsis.replace('\n', ' ') + '\n\n')
                 f.write(
-                    self.reader.read_script(episode_json, text_json, lang, mark_lang)
+                    self.reader.read_script(
+                        episode_json, text_json, video_json, lang, mark_lang
+                    )
                     + '\n'
                 )
 
@@ -784,16 +933,23 @@ class Home_talk_getter(Bdon_getter):
 
         for lang, mark_lang in langs:
             parts = []
-            for i, ((adv_id, episode), (episode_json, text_json)) in enumerate(
-                zip(segments, fetched), 1
-            ):
-                if isinstance(episode_json, str) or isinstance(text_json, str):
+            for i, (
+                (adv_id, episode),
+                (episode_json, text_json, video_json),
+            ) in enumerate(zip(segments, fetched), 1):
+                if (
+                    isinstance(episode_json, str)
+                    or isinstance(text_json, str)
+                    or (isinstance(video_json, str) and video_json)
+                ):
                     logging.warning(f'skip home segment {adv_id} (fetch failed).')
                     continue
                 title = segment_title(adv_id, episode, lang)
                 script = reader.advs[adv_id]['advEpisodeAsset']
                 head = f'{i} {adv_id}:{script} {title}'.strip()
-                text = reader.read_script(episode_json, text_json, lang, mark_lang)
+                text = reader.read_script(
+                    episode_json, text_json, video_json, lang, mark_lang
+                )
                 parts.append(f'{head}\n\n{text}\n')
 
             spot_name = reader.get_master_text(spot.get('nameTextId'), lang)
