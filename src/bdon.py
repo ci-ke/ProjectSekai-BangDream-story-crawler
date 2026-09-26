@@ -84,7 +84,9 @@ class Constant:
 class AdvCommand(int, Enum):
     CharacterIn = 0            # 【推断】targetName=角色名 + positionType 100% + duration 91%，角色移入/入场
     CharacterOut = 1           # 【推断】同 0 但 duration 56%、positionType 23%，角色移出/退场
-    Talk = 2                   # 【实测】对话：说话人 + 文本 + 语音（站点解析器）
+    Talk = 2                   # 【实测】对话：说话人 + 文本 + 语音（站点解析器）。targetStatus
+                               # （AdvTargetStatus 枚举）全指令恒 0、唯此指令取 1/2：1 = 名框
+                               # 显示"？？？"（157 行），2 = 隐藏名框（110 行）；数据仍保留真实说话人
     Wait = 3                   # 【实测】等待 duration 秒（duration 100%）
     WaitParam = 4              # 【推断】duration 100% + parameter1 99%，带参数的条件等待？
     TransitionIn = 5           # 【推断】转场，少量携带 adv_transition_*，与 6 成对、方向未定
@@ -158,7 +160,8 @@ def normalize_rows(table_json: Any) -> list[dict[str, Any]]:
     ]
 
 
-# TextMeshPro 富文本标签全集（与站点解析器一致）：纯文本输出时剥除，未知标签原样保留
+# TextMeshPro 富文本标签全集（与站点解析器一致）：strip_rich_text 开关开启时剥除
+# （默认关闭、正文原样保留），未知标签始终原样保留
 RICH_TAGS = frozenset((
     'align', 'alpha', 'b', 'br', 'color', 'cspace', 'font', 'font-weight', 'gradient', 'i',
     'indent', 'line-height', 'line-indent', 'link', 'lowercase', 'margin', 'mark', 'mspace',
@@ -231,6 +234,7 @@ class Story_reader(Bdon_fetcher):
         missing_download: bool = True,
         debug_parse: bool = False,
         cg_add_link: bool = True,
+        strip_rich_text: bool = False,
         force_master_online: bool = False,
         **args,
     ) -> None:
@@ -245,6 +249,7 @@ class Story_reader(Bdon_fetcher):
 
         self.debug_parse = debug_parse
         self.cg_add_link = cg_add_link
+        self.strip_rich_text = strip_rich_text
 
         # 过场大图（cmd 30）链接：assets.bdon.moe 发布服务；图片语言固定 zh-Hans，与站点行为一致。
         # 注意比 legacy 桶 S3 key 多一层 <name>/ 段且为 .webp；全量 333 张中 21 张上游未导出（死链不可避免）。
@@ -348,11 +353,13 @@ class Story_reader(Bdon_fetcher):
     def get_text_marked(
         self, text_row: dict[str, Any] | None, lang: str, mark_lang: str
     ) -> str:
-        """台词文本：剥除富文本标签；缺失时按回落链取值并在行尾标注实际语言。"""
+        """台词文本；strip_rich_text 开启时剥除富文本标签（默认保留原样）。
+        缺失时按回落链取值并在行尾标注实际语言。"""
         text, field = self.localize_row(text_row, lang)
         if text is None:
             return ''
-        text = strip_rich_text(text)
+        if self.strip_rich_text:  # 此处右侧为模块级同名函数，self. 是开关
+            text = strip_rich_text(text)
         if field and field != Constant.text_field[lang]:
             text += Constant.fallback_mark[field][mark_lang]
         return text
@@ -403,7 +410,9 @@ class Story_reader(Bdon_fetcher):
                     caption = (row or {}).get('japanese') or ''
                 else:
                     caption = self.get_master_text(text_id, lang) or ''
-                return re.sub(r'\s*\n+\s*', ' ', strip_rich_text(caption)).strip()
+                if self.strip_rich_text:
+                    caption = strip_rich_text(caption)
+                return re.sub(r'\s*\n+\s*', ' ', caption).strip()
         return ''
 
     def read_script(
@@ -530,6 +539,17 @@ class Story_reader(Bdon_fetcher):
                     speaker = (
                         ' & '.join(names) if names else (row.get('targetName') or '')
                     )
+                    status = row.get('targetStatus')
+                    if command is AdvCommand.Talk and speaker and status in (1, 2):
+                        # 站点解析器不读 targetStatus。实测 1 = 游戏名框显示"？？？"（身份未
+                        # 揭示的说话人），2 = 游戏隐藏名框（画外音/独白）；数据均保留真实
+                        # 说话人，故还原游戏表现并以括注注明身份，避免与旁白混淆
+                        wrapped = Mark_multi_lang['hidden name'][mark_lang].format(speaker)
+                        speaker = (
+                            Mark_multi_lang['mystery'][mark_lang] + wrapped
+                            if status == 1
+                            else wrapped
+                        )
                     line = f"{speaker}{Mark_multi_lang[':'][mark_lang]}{text}\n"
                     if command is AdvCommand.ChatMessage or command is AdvCommand.ChatMessageEx:
                         # 手机消息（聊天窗气泡）：行前加（消息）标记；相邻完全相同的消息重发行只出一次

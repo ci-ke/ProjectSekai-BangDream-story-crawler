@@ -156,6 +156,8 @@ Mark_multi_lang = {
     'still caption': {'cn': '（说明）：', 'en': '(Caption): '},
     'message': {'cn': '（消息）', 'en': '(Message) '},
     'subtitle': {'cn': '（字幕）', 'en': '(Subtitle)'},
+    'mystery': {'cn': '？？？', 'en': '??? '},
+    'hidden name': {'cn': '（{}）', 'en': '({})'},  # 括注模板，须 .format(说话人) 使用
     'background': {'cn': '（背景切换）', 'en': '(Background change)'},
     'memory in': {'cn': '（回忆切入）', 'en': '(Memory cut-in)'},
     'memory out': {'cn': '（回忆切出）', 'en': '(Memory cut-out)'},
