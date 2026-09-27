@@ -4,13 +4,17 @@ from aiohttp import ClientSession, TCPConnector
 
 from .all_bang import (
     create_getters,
+    init_getters,
     Getters_type,
     TaskList_type,
     LANGS,
     NET_CONNECT_LIMIT,
 )
 
-INIT_NAMES = ('reader', 'event_getter', 'card_getter')
+INIT_NAMES = (
+    'event_getter',
+    'card_getter',
+)  # reader 由 init_getters 先 init
 
 
 def add_new_tasks(tasks: TaskList_type, getters: Getters_type) -> None:
@@ -25,12 +29,7 @@ async def main() -> None:
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=NET_CONNECT_LIMIT)
     ) as session:
-        await asyncio.gather(
-            *[
-                getters[name].init(session)  # type: ignore[literal-required]
-                for name in INIT_NAMES
-            ]
-        )
+        await init_getters(getters, session, INIT_NAMES)
 
         tasks: TaskList_type = []
         add_new_tasks(tasks, getters)

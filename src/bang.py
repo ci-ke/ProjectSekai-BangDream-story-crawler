@@ -1277,9 +1277,10 @@ async def main():
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=net_connect_limit)
     ) as session:
-
+        # reader 最先 init：各 getter 的 init 依赖 reader 的 master 数据
+        # （如 cards_all_json）；其余 getter 并发 init
+        await reader.init(session)
         await asyncio.gather(
-            reader.init(session),
             main_getter.init(session),
             band_getter.init(session),
             event_getter.init(session),

@@ -1,11 +1,15 @@
 import asyncio, sys
-from typing import cast, Any
+from typing import Any
 
 from aiohttp import ClientSession, TCPConnector
 
-import src.util as util
-
-from .all_bang import create_getters, TaskList_type, add_all_tasks, NET_CONNECT_LIMIT
+from .all_bang import (
+    create_getters,
+    init_getters,
+    TaskList_type,
+    add_all_tasks,
+    NET_CONNECT_LIMIT,
+)
 
 
 async def main() -> None:
@@ -25,9 +29,7 @@ async def main() -> None:
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=NET_CONNECT_LIMIT)
     ) as session:
-        await asyncio.gather(
-            *[cast(util.Base_fetcher, obj).init(session) for obj in getters.values()]
-        )
+        await init_getters(getters, session)
 
         tasks: TaskList_type = []
         add_all_tasks(tasks, getters)

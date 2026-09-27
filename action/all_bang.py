@@ -1,11 +1,10 @@
 import asyncio, inspect
-from typing import cast, Any, TypedDict
+from typing import Any, TypedDict
 from collections.abc import Coroutine
 
 from aiohttp import ClientSession, TCPConnector
 
 import src.bang as bang
-import src.util as util
 
 NET_CONNECT_LIMIT = 20
 
@@ -77,6 +76,26 @@ def add_all_tasks(tasks: TaskList_type, getters: Getters_type) -> None:
             tasks.append(after_live_getter.get(talk_id, lang, mark_lang))
 
 
+async def init_getters(
+    getters: Getters_type,
+    session: ClientSession,
+    init_names: tuple[str, ...] | None = None,
+) -> None:
+    '''
+    reader 最先 init：各 getter 的 init 依赖 reader 的 master 数据
+    （如 cards_all_json）；其余 getter 并发 init。
+    init_names 为 None 时 init 除 reader 外的全部 getter。
+    '''
+    await getters['reader'].init(session)
+
+    if init_names is None:
+        init_names = tuple(name for name in getters.keys() if name != 'reader')
+
+    await asyncio.gather(
+        *[getters[name].init(session) for name in init_names]  # type: ignore[literal-required]
+    )
+
+
 async def main() -> None:
 
     args = {'online': False, 'missing_download': True}
@@ -86,9 +105,7 @@ async def main() -> None:
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=NET_CONNECT_LIMIT)
     ) as session:
-        await asyncio.gather(
-            *[cast(util.Base_fetcher, obj).init(session) for obj in getters.values()]
-        )
+        await init_getters(getters, session)
 
         tasks: TaskList_type = []
         add_all_tasks(tasks, getters)

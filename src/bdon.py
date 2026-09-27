@@ -1155,9 +1155,10 @@ async def main():
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=net_connect_limit)
     ) as session:
-
+        # reader 最先 init：getter 使用的 master 数据（如 story_episodes / advs）
+        # 由 reader 的 init 赋值；其余 getter 并发 init
+        await reader.init(session)
         await asyncio.gather(
-            reader.init(session),
             band_getter.init(session),
             friendship_getter.init(session),
             home_getter.init(session),
@@ -1174,7 +1175,7 @@ async def main():
         tasks.append(band_getter.get(121))  # 10100 番外
         tasks.append(band_getter.get(124))  # 10434 视角
         tasks.append(friendship_getter.get(1))  # 10459 灯×爱音
-        tasks.append(home_getter.get(1000101))  # 10611 首页点触
+        tasks.append(home_getter.get(10001))  # 首页点触
         tasks.append(live_result_getter.get(1))  # 10109 演出后
         tasks.append(tutorial_getter.get(10609))  # 教程（无主表，入口为 advId）
 
