@@ -471,7 +471,7 @@ class Story_reader(Bdon_fetcher):
                         + Mark_multi_lang[')'][mark_lang]
                         + '\n'
                     )
-                    note = str(video_row.get('note') or '').replace('\n', ' ').strip()
+                    note = util.newlines_to_spaces(str(video_row.get('note') or '')).strip()
                     if note:
                         body += (
                             prefix
@@ -488,9 +488,11 @@ class Story_reader(Bdon_fetcher):
             if adv_text_id:
                 # 凡 _advTextID 非空即有文本输出（Talk / Telop / ChatMessage / ChatMessageEx /
                 # ClipLine 均可携带），不按 command 白名单筛选，否则会丢聊天气泡与视频字幕
-                text = self.get_text_marked(
-                    text_lookup.get(str(adv_text_id)), lang, mark_lang
-                ).replace('\n', ' ')
+                text = util.newlines_to_spaces(
+                    self.get_text_marked(
+                        text_lookup.get(str(adv_text_id)), lang, mark_lang
+                    )
+                )
                 if not text.strip():
                     continue  # 文本缺失/全空的行不输出（站点同样跳过），避免孤立的"说话人："
 
@@ -535,7 +537,7 @@ class Story_reader(Bdon_fetcher):
                             if speaker_row
                             else ''
                         )
-                        names.append((name or target_id).replace('\n', ' '))
+                        names.append(util.newlines_to_spaces(name or target_id))
                     speaker = (
                         ' & '.join(names) if names else (row.get('targetName') or '')
                     )
@@ -738,7 +740,7 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
                 f.write(name + '\n\n')
                 synopsis = synopsis_of(lang)
                 if synopsis:
-                    f.write(synopsis.replace('\n', ' ') + '\n\n')
+                    f.write(util.newlines_to_spaces(synopsis) + '\n\n')
                 f.write(
                     self.reader.read_script(
                         episode_json, text_json, video_json, lang, mark_lang

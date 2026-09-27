@@ -380,8 +380,13 @@ class DictLookup:
         return insert_pos - 1
 
 
+def newlines_to_spaces(text: str) -> str:
+    # 先替换 \r\n 再替换 \n：须防上游数据把 LF 漂移成 CRLF 时仅替换 \n 残留孤立 \r
+    return text.replace('\r\n', ' ').replace('\n', ' ')
+
+
 def valid_filename(filename: str, is_folder: bool = False) -> str:
-    cleaned = filename.strip()
+    cleaned = newlines_to_spaces(filename.strip())
     if is_folder:
         while cleaned.endswith('.'):
             cleaned = cleaned[:-1]  # windows folder can't end with dot
@@ -396,7 +401,6 @@ def valid_filename(filename: str, is_folder: bool = False) -> str:
         .replace('<', '＜')
         .replace('>', '＞')
         .replace('|', '｜')
-        .replace('\n', ' ')
     )
     return cleaned
 

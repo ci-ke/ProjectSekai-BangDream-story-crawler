@@ -251,7 +251,7 @@ class Story_reader(util.Base_fetcher):
                     self.get_chara_bandAbbr_and_names(talk_charaid, lang)
                 )
 
-                displayname = talk['windowDisplayName'].replace('\n', ' ')
+                displayname = util.newlines_to_spaces(talk['windowDisplayName'])
 
                 if len(speaker_fullname) > 0 and displayname not in (
                     speaker_fullname,
@@ -271,7 +271,7 @@ class Story_reader(util.Base_fetcher):
                 ret += (
                     name
                     + Mark_multi_lang[':'][mark_lang]
-                    + talk['body'].replace('\n', ' ')
+                    + util.newlines_to_spaces(talk['body'])
                     + '\n'
                 )
                 next_talk_need_newline = False
@@ -386,7 +386,7 @@ class Event_story_getter(util.Base_getter):
 
         synopsis: str | None = story['synopsis'][Constant.lang_index[lang]]
         if synopsis is not None:  # for 13 20 23, jp meta lost
-            synopsis = synopsis.replace('\n', ' ')
+            synopsis = util.newlines_to_spaces(synopsis)
 
         id = story['scenarioId']
 
@@ -580,7 +580,7 @@ class Band_story_getter(util.Base_getter):
         mark_lang: str,
     ):
         name = f"{story['scenarioId']} {story['caption'][Constant.lang_index[lang]]}: {story['title'][Constant.lang_index[lang]]}"
-        synopsis = story['synopsis'][Constant.lang_index[lang]].replace('\n', ' ')
+        synopsis = util.newlines_to_spaces(story['synopsis'][Constant.lang_index[lang]])
         id = story['scenarioId']
 
         filename = util.valid_filename(name + '.txt')
@@ -781,7 +781,7 @@ class Card_story_getter(util.Base_getter):
         skill_name = card['skillName'][Constant.lang_index[lang]]
         card_gachaText: str | None = card['gachaText'][Constant.lang_index[lang]]
         if card_gachaText:
-            card_gachaText = card_gachaText.replace('\n', ' ')
+            card_gachaText = util.newlines_to_spaces(card_gachaText)
 
         if card_name is None:
             logging.info(f'card {card_id} has no {lang.upper()}.')

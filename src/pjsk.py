@@ -332,7 +332,7 @@ class Story_reader(Pjsk_fetcher):
                         ret += '\n'
                     ret += (
                         Mark_multi_lang['fullscreen text'][self.mark_lang]
-                        + specialEffect['StringVal'].replace('\n', ' ')
+                        + util.newlines_to_spaces(specialEffect['StringVal'])
                         + '\n'
                     )
                     next_talk_need_newline = False
@@ -437,7 +437,7 @@ class Story_reader(Pjsk_fetcher):
                 else:
                     need_unit_annotation = False
 
-                displayname = talk['WindowDisplayName'].replace('\n', ' ')
+                displayname = util.newlines_to_spaces(talk['WindowDisplayName'])
 
                 if len(speaker_fullname) > 0 and (
                     displayname not in (speaker_fullname, speaker_shortname)
@@ -465,7 +465,7 @@ class Story_reader(Pjsk_fetcher):
                 ret += (
                     name
                     + Mark_multi_lang[':'][self.mark_lang]
-                    + talk['Body'].replace('\n', ' ')
+                    + util.newlines_to_spaces(talk['Body'])
                     + '\n'
                 )
                 next_talk_need_newline = False
@@ -619,7 +619,7 @@ class Event_story_getter(Pjsk_getter):
         # event_unit = event['unit']
         assetbundleName = event['assetbundleName']
         banner_chara_unit_id = eventStory.get('bannerGameCharacterUnitId')
-        event_outline = eventStory['outline'].replace('\n', ' ')
+        event_outline = util.newlines_to_spaces(eventStory['outline'])
 
         event_unit_abbr = self.get_event_unit_abbr(event_id)
 
@@ -896,9 +896,11 @@ class Unit_story_getter(Pjsk_getter):
 
         if need_outline:
             unitStoryEpisodeGroupId = episode['unitStoryEpisodeGroupId']
-            unit_outline = self.unitStoryEpisodeGroups_json[
-                self.unitStoryEpisodeGroups_lookup.find_index(unitStoryEpisodeGroupId)
-            ]['outline'].replace('\n', ' ')
+            unit_outline = util.newlines_to_spaces(
+                self.unitStoryEpisodeGroups_json[
+                    self.unitStoryEpisodeGroups_lookup.find_index(unitStoryEpisodeGroupId)
+                ]['outline']
+            )
         else:
             unit_outline = None
 
