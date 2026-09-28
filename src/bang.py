@@ -92,9 +92,8 @@ class Story_reader(util.Base_fetcher):
             if not resource_set:
                 continue
             # 111 个 resourceSetName 被复刻卡复用，取最早（最小）卡号
-            if (
-                resource_set not in self.card_ids_by_resource
-                or int(str_id) < int(self.card_ids_by_resource[resource_set])
+            if resource_set not in self.card_ids_by_resource or int(str_id) < int(
+                self.card_ids_by_resource[resource_set]
             ):
                 self.card_ids_by_resource[resource_set] = str_id
 
@@ -190,7 +189,10 @@ class Story_reader(util.Base_fetcher):
                         + '\n'
                     )
                     next_talk_need_newline = False
-                elif specialEffect['effectType'] == util.SpecialEffectType.ChangeCardStill:
+                elif (
+                    specialEffect['effectType']
+                    == util.SpecialEffectType.ChangeCardStill
+                ):
                     # 【实测】卡面立绘全屏插入（jp 语料 166 行：stringVal = characters/resourceset/
                     # resXXXXXX，stringValSub = card_normal / card_after_training；haneoka 前端
                     # 证明官方查看器按宽幅全屏渲染该资源）。资源路径是冗余的固定前缀不输出，
@@ -198,16 +200,22 @@ class Story_reader(util.Base_fetcher):
                     # 无规律，必须查表）
                     if next_talk_need_newline:
                         ret += '\n'
-                    card_id = self.card_ids_by_resource.get(
-                        specialEffect['stringVal'].rsplit('/', 1)[-1]
-                    ) or ''
+                    card_id = (
+                        self.card_ids_by_resource.get(
+                            specialEffect['stringVal'].rsplit('/', 1)[-1]
+                        )
+                        or ''
+                    )
                     sub = specialEffect.get('stringValSub') or ''
                     tail = '_'.join(x for x in (sub, card_id) if x)
                     # 兜底：状态与卡号都缺失时退回原始路径，避免空标记
                     content = tail or specialEffect['stringVal']
                     ret += f"{Mark_multi_lang['cg'][mark_lang]}{content}{Mark_multi_lang[')'][mark_lang]}\n"
                     next_talk_need_newline = False
-                elif specialEffect['effectType'] == util.SpecialEffectType.ChangeBackgroundStill:
+                elif (
+                    specialEffect['effectType']
+                    == util.SpecialEffectType.ChangeBackgroundStill
+                ):
                     # 【实测】静止图背景切换（jp 语料 21 行，载荷与 7 号同构的 bg 资源；haneoka
                     # 按 4:3 背景渲染），以 ：Still 后缀与 7 号普通背景区分
                     if next_talk_need_newline:
@@ -337,8 +345,31 @@ class Event_story_getter(util.Base_getter):
 
         self.events_ids: set[int] = {int(id) for id in self.events_all_json.keys()}
 
-    async def get(self, event_id: int, lang: str = 'cn', mark_lang: str = 'cn') -> None:
+    async def get(
+        self,
+        event_id: int,
+        lang: str = 'cn',
+        mark_lang: str = 'cn',
+        timestamp13: int | None = util.LATE_TIMESTAMP13,
+    ) -> None:
+        '''
+        timestamp13: 只抓 startAt（当前语言）<= timestamp13 的 event
+        （None 为不过滤；默认 util.LATE_TIMESTAMP13 = now + 365 天：
+        未来一年内纳入，超远未来（一年以上）不抓）
+        '''
         if event_id not in self.events_ids or event_id == 5001:  # special case for tw
+            logging.info(f'event {event_id} does not exist.')
+            return
+
+        # startAt 为多语言数组，个别语言缺失（None）视为最早，必通过过滤
+        startAt = self.events_all_json[str(event_id)]['startAt'][
+            Constant.lang_index[lang]
+        ]
+        if (
+            timestamp13 is not None
+            and startAt is not None
+            and int(startAt) > timestamp13
+        ):
             logging.info(f'event {event_id} does not exist.')
             return
 
@@ -452,7 +483,8 @@ class Event_story_getter(util.Base_getter):
 
         tasks = []
         for i in new_eventids:
-            tasks.append(self.get(i, lang, mark_lang))
+            # id 层已按 timestamp13 筛过，get 内过滤传 None 关闭
+            tasks.append(self.get(i, lang, mark_lang, timestamp13=None))
         await asyncio.gather(*tasks)
 
 
@@ -762,8 +794,38 @@ class Card_story_getter(util.Base_getter):
             content['source'] = None
         return content
 
-    async def get(self, card_id: int, lang: str = 'cn', mark_lang: str = 'cn') -> None:
+    async def get(
+        self,
+        card_id: int,
+        lang: str = 'cn',
+        mark_lang: str = 'cn',
+        timestamp13: int | None = util.LATE_TIMESTAMP13,
+    ) -> None:
+        '''
+        timestamp13: 只抓 releasedAt（当前语言）<= timestamp13 的卡片
+        （None 为不过滤；默认 util.LATE_TIMESTAMP13 = now + 365 天：
+        未来一年内纳入，超远未来（一年以上）不抓）
+        '''
         if card_id not in self.cards_ids:
+            logging.info(f'card {card_id} does not exist.')
+            return
+
+        card_name = self.reader.cards_all_json[str(card_id)]['prefix'][
+            Constant.lang_index[lang]
+        ]
+        if card_name is None:
+            logging.info(f'card {card_id} has no {lang.upper()}.')
+            return
+
+        # releasedAt 为多语言数组，个别语言缺失（None）视为最早，必通过过滤
+        releasedAt = self.reader.cards_all_json[str(card_id)]['releasedAt'][
+            Constant.lang_index[lang]
+        ]
+        if (
+            timestamp13 is not None
+            and releasedAt is not None
+            and int(releasedAt) > timestamp13
+        ):
             logging.info(f'card {card_id} does not exist.')
             return
 
@@ -782,15 +844,10 @@ class Card_story_getter(util.Base_getter):
         )
         chara_band_and_name = '_'.join((chara_bandAbbr, chara_name))
         cardRarityType = card['rarity']
-        card_name = card['prefix'][Constant.lang_index[lang]]
         skill_name = card['skillName'][Constant.lang_index[lang]]
         card_gachaText: str | None = card['gachaText'][Constant.lang_index[lang]]
         if card_gachaText:
             card_gachaText = util.newlines_to_spaces(card_gachaText)
-
-        if card_name is None:
-            logging.info(f'card {card_id} has no {lang.upper()}.')
-            return
 
         resourceSetName: str = card['resourceSetName']
 
@@ -925,7 +982,8 @@ class Card_story_getter(util.Base_getter):
 
         tasks = []
         for i in new_cardids:
-            tasks.append(self.get(i, lang, mark_lang))
+            # id 层已按 timestamp13 筛过，get 内过滤传 None 关闭
+            tasks.append(self.get(i, lang, mark_lang, timestamp13=None))
         await asyncio.gather(*tasks)
 
 
@@ -1284,7 +1342,11 @@ class Run:
         assets_save_dir: str = '.',
         args: dict[str, Any] | None = None,
     ) -> Getters_type:
-        args = {**(args or {}), 'save_dir': save_dir, 'assets_save_dir': assets_save_dir}
+        args = {
+            **(args or {}),
+            'save_dir': save_dir,
+            'assets_save_dir': assets_save_dir,
+        }
 
         reader = Story_reader(**args)
 
@@ -1347,7 +1409,9 @@ async def main():
         for i in range(1, 11):
             tasks.append(getters['card_getter'].get(i, *text_mark_lang))
         for i in range(1, 6):
-            tasks.append(getters['area_getter'].get_id_to_single_file(i, *text_mark_lang))
+            tasks.append(
+                getters['area_getter'].get_id_to_single_file(i, *text_mark_lang)
+            )
         for i in (1, 512):  # group0 / group2 各验一个
             tasks.append(getters['after_live_getter'].get(i, *text_mark_lang))
 

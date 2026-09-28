@@ -37,10 +37,19 @@ def add_timestamp_tasks(
     getters: pjsk.Getters_type,
     timestamp13: int | None = util.LATE_TIMESTAMP13,
 ) -> None:
+    # event/card 走 get_newest；special/virtual/area 遍历 tell_* 并在 get 内按 timestamp13 过滤
     tasks.append(getters['event_getter'].get_newest(0, timestamp13=timestamp13))
     tasks.append(getters['card_getter'].get_newest(0, timestamp13=timestamp13))
-    tasks.append(getters['special_getter'].get_newest(0, timestamp13=timestamp13))
-    tasks.append(getters['virtual_getter'].get_newest(0, timestamp13=timestamp13))
+    special_getter = getters['special_getter']
+    tasks.extend(
+        special_getter.get(story_id, timestamp13=timestamp13)
+        for story_id in special_getter.tell_ids()
+    )
+    virtual_getter = getters['virtual_getter']
+    tasks.extend(
+        virtual_getter.get(live_id, timestamp13=timestamp13)
+        for live_id in virtual_getter.tell_ids()
+    )
     area_getter = getters['area_getter']
     tasks.extend(
         area_getter.get(category, timestamp13=timestamp13)

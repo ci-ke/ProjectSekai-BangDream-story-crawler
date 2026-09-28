@@ -138,9 +138,9 @@ def cmd_unused(src_list: list[str], dst_list: list[str]) -> int:
 
     print("比对中 ...")
     unused: list[Path] = []
-    for f in all_files:
-        if f.resolve() not in valid:
-            unused.append(f.resolve())
+    for p in all_files:
+        if p.resolve() not in valid:
+            unused.append(p.resolve())
 
     out_file = "unused_file.txt"
     if unused:

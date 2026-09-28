@@ -88,10 +88,16 @@ offline 模式（online=False）下缺文件且 missing_download=True 会自动�
   每对 `(lang, mark_lang)` 一个文件，语言回落链在 `Constant.fallback_chain`。
   action 的 `LANGS` 只有 4 语言（维护者不认识韩语，CI 不产出 kr；bdon 模块级 `LANGS` 含 kr 供本地用）。
 
-## 时间戳抓取（pjsk/bang 的 get_newest）
+## 时间戳抓取（pjsk/bang）
 
 - `TIMESTAMP13` = UTC+36h（cn/tw 服务器先行），`TIMESTAMP13_EN` 再 +15h（定义在 action/all_pjsk.py）。
-- `util.LATE_TIMESTAMP13` = +365 天 ≈ 全抓，是 get_newest 的默认 timestamp13。
+- `util.LATE_TIMESTAMP13` = +365 天 ≈ 全抓，是 timestamp13 的默认值。
+- pjsk/bang 带时间戳字段的 getter 的 `get()` 都带 `timestamp13` 过滤（None 为不过滤）：
+  pjsk 为 event/card/special/virtual/area，bang 为 event/card。
+- pjsk/bang 的 event、card 另保留 `get_newest`（按 quantity 取最新若干条，quantity=0 为全抓）；
+  其内部调 `get(..., timestamp13=None)`（id 层已按 timestamp13 筛过，避免 get 层二次过滤）。
+- 其余 getter 由 action 遍历 `tell_ids()` / `tell_categories()` 并把 timestamp13 传入 get
+  （见 all_pjsk 的 `add_timestamp_tasks`）。
 
 ## action/（CI 入口）
 
@@ -121,7 +127,8 @@ clone 本仓库 →（assets 任务先 clone assets 仓库并把 `assets/` 移�
 
 ## 验证清单（改完代码后）
 
-1. `uv run mypy`（mypy.ini 覆盖 src/ 与 action/；TypedDict 用变量做下标需 `# type: ignore[literal-required]`）。
+1. `uv run mypy`（mypy.ini 覆盖 src/、action/ 与 misc/，本地文件未入 git，项目 venv 未装
+   mypy，实际走全局 uv tool 的 mypy；TypedDict 用变量做下标需 `# type: ignore[literal-required]`）。
 2. import 冒烟：`uv run python -c "import action.all_pjsk, action.all_bang, action.all_bdon, ..."`。
 3. smoke：`uv run python -m test.smoke_bang_init` / `test.smoke_bdon_init`（online=False + 本地缓存，
    缺文件会联网补抓，属正常行为）。

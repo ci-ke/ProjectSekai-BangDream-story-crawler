@@ -605,8 +605,14 @@ class Event_story_getter(Pjsk_getter):
             Event_story_getter.__type_str_code_map.get(type_str, 'mix')
         ]
 
-    async def get(self, event_id: int) -> None:
-
+    async def get(
+        self, event_id: int, timestamp13: int | None = util.LATE_TIMESTAMP13
+    ) -> None:
+        '''
+        timestamp13: 只抓 startAt <= timestamp13 的 event
+        （None 为不过滤；默认 util.LATE_TIMESTAMP13 = now + 365 天：
+        未来一年内纳入，超远未来（一年以上）不抓）
+        '''
         event_index = self.events_lookup.find_index(event_id)
         eventStory_index = self.eventStories_lookup.find_index(event_id)
 
@@ -615,6 +621,10 @@ class Event_story_getter(Pjsk_getter):
             return
 
         event = self.events_json[event_index]
+        if timestamp13 is not None and event['startAt'] > timestamp13:
+            logging.info(f'event {event_id} does not exist.')
+            return
+
         eventStory: dict[str, Any] = self.eventStories_json[eventStory_index]
 
         event_name = event['name']
@@ -748,7 +758,8 @@ class Event_story_getter(Pjsk_getter):
 
         tasks = []
         for i in new_eventids:
-            tasks.append(self.get(i))
+            # id 层已按 timestamp13 筛过，get 内过滤传 None 关闭
+            tasks.append(self.get(i, timestamp13=None))
             if area_getter is not None:
                 tasks.append(area_getter.get(i, timestamp13=timestamp13))
         await asyncio.gather(*tasks)
@@ -1013,7 +1024,14 @@ class Card_story_getter(Pjsk_getter):
         self.cardEpisodes_lookup = util.DictLookup(self.cardEpisodes_json, 'cardId')
         self.eventCards_lookup = util.DictLookup(self.eventCards_json, 'cardId')
 
-    async def get(self, card_id: int) -> None:
+    async def get(
+        self, card_id: int, timestamp13: int | None = util.LATE_TIMESTAMP13
+    ) -> None:
+        '''
+        timestamp13: 只抓 releaseAt <= timestamp13 的卡片
+        （None 为不过滤；默认 util.LATE_TIMESTAMP13 = now + 365 天：
+        未来一年内纳入，超远未来（一年以上）不抓）
+        '''
         card_index = self.cards_lookup.find_index(card_id)
         cardEpisode_index = self.cardEpisodes_lookup.find_index(card_id)
 
@@ -1022,6 +1040,10 @@ class Card_story_getter(Pjsk_getter):
             return
 
         card: dict[str, Any] = self.cards_json[card_index]
+        if timestamp13 is not None and card['releaseAt'] > timestamp13:
+            logging.info(f'card {card_id} does not exist.')
+            return
+
         cardEpisode_1 = self.cardEpisodes_json[cardEpisode_index]
         cardEpisode_2 = self.cardEpisodes_json[cardEpisode_index + 1]
 
@@ -1208,7 +1230,8 @@ class Card_story_getter(Pjsk_getter):
 
         tasks = []
         for i in new_cardids:
-            tasks.append(self.get(i))
+            # id 层已按 timestamp13 筛过，get 内过滤传 None 关闭
+            tasks.append(self.get(i, timestamp13=None))
         await asyncio.gather(*tasks)
 
     def tell_ids(self, timestamp13: int | None = None) -> list[int]:
@@ -1693,13 +1716,24 @@ class Special_story_getter(Pjsk_getter):
 
         self.specialStories_lookup = util.DictLookup(self.specialStories_json, 'id')
 
-    async def get(self, id: int) -> None:
+    async def get(
+        self, id: int, timestamp13: int | None = util.LATE_TIMESTAMP13
+    ) -> None:
+        '''
+        timestamp13: 只抓 startAt <= timestamp13 的 special story
+        （None 为不过滤；默认 util.LATE_TIMESTAMP13 = now + 365 天：
+        未来一年内纳入，超远未来（一年以上）不抓）
+        '''
         story_index = self.specialStories_lookup.find_index(id)
         if story_index == -1 or id == 2:  # special case id2
             logging.info(f'special story {id} does not exist.')
             return
 
         story = self.specialStories_json[story_index]
+        if timestamp13 is not None and story['startAt'] > timestamp13:
+            logging.info(f'special story {id} does not exist.')
+            return
+
         episodes = story['episodes']
 
         tasks = []
@@ -1755,32 +1789,6 @@ class Special_story_getter(Pjsk_getter):
             if timestamp13 is None or sp['startAt'] <= timestamp13:
                 ret.append(sp['id'])
         return ret
-
-    async def get_newest(
-        self,
-        quantity: int = 1,
-        timestamp13: int | None = util.LATE_TIMESTAMP13,
-        exclude_new: int | None = None,
-    ) -> None:
-        '''
-        quantity 0 = all
-        '''
-        old_stories: list[tuple[int, int]] = []
-
-        for story in self.specialStories_json:
-            if timestamp13 is None or story['startAt'] <= timestamp13:
-                old_stories.append((story['startAt'], story['id']))
-
-        new_stories = sorted(old_stories)[-quantity:]
-        new_storyids = [x[1] for x in new_stories]
-
-        if exclude_new:
-            new_storyids = new_storyids[:-exclude_new]
-
-        tasks = []
-        for i in new_storyids:
-            tasks.append(self.get(i))
-        await asyncio.gather(*tasks)
 
 
 class Mysekai_talk_getter(Pjsk_getter):
@@ -2513,8 +2521,15 @@ class Virtual_live_getter(Pjsk_getter):
             return '?'
         return self.musics_json[index]['title']
 
-    async def get(self, target: int) -> None:
-        '''target: virtualLiveId，抓取整场 live 的全部 setlists（MC 台词 + 音乐列表）。'''
+    async def get(
+        self, target: int, timestamp13: int | None = util.LATE_TIMESTAMP13
+    ) -> None:
+        '''target: virtualLiveId，抓取整场 live 的全部 setlists（MC 台词 + 音乐列表）。
+
+        timestamp13: 只抓 startAt <= timestamp13 的 live
+        （None 为不过滤；默认 util.LATE_TIMESTAMP13 = now + 365 天：
+        未来一年内纳入，超远未来（一年以上）不抓）
+        '''
         if target >= 10000:
             logging.info(f'virtual live {target} does not exist.')
             return
@@ -2524,6 +2539,10 @@ class Virtual_live_getter(Pjsk_getter):
             return
 
         vl = self.virtualLives_json[vl_index]
+        if timestamp13 is not None and vl['startAt'] > timestamp13:
+            logging.info(f'virtual live {target} does not exist.')
+            return
+
         setlists = sorted(vl['virtualLiveSetlists'], key=lambda sl: sl['seq'])
 
         # 没有台词环节（mc / mc_timeline / virtual_message）的 live 视为不存在
@@ -2635,32 +2654,6 @@ class Virtual_live_getter(Pjsk_getter):
             if timestamp13 is None or vl['startAt'] <= timestamp13:
                 ret.append(vl['id'])
         return ret
-
-    async def get_newest(
-        self,
-        quantity: int = 1,
-        timestamp13: int | None = util.LATE_TIMESTAMP13,
-        exclude_new: int | None = None,
-    ) -> None:
-        '''
-        quantity 0 = all
-        '''
-        old_lives: list[tuple[int, int]] = []
-
-        for live in self.virtualLives_json:
-            if timestamp13 is None or live['startAt'] <= timestamp13:
-                old_lives.append((live['startAt'], live['id']))
-
-        new_lives = sorted(old_lives)[-quantity:]
-        new_liveids = [x[1] for x in new_lives]
-
-        if exclude_new:
-            new_liveids = new_liveids[:-exclude_new]
-
-        tasks = []
-        for i in new_liveids:
-            tasks.append(self.get(i))
-        await asyncio.gather(*tasks)
 
 
 class Getters_type(TypedDict):
