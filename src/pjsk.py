@@ -176,6 +176,7 @@ class Story_reader(Pjsk_fetcher):
         force_master_online: bool = False,
         **args,
     ) -> None:
+        util.warn_extra_args(self, args)
         super().__init__(
             assets_save_dir,
             online,
@@ -497,6 +498,7 @@ class Event_story_getter(Pjsk_getter):
         force_master_online: bool = False,
         **args,
     ) -> None:
+        util.warn_extra_args(self, args)
         super().__init__(
             os.path.join(save_dir, 'story_{lang}', 'event'),
             assets_save_dir,
@@ -776,6 +778,7 @@ class Unit_story_getter(Pjsk_getter):
         force_master_online: bool = False,
         **args,
     ) -> None:
+        util.warn_extra_args(self, args)
         super().__init__(
             os.path.join(save_dir, 'story_{lang}', 'main'),
             assets_save_dir,
@@ -953,6 +956,7 @@ class Card_story_getter(Pjsk_getter):
         force_master_online: bool = False,
         **args,
     ) -> None:
+        util.warn_extra_args(self, args)
         super().__init__(
             os.path.join(save_dir, 'story_{lang}', 'card'),
             assets_save_dir,
@@ -1233,6 +1237,7 @@ class Area_talk_getter(Pjsk_getter):
         force_master_online: bool = False,
         **args,
     ) -> None:
+        util.warn_extra_args(self, args)
         super().__init__(
             os.path.join(save_dir, 'story_{lang}', 'area'),
             assets_save_dir,
@@ -1526,6 +1531,7 @@ class Self_intro_getter(Pjsk_getter):
         force_master_online: bool = False,
         **args,
     ):
+        util.warn_extra_args(self, args)
         super().__init__(
             os.path.join(save_dir, 'story_{lang}', 'self'),
             assets_save_dir,
@@ -1651,6 +1657,7 @@ class Special_story_getter(Pjsk_getter):
         force_master_online: bool = False,
         **args,
     ):
+        util.warn_extra_args(self, args)
         super().__init__(
             os.path.join(save_dir, 'story_{lang}', 'special'),
             assets_save_dir,
@@ -1793,6 +1800,7 @@ class Mysekai_talk_getter(Pjsk_getter):
         force_master_online: bool = False,
         **args,
     ) -> None:
+        util.warn_extra_args(self, args)
         super().__init__(
             os.path.join(save_dir, 'story_{lang}', 'mysekai'),
             assets_save_dir,
@@ -2299,6 +2307,7 @@ class Virtual_live_getter(Pjsk_getter):
         force_master_online: bool = False,
         **args,
     ) -> None:
+        util.warn_extra_args(self, args)
         super().__init__(
             os.path.join(save_dir, 'story_{lang}', 'virtual_live'),
             assets_save_dir,

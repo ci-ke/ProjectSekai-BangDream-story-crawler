@@ -238,6 +238,7 @@ class Story_reader(Bdon_fetcher):
         force_master_online: bool = False,
         **args,
     ) -> None:
+        util.warn_extra_args(self, args)
         super().__init__(
             assets_save_dir,
             online,
@@ -653,6 +654,7 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
         force_master_online: bool = False,
         **args,
     ) -> None:
+        util.warn_extra_args(self, args)
         super().__init__(
             save_dir,
             assets_save_dir,
@@ -766,6 +768,7 @@ class Band_story_getter(Bdon_getter):
         force_master_online: bool = False,
         **args,
     ) -> None:
+        util.warn_extra_args(self, args)
         super().__init__(
             reader,
             os.path.join(save_dir, 'story_{lang}', 'band'),
@@ -856,6 +859,7 @@ class Friendship_story_getter(Bdon_getter):
         force_master_online: bool = False,
         **args,
     ) -> None:
+        util.warn_extra_args(self, args)
         super().__init__(
             reader,
             os.path.join(save_dir, 'story_{lang}', 'friendship'),
@@ -925,6 +929,7 @@ class Home_talk_getter(Bdon_getter):
         force_master_online: bool = False,
         **args,
     ) -> None:
+        util.warn_extra_args(self, args)
         super().__init__(
             reader,
             os.path.join(save_dir, 'story_{lang}', 'home'),
@@ -1034,6 +1039,7 @@ class Live_result_story_getter(Bdon_getter):
         force_master_online: bool = False,
         **args,
     ) -> None:
+        util.warn_extra_args(self, args)
         super().__init__(
             reader,
             os.path.join(save_dir, 'story_{lang}', 'live_result'),
@@ -1096,6 +1102,7 @@ class Tutorial_story_getter(Bdon_getter):
         force_master_online: bool = False,
         **args,
     ) -> None:
+        util.warn_extra_args(self, args)
         super().__init__(
             reader,
             os.path.join(save_dir, 'story_{lang}', 'tutorial'),

@@ -52,6 +52,7 @@ class Story_reader(util.Base_fetcher):
         force_master_online: bool = False,
         **args,
     ) -> None:
+        util.warn_extra_args(self, args)
         super().__init__(
             assets_save_dir,
             online,
@@ -304,6 +305,7 @@ class Event_story_getter(util.Base_getter):
         force_master_online: bool = False,
         **args,
     ) -> None:
+        util.warn_extra_args(self, args)
         super().__init__(
             os.path.join(save_dir, 'story_{lang}', 'event'),
             assets_save_dir,
@@ -469,6 +471,7 @@ class Band_story_getter(util.Base_getter):
         force_master_online: bool = False,
         **args,
     ) -> None:
+        util.warn_extra_args(self, args)
         super().__init__(
             os.path.join(save_dir, 'story_{lang}', 'band'),
             assets_save_dir,
@@ -621,6 +624,7 @@ class Main_story_getter(util.Base_getter):
         force_master_online: bool = False,
         **args,
     ) -> None:
+        util.warn_extra_args(self, args)
         super().__init__(
             os.path.join(save_dir, 'story_{lang}', 'main'),
             assets_save_dir,
@@ -723,6 +727,7 @@ class Card_story_getter(util.Base_getter):
         force_master_online: bool = False,
         **args,
     ) -> None:
+        util.warn_extra_args(self, args)
         super().__init__(
             os.path.join(save_dir, 'story_{lang}', 'card'),
             assets_save_dir,
@@ -940,6 +945,7 @@ class Area_talk_getter(util.Base_getter):
         force_master_online: bool = False,
         **args,
     ) -> None:
+        util.warn_extra_args(self, args)
         super().__init__(
             os.path.join(save_dir, 'story_{lang}', 'area'),
             assets_save_dir,
@@ -1185,6 +1191,7 @@ class After_live_getter(util.Base_getter):
         force_master_online: bool = False,
         **args,
     ) -> None:
+        util.warn_extra_args(self, args)
         super().__init__(
             os.path.join(save_dir, 'story_{lang}', 'after_live'),
             assets_save_dir,

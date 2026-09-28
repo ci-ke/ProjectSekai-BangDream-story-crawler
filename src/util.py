@@ -268,6 +268,12 @@ def _decompress_sync(compressed_bytes: bytes) -> bytes:
     return brotli.decompress(compressed_bytes)
 
 
+def warn_extra_args(instance: object, args: dict[str, Any]) -> None:
+    """各构造器的 **args 仅为兜底接收统一参数而存在，非空说明有未声明的键将被静默忽略，打警告提示。"""
+    if args:
+        logging.warning(f'{type(instance).__name__} got undeclared args (ignored): {args}')
+
+
 class Base_fetcher:
     def __init__(
         self,
