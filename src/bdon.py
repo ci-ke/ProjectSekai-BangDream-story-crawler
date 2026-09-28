@@ -2,7 +2,7 @@ import os, asyncio, json, logging, re
 from pathlib import Path
 from collections.abc import Iterable
 from enum import Enum
-from typing import Any, Callable
+from typing import Any, Callable, TypedDict
 from asyncio import Semaphore
 
 from aiohttp import ClientSession, TCPConnector
@@ -228,7 +228,7 @@ class Bdon_fetcher(util.Base_fetcher):
 class Story_reader(Bdon_fetcher):
     def __init__(
         self,
-        assets_save_dir: str = './assets',
+        assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
         missing_download: bool = True,
@@ -643,8 +643,8 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
     def __init__(
         self,
         reader: Story_reader,
-        save_dir: str,
-        assets_save_dir: str = './assets',
+        save_dir: str = '.',
+        assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
@@ -755,8 +755,8 @@ class Band_story_getter(Bdon_getter):
     def __init__(
         self,
         reader: Story_reader,
-        save_dir: str = './story_{lang}/band',
-        assets_save_dir: str = './assets',
+        save_dir: str = '.',
+        assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
@@ -768,7 +768,7 @@ class Band_story_getter(Bdon_getter):
     ) -> None:
         super().__init__(
             reader,
-            save_dir,
+            os.path.join(save_dir, 'story_{lang}', 'band'),
             assets_save_dir,
             online,
             save_assets,
@@ -845,8 +845,8 @@ class Friendship_story_getter(Bdon_getter):
     def __init__(
         self,
         reader: Story_reader,
-        save_dir: str = './story_{lang}/friendship',
-        assets_save_dir: str = './assets',
+        save_dir: str = '.',
+        assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
@@ -858,7 +858,7 @@ class Friendship_story_getter(Bdon_getter):
     ) -> None:
         super().__init__(
             reader,
-            save_dir,
+            os.path.join(save_dir, 'story_{lang}', 'friendship'),
             assets_save_dir,
             online,
             save_assets,
@@ -914,8 +914,8 @@ class Home_talk_getter(Bdon_getter):
     def __init__(
         self,
         reader: Story_reader,
-        save_dir: str = './story_{lang}/home',
-        assets_save_dir: str = './assets',
+        save_dir: str = '.',
+        assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
@@ -927,7 +927,7 @@ class Home_talk_getter(Bdon_getter):
     ) -> None:
         super().__init__(
             reader,
-            save_dir,
+            os.path.join(save_dir, 'story_{lang}', 'home'),
             assets_save_dir,
             online,
             save_assets,
@@ -1023,8 +1023,8 @@ class Live_result_story_getter(Bdon_getter):
     def __init__(
         self,
         reader: Story_reader,
-        save_dir: str = './story_{lang}/live_result',
-        assets_save_dir: str = './assets',
+        save_dir: str = '.',
+        assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
@@ -1036,7 +1036,7 @@ class Live_result_story_getter(Bdon_getter):
     ) -> None:
         super().__init__(
             reader,
-            save_dir,
+            os.path.join(save_dir, 'story_{lang}', 'live_result'),
             assets_save_dir,
             online,
             save_assets,
@@ -1086,8 +1086,8 @@ class Tutorial_story_getter(Bdon_getter):
     def __init__(
         self,
         reader: Story_reader,
-        save_dir: str = './story_{lang}/tutorial',
-        assets_save_dir: str = './assets',
+        save_dir: str = '.',
+        assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
@@ -1098,7 +1098,7 @@ class Tutorial_story_getter(Bdon_getter):
     ) -> None:
         super().__init__(
             reader,
-            save_dir,
+            os.path.join(save_dir, 'story_{lang}', 'tutorial'),
             assets_save_dir,
             online,
             save_assets,
@@ -1139,6 +1139,58 @@ class Tutorial_story_getter(Bdon_getter):
         await self.write_script(adv_id, script, langs, r'(\d+)', path_of, title_of, synopsis_of)
 
 
+class Getters_type(TypedDict):
+    reader: Story_reader
+    band_getter: Band_story_getter
+    friendship_getter: Friendship_story_getter
+    home_getter: Home_talk_getter
+    live_result_getter: Live_result_story_getter
+    tutorial_getter: Tutorial_story_getter
+
+
+class Run:
+    '''一套 getter 的创建与初始化，供 action 与本地 main 复用。'''
+
+    @staticmethod
+    def create_getters(
+        save_dir: str = '.',
+        assets_save_dir: str = '.',
+        args: dict[str, Any] | None = None,
+    ) -> Getters_type:
+        args = {**(args or {}), 'save_dir': save_dir, 'assets_save_dir': assets_save_dir}
+
+        reader = Story_reader(**args)
+
+        return {
+            'reader': reader,
+            'band_getter': Band_story_getter(reader, **args),
+            'friendship_getter': Friendship_story_getter(reader, **args),
+            'home_getter': Home_talk_getter(reader, **args),
+            'live_result_getter': Live_result_story_getter(reader, **args),
+            'tutorial_getter': Tutorial_story_getter(reader, **args),
+        }
+
+    @staticmethod
+    async def init_getters(
+        getters: Getters_type,
+        session: ClientSession,
+        init_names: tuple[str, ...] | None = None,
+    ) -> None:
+        '''
+        reader 最先 init：getter 使用的 master 数据（如 story_episodes / advs）
+        由 reader 的 init 赋值；其余 getter 并发 init。
+        init_names 为 None 时 init 除 reader 外的全部 getter。
+        '''
+        await getters['reader'].init(session)
+
+        if init_names is None:
+            init_names = tuple(name for name in getters.keys() if name != 'reader')
+
+        await asyncio.gather(
+            *[getters[name].init(session) for name in init_names]  # type: ignore[literal-required]
+        )
+
+
 async def main():
 
     logging.basicConfig(level=logging.INFO)
@@ -1147,39 +1199,25 @@ async def main():
 
     online = False
 
-    reader = Story_reader(online=online)
-    band_getter = Band_story_getter(reader, online=online)
-    friendship_getter = Friendship_story_getter(reader, online=online)
-    home_getter = Home_talk_getter(reader, online=online)
-    live_result_getter = Live_result_story_getter(reader, online=online)
-    tutorial_getter = Tutorial_story_getter(reader, online=online)
+    getters = Run.create_getters(args={'online': online})
 
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=net_connect_limit)
     ) as session:
-        # reader 最先 init：getter 使用的 master 数据（如 story_episodes / advs）
-        # 由 reader 的 init 赋值；其余 getter 并发 init
-        await reader.init(session)
-        await asyncio.gather(
-            band_getter.init(session),
-            friendship_getter.init(session),
-            home_getter.init(session),
-            live_result_getter.init(session),
-            tutorial_getter.init(session),
-        )
+        await Run.init_getters(getters, session)
 
         tasks = []
 
         # 每类各抓少量各自 master 的 id，检测各功能可运行：
         # 正篇两乐队（mujica 含聊天气泡）+ 番外 + 视角（覆盖文件名各分支）、羁绊、首页点触、演出后、教程
-        tasks.append(band_getter.get(101))  # 10000 MyGO 正篇
-        tasks.append(band_getter.get(201))  # 10020 Ave Mujica 正篇（聊天气泡）
-        tasks.append(band_getter.get(121))  # 10100 番外
-        tasks.append(band_getter.get(124))  # 10434 视角
-        tasks.append(friendship_getter.get(1))  # 10459 灯×爱音
-        tasks.append(home_getter.get(10001))  # 首页点触
-        tasks.append(live_result_getter.get(1))  # 10109 演出后
-        tasks.append(tutorial_getter.get(10609))  # 教程（无主表，入口为 advId）
+        tasks.append(getters['band_getter'].get(101))  # 10000 MyGO 正篇
+        tasks.append(getters['band_getter'].get(201))  # 10020 Ave Mujica 正篇（聊天气泡）
+        tasks.append(getters['band_getter'].get(121))  # 10100 番外
+        tasks.append(getters['band_getter'].get(124))  # 10434 视角
+        tasks.append(getters['friendship_getter'].get(1))  # 10459 灯×爱音
+        tasks.append(getters['home_getter'].get(10001))  # 首页点触
+        tasks.append(getters['live_result_getter'].get(1))  # 10109 演出后
+        tasks.append(getters['tutorial_getter'].get(10609))  # 教程（无主表，入口为 advId）
 
         await asyncio.gather(*tasks)
 

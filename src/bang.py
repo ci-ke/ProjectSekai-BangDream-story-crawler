@@ -1,6 +1,6 @@
 import os, asyncio, json, logging, copy, math
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 from asyncio import Semaphore
 
 from aiohttp import ClientSession, TCPConnector
@@ -44,7 +44,7 @@ def bypass_asset_missing(story_json: Any) -> tuple[bool, str]:
 class Story_reader(util.Base_fetcher):
     def __init__(
         self,
-        assets_save_dir: str = './assets',
+        assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
         missing_download: bool = True,
@@ -293,8 +293,8 @@ class Event_story_getter(util.Base_getter):
     def __init__(
         self,
         reader: Story_reader,
-        save_dir: str = './story_{lang}/event',
-        assets_save_dir: str = './assets',
+        save_dir: str = '.',
+        assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
@@ -305,7 +305,7 @@ class Event_story_getter(util.Base_getter):
         **args,
     ) -> None:
         super().__init__(
-            save_dir,
+            os.path.join(save_dir, 'story_{lang}', 'event'),
             assets_save_dir,
             online,
             save_assets,
@@ -458,8 +458,8 @@ class Band_story_getter(util.Base_getter):
     def __init__(
         self,
         reader: Story_reader,
-        save_dir: str = './story_{lang}/band',
-        assets_save_dir: str = './assets',
+        save_dir: str = '.',
+        assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
@@ -470,7 +470,7 @@ class Band_story_getter(util.Base_getter):
         **args,
     ) -> None:
         super().__init__(
-            save_dir,
+            os.path.join(save_dir, 'story_{lang}', 'band'),
             assets_save_dir,
             online,
             save_assets,
@@ -611,8 +611,8 @@ class Main_story_getter(util.Base_getter):
     def __init__(
         self,
         reader: Story_reader,
-        save_dir: str = './story_{lang}/main',
-        assets_save_dir: str = './assets',
+        save_dir: str = '.',
+        assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
@@ -622,7 +622,7 @@ class Main_story_getter(util.Base_getter):
         **args,
     ) -> None:
         super().__init__(
-            save_dir,
+            os.path.join(save_dir, 'story_{lang}', 'main'),
             assets_save_dir,
             online,
             save_assets,
@@ -712,8 +712,8 @@ class Card_story_getter(util.Base_getter):
     def __init__(
         self,
         reader: Story_reader,
-        save_dir: str = './story_{lang}/card',
-        assets_save_dir: str = './assets',
+        save_dir: str = '.',
+        assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
@@ -724,7 +724,7 @@ class Card_story_getter(util.Base_getter):
         **args,
     ) -> None:
         super().__init__(
-            save_dir,
+            os.path.join(save_dir, 'story_{lang}', 'card'),
             assets_save_dir,
             online,
             save_assets,
@@ -928,8 +928,8 @@ class Area_talk_getter(util.Base_getter):
     def __init__(
         self,
         reader: Story_reader,
-        save_dir: str = './story_{lang}/area',
-        assets_save_dir: str = './assets',
+        save_dir: str = '.',
+        assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
@@ -941,7 +941,7 @@ class Area_talk_getter(util.Base_getter):
         **args,
     ) -> None:
         super().__init__(
-            save_dir,
+            os.path.join(save_dir, 'story_{lang}', 'area'),
             assets_save_dir,
             online,
             save_assets,
@@ -1174,8 +1174,8 @@ class After_live_getter(util.Base_getter):
     def __init__(
         self,
         reader: Story_reader,
-        save_dir: str = './story_{lang}/after_live',
-        assets_save_dir: str = './assets',
+        save_dir: str = '.',
+        assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
@@ -1186,7 +1186,7 @@ class After_live_getter(util.Base_getter):
         **args,
     ) -> None:
         super().__init__(
-            save_dir,
+            os.path.join(save_dir, 'story_{lang}', 'after_live'),
             assets_save_dir,
             online,
             save_assets,
@@ -1258,6 +1258,60 @@ class After_live_getter(util.Base_getter):
         logging.info(f'get after live talk {name} done.')
 
 
+class Getters_type(TypedDict):
+    reader: Story_reader
+    main_getter: Main_story_getter
+    band_getter: Band_story_getter
+    event_getter: Event_story_getter
+    card_getter: Card_story_getter
+    area_getter: Area_talk_getter
+    after_live_getter: After_live_getter
+
+
+class Run:
+    '''一套 getter 的创建与初始化，供 action 与本地 main 复用。'''
+
+    @staticmethod
+    def create_getters(
+        save_dir: str = '.',
+        assets_save_dir: str = '.',
+        args: dict[str, Any] | None = None,
+    ) -> Getters_type:
+        args = {**(args or {}), 'save_dir': save_dir, 'assets_save_dir': assets_save_dir}
+
+        reader = Story_reader(**args)
+
+        return {
+            'reader': reader,
+            'main_getter': Main_story_getter(reader, **args),
+            'band_getter': Band_story_getter(reader, **args),
+            'event_getter': Event_story_getter(reader, **args),
+            'card_getter': Card_story_getter(reader, **args),
+            'area_getter': Area_talk_getter(reader, **args),
+            'after_live_getter': After_live_getter(reader, **args),
+        }
+
+    @staticmethod
+    async def init_getters(
+        getters: Getters_type,
+        session: ClientSession,
+        init_names: tuple[str, ...] | None = None,
+    ) -> None:
+        '''
+        reader 最先 init：各 getter 的 init 依赖 reader 的 master 数据
+        （如 cards_all_json）；其余 getter 并发 init。
+        init_names 为 None 时 init 除 reader 外的全部 getter。
+        '''
+        await getters['reader'].init(session)
+
+        if init_names is None:
+            init_names = tuple(name for name in getters.keys() if name != 'reader')
+
+        await asyncio.gather(
+            *[getters[name].init(session) for name in init_names]  # type: ignore[literal-required]
+        )
+
+
 async def main():
 
     logging.basicConfig(level=logging.INFO)
@@ -1266,45 +1320,29 @@ async def main():
 
     online = False
 
-    reader = Story_reader(online=online)
-    main_getter = Main_story_getter(reader, online=online)
-    band_getter = Band_story_getter(reader, online=online)
-    event_getter = Event_story_getter(reader, online=online)
-    card_getter = Card_story_getter(reader, online=online)
-    area_getter = Area_talk_getter(reader, online=online)
-    after_live_getter = After_live_getter(reader, online=online)
+    getters = Run.create_getters(args={'online': online})
 
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=net_connect_limit)
     ) as session:
-        # reader 最先 init：各 getter 的 init 依赖 reader 的 master 数据
-        # （如 cards_all_json）；其余 getter 并发 init
-        await reader.init(session)
-        await asyncio.gather(
-            main_getter.init(session),
-            band_getter.init(session),
-            event_getter.init(session),
-            card_getter.init(session),
-            area_getter.init(session),
-            after_live_getter.init(session),
-        )
+        await Run.init_getters(getters, session)
 
         tasks = []
 
         text_mark_lang = ('cn', 'cn')
 
-        tasks.append(main_getter.get(list(range(1, 4)), *text_mark_lang))
+        tasks.append(getters['main_getter'].get(list(range(1, 4)), *text_mark_lang))
         for i in [1, 2]:
             for j in [1]:
-                tasks.append(band_getter.get(i, j, *text_mark_lang))
+                tasks.append(getters['band_getter'].get(i, j, *text_mark_lang))
         for i in range(1, 11):
-            tasks.append(event_getter.get(i, *text_mark_lang))
+            tasks.append(getters['event_getter'].get(i, *text_mark_lang))
         for i in range(1, 11):
-            tasks.append(card_getter.get(i, *text_mark_lang))
+            tasks.append(getters['card_getter'].get(i, *text_mark_lang))
         for i in range(1, 6):
-            tasks.append(area_getter.get_id_to_single_file(i, *text_mark_lang))
+            tasks.append(getters['area_getter'].get_id_to_single_file(i, *text_mark_lang))
         for i in (1, 512):  # group0 / group2 各验一个
-            tasks.append(after_live_getter.get(i, *text_mark_lang))
+            tasks.append(getters['after_live_getter'].get(i, *text_mark_lang))
 
         await asyncio.gather(*tasks)
 

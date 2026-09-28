@@ -278,7 +278,7 @@ class Base_fetcher:
         compress_assets: bool,
         force_master_online: bool,
     ):
-        self.assets_save_dir = assets_save_dir
+        self.assets_save_dir = os.path.join(assets_save_dir, 'assets')
         self.online = online
         self.save_assets = save_assets
         self.missing_download = missing_download

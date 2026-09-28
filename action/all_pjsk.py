@@ -1,5 +1,5 @@
-import asyncio, inspect
-from typing import cast, Any, TypedDict
+import asyncio
+from typing import Any
 from collections.abc import Coroutine
 from datetime import datetime, timedelta, timezone
 
@@ -17,67 +17,8 @@ TIMESTAMP13_EN = int((cn_time + timedelta(hours=15)).timestamp() * 1000)
 TaskList_type = list[Coroutine[Any, Any, Any]]
 
 
-class Getters_type(TypedDict):
-    reader: pjsk.Story_reader
-    event_getter: pjsk.Event_story_getter
-    card_getter: pjsk.Card_story_getter
-    area_getter: pjsk.Area_talk_getter
-    unit_getter: pjsk.Unit_story_getter
-    self_getter: pjsk.Self_intro_getter
-    special_getter: pjsk.Special_story_getter
-    mysekai_getter: pjsk.Mysekai_talk_getter
-    virtual_getter: pjsk.Virtual_live_getter
-
-
-def create_getters(
-    lang: str = 'cn',
-    mark_lang: str | None = None,
-    use_parent_save_dir: bool = False,
-    args: dict[str, Any] | None = None,
-) -> Getters_type:
-    if args is None:
-        args = {}
-
-    if mark_lang is not None:
-        reader = pjsk.Story_reader(lang=lang, mark_lang=mark_lang, **args)
-    else:
-        reader = pjsk.Story_reader(lang=lang, **args)
-
-    def get_save_dir(getter_cls) -> str:
-        default = inspect.signature(getter_cls.__init__).parameters['save_dir'].default
-        return ('.' if use_parent_save_dir else '') + default
-
-    return {
-        'reader': reader,
-        'event_getter': pjsk.Event_story_getter(
-            reader, save_dir=get_save_dir(pjsk.Event_story_getter), **args
-        ),
-        'card_getter': pjsk.Card_story_getter(
-            reader, save_dir=get_save_dir(pjsk.Card_story_getter), **args
-        ),
-        'area_getter': pjsk.Area_talk_getter(
-            reader, save_dir=get_save_dir(pjsk.Area_talk_getter), **args
-        ),
-        'unit_getter': pjsk.Unit_story_getter(
-            reader, save_dir=get_save_dir(pjsk.Unit_story_getter), **args
-        ),
-        'self_getter': pjsk.Self_intro_getter(
-            reader, save_dir=get_save_dir(pjsk.Self_intro_getter), **args
-        ),
-        'special_getter': pjsk.Special_story_getter(
-            reader, save_dir=get_save_dir(pjsk.Special_story_getter), **args
-        ),
-        'mysekai_getter': pjsk.Mysekai_talk_getter(
-            reader, save_dir=get_save_dir(pjsk.Mysekai_talk_getter), **args
-        ),
-        'virtual_getter': pjsk.Virtual_live_getter(
-            reader, save_dir=get_save_dir(pjsk.Virtual_live_getter), **args
-        ),
-    }
-
-
 def add_common_tasks(
-    tasks: TaskList_type, lang_getters: dict[str, Getters_type]
+    tasks: TaskList_type, lang_getters: dict[str, pjsk.Getters_type]
 ) -> None:
     for getters in lang_getters.values():
         unit_getter = getters['unit_getter']
@@ -93,7 +34,7 @@ def add_common_tasks(
 
 def add_timestamp_tasks(
     tasks: TaskList_type,
-    getters: Getters_type,
+    getters: pjsk.Getters_type,
     timestamp13: int | None = util.LATE_TIMESTAMP13,
 ) -> None:
     tasks.append(getters['event_getter'].get_newest(0, timestamp13=timestamp13))
@@ -107,51 +48,25 @@ def add_timestamp_tasks(
     )
 
 
-async def init_getters(
-    lang_getters: dict[str, Getters_type],
-    session: ClientSession,
-    init_names: tuple[str, ...] | None = None,
-) -> None:
-    '''
-    reader 最先 init：各 getter 的 init 依赖 reader 的 master 数据
-    （如 events_json / gameCharacterUnits）；其余 getter 并发 init。
-    init_names 为 None 时 init 除 reader 外的全部 getter。
-    '''
-    await asyncio.gather(
-        *[
-            cast(pjsk.Pjsk_fetcher, getters['reader']).init(session)
-            for getters in lang_getters.values()
-        ]
-    )
-
-    if init_names is None:
-        sample = next(iter(lang_getters.values()))
-        init_names = tuple(name for name in sample.keys() if name != 'reader')
-
-    await asyncio.gather(
-        *[
-            cast(pjsk.Pjsk_fetcher, getters[name]).init(session)  # type: ignore[literal-required]
-            for getters in lang_getters.values()
-            for name in init_names
-        ]
-    )
-
-
 async def main() -> None:
 
     args = {'online': False, 'missing_download': True}
 
-    lang_getters: dict[str, Getters_type] = {
-        'cn': create_getters('cn', use_parent_save_dir=True, args=args),
-        'tw': create_getters('tw', use_parent_save_dir=True, args=args),
-        'jp': create_getters('jp', mark_lang='en', use_parent_save_dir=True, args=args),
-        'en': create_getters('en', mark_lang='en', use_parent_save_dir=True, args=args),
-    }
+    lang_getters = pjsk.Run.create_getters(
+        (
+            ('cn', 'cn'),
+            ('tw', 'cn'),
+            ('jp', 'en'),
+            ('en', 'en'),
+        ),
+        save_dir='..',
+        args=args,
+    )
 
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=NET_CONNECT_LIMIT)
     ) as session:
-        await init_getters(lang_getters, session)
+        await pjsk.Run.init_getters(lang_getters, session)
 
         tasks: TaskList_type = []
         add_common_tasks(tasks, lang_getters)

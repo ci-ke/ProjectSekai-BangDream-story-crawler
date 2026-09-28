@@ -2,15 +2,10 @@ import asyncio
 
 from aiohttp import ClientSession, TCPConnector
 
+import src.pjsk as pjsk
 import src.util as util
 
-from .all_pjsk import (
-    create_getters,
-    Getters_type,
-    TaskList_type,
-    init_getters,
-    NET_CONNECT_LIMIT,
-)
+from .all_pjsk import TaskList_type, NET_CONNECT_LIMIT
 
 INIT_NAMES = (
     'event_getter',
@@ -21,7 +16,7 @@ INIT_NAMES = (
 
 def add_timestamp_tasks(
     tasks: TaskList_type,
-    getters: Getters_type,
+    getters: pjsk.Getters_type,
     timestamp13: int | None = util.LATE_TIMESTAMP13,
 ) -> None:
     tasks.append(
@@ -33,22 +28,17 @@ def add_timestamp_tasks(
 
 
 async def main() -> None:
-    lang_getters: dict[str, Getters_type] = {
-        'jp': create_getters(
-            'jp',
-            mark_lang='en',
-            use_parent_save_dir=True,
-            args={'src': ['haruki', 'sekai.best', 'pjsk.moe']},
-        ),
-        # 'cn': create_getters('cn', use_parent_save_dir=True),
-        # 'tw': create_getters('tw', use_parent_save_dir=True),
-        # 'en': create_getters('en', mark_lang='en', use_parent_save_dir=True),
-    }
+    lang_getters = pjsk.Run.create_getters(
+        (('jp', 'en'),),
+        save_dir='..',
+        args={'src': ['haruki', 'sekai.best', 'pjsk.moe']},
+    )
+    # 启用其余语言往 langs 里补元组即可：('cn', 'cn'), ('tw', 'cn'), ('en', 'en')
 
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=NET_CONNECT_LIMIT)
     ) as session:
-        await init_getters(lang_getters, session, INIT_NAMES)
+        await pjsk.Run.init_getters(lang_getters, session, INIT_NAMES)
 
         tasks: TaskList_type = []
         add_timestamp_tasks(tasks, lang_getters['jp'])

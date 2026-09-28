@@ -2,7 +2,8 @@ import os, math, asyncio, json, re, logging
 from pathlib import Path
 from asyncio import Semaphore
 from collections import defaultdict
-from typing import Any, Callable, Optional, cast
+from collections.abc import Iterable
+from typing import Any, Callable, Optional, TypedDict, cast
 
 from aiohttp import ClientSession, TCPConnector
 
@@ -165,7 +166,7 @@ class Story_reader(Pjsk_fetcher):
         self,
         lang: str = 'cn',
         src: list[str] = ['sekai.best'],
-        assets_save_dir: str = './assets',
+        assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
         missing_download: bool = True,
@@ -485,8 +486,8 @@ class Event_story_getter(Pjsk_getter):
         self,
         reader: Story_reader,
         src: list[str] = ['sekai.best'],
-        save_dir: str = './story_{lang}/event',
-        assets_save_dir: str = './assets',
+        save_dir: str = '.',
+        assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
@@ -497,7 +498,7 @@ class Event_story_getter(Pjsk_getter):
         **args,
     ) -> None:
         super().__init__(
-            save_dir,
+            os.path.join(save_dir, 'story_{lang}', 'event'),
             assets_save_dir,
             online,
             save_assets,
@@ -764,8 +765,8 @@ class Unit_story_getter(Pjsk_getter):
         self,
         reader: Story_reader,
         src: list[str] = ['sekai.best'],
-        save_dir: str = './story_{lang}/main',
-        assets_save_dir: str = './assets',
+        save_dir: str = '.',
+        assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
@@ -776,7 +777,7 @@ class Unit_story_getter(Pjsk_getter):
         **args,
     ) -> None:
         super().__init__(
-            save_dir,
+            os.path.join(save_dir, 'story_{lang}', 'main'),
             assets_save_dir,
             online,
             save_assets,
@@ -941,8 +942,8 @@ class Card_story_getter(Pjsk_getter):
         self,
         reader: Story_reader,
         src: list[str] = ['sekai.best'],
-        save_dir: str = './story_{lang}/card',
-        assets_save_dir: str = './assets',
+        save_dir: str = '.',
+        assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
@@ -953,7 +954,7 @@ class Card_story_getter(Pjsk_getter):
         **args,
     ) -> None:
         super().__init__(
-            save_dir,
+            os.path.join(save_dir, 'story_{lang}', 'card'),
             assets_save_dir,
             online,
             save_assets,
@@ -1220,8 +1221,8 @@ class Area_talk_getter(Pjsk_getter):
         self,
         reader: Story_reader,
         src: list[str] = ['sekai.best'],
-        save_dir: str = './story_{lang}/area',
-        assets_save_dir: str = './assets',
+        save_dir: str = '.',
+        assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
@@ -1233,7 +1234,7 @@ class Area_talk_getter(Pjsk_getter):
         **args,
     ) -> None:
         super().__init__(
-            save_dir,
+            os.path.join(save_dir, 'story_{lang}', 'area'),
             assets_save_dir,
             online,
             save_assets,
@@ -1514,8 +1515,8 @@ class Self_intro_getter(Pjsk_getter):
         self,
         reader: Story_reader,
         src: list[str] = ['sekai.best'],
-        save_dir: str = './story_{lang}/self',
-        assets_save_dir: str = './assets',
+        save_dir: str = '.',
+        assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
@@ -1526,7 +1527,7 @@ class Self_intro_getter(Pjsk_getter):
         **args,
     ):
         super().__init__(
-            save_dir,
+            os.path.join(save_dir, 'story_{lang}', 'self'),
             assets_save_dir,
             online,
             save_assets,
@@ -1639,8 +1640,8 @@ class Special_story_getter(Pjsk_getter):
         self,
         reader: Story_reader,
         src: list[str] = ['sekai.best'],
-        save_dir: str = './story_{lang}/special',
-        assets_save_dir: str = './assets',
+        save_dir: str = '.',
+        assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
@@ -1651,7 +1652,7 @@ class Special_story_getter(Pjsk_getter):
         **args,
     ):
         super().__init__(
-            save_dir,
+            os.path.join(save_dir, 'story_{lang}', 'special'),
             assets_save_dir,
             online,
             save_assets,
@@ -1780,8 +1781,8 @@ class Mysekai_talk_getter(Pjsk_getter):
         self,
         reader: Story_reader,
         src: list[str] = ['haruki', 'pjsk.moe', 'sekai.best'],
-        save_dir: str = './story_{lang}/mysekai',
-        assets_save_dir: str = './assets',
+        save_dir: str = '.',
+        assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
@@ -1793,7 +1794,7 @@ class Mysekai_talk_getter(Pjsk_getter):
         **args,
     ) -> None:
         super().__init__(
-            save_dir,
+            os.path.join(save_dir, 'story_{lang}', 'mysekai'),
             assets_save_dir,
             online,
             save_assets,
@@ -2287,8 +2288,8 @@ class Virtual_live_getter(Pjsk_getter):
         self,
         reader: Story_reader,
         src: list[str] = ['sekai.best'],
-        save_dir: str = './story_{lang}/virtual_live',
-        assets_save_dir: str = './assets',
+        save_dir: str = '.',
+        assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
         parse: bool = True,
@@ -2299,7 +2300,7 @@ class Virtual_live_getter(Pjsk_getter):
         **args,
     ) -> None:
         super().__init__(
-            save_dir,
+            os.path.join(save_dir, 'story_{lang}', 'virtual_live'),
             assets_save_dir,
             online,
             save_assets,
@@ -2653,6 +2654,78 @@ class Virtual_live_getter(Pjsk_getter):
         await asyncio.gather(*tasks)
 
 
+class Getters_type(TypedDict):
+    reader: Story_reader
+    event_getter: Event_story_getter
+    card_getter: Card_story_getter
+    area_getter: Area_talk_getter
+    unit_getter: Unit_story_getter
+    self_getter: Self_intro_getter
+    special_getter: Special_story_getter
+    mysekai_getter: Mysekai_talk_getter
+    virtual_getter: Virtual_live_getter
+
+
+class Run:
+    '''一套 getter 的创建与初始化，供 action 与本地 main 复用。'''
+
+    @staticmethod
+    def create_getters(
+        langs: Iterable[tuple[str, str]] = (('cn', 'cn'),),
+        save_dir: str = '.',
+        assets_save_dir: str = '.',
+        args: dict[str, Any] | None = None,
+    ) -> dict[str, Getters_type]:
+        '''langs 为 (lang, mark_lang) 元组列表，每语言各建一套 getter，返回值按 lang 为键。'''
+        args = {**(args or {}), 'save_dir': save_dir, 'assets_save_dir': assets_save_dir}
+
+        lang_getters: dict[str, Getters_type] = {}
+        for lang, mark_lang in langs:
+            reader = Story_reader(lang=lang, mark_lang=mark_lang, **args)
+            lang_getters[lang] = {
+                'reader': reader,
+                'event_getter': Event_story_getter(reader, **args),
+                'card_getter': Card_story_getter(reader, **args),
+                'area_getter': Area_talk_getter(reader, **args),
+                'unit_getter': Unit_story_getter(reader, **args),
+                'self_getter': Self_intro_getter(reader, **args),
+                'special_getter': Special_story_getter(reader, **args),
+                'mysekai_getter': Mysekai_talk_getter(reader, **args),
+                'virtual_getter': Virtual_live_getter(reader, **args),
+            }
+        return lang_getters
+
+    @staticmethod
+    async def init_getters(
+        lang_getters: dict[str, Getters_type],
+        session: ClientSession,
+        init_names: tuple[str, ...] | None = None,
+    ) -> None:
+        '''
+        reader 最先 init：各 getter 的 init 依赖 reader 的 master 数据
+        （如 events_json / gameCharacterUnits）；其余 getter 并发 init。
+        init_names 为 None 时 init 除 reader 外的全部 getter。
+        '''
+        await asyncio.gather(
+            *[
+                cast(Pjsk_fetcher, getters['reader']).init(session)
+                for getters in lang_getters.values()
+            ]
+        )
+
+        if init_names is None:
+            sample = next(iter(lang_getters.values()))
+            init_names = tuple(name for name in sample.keys() if name != 'reader')
+
+        await asyncio.gather(
+            *[
+                cast(Pjsk_fetcher, getters[name]).init(session)  # type: ignore[literal-required]
+                for getters in lang_getters.values()
+                for name in init_names
+            ]
+        )
+
+
 async def main():
 
     logging.basicConfig(level=logging.INFO)
@@ -2664,51 +2737,32 @@ async def main():
     text_lang = 'cn'
     mark_lang = 'cn'
 
-    reader = Story_reader(text_lang, online=online, mark_lang=mark_lang)
-    unit_getter = Unit_story_getter(reader, online=online)
-    event_getter = Event_story_getter(reader, online=online)
-    card_getter = Card_story_getter(reader, online=online)
-    area_getter = Area_talk_getter(reader, online=online)
-    self_getter = Self_intro_getter(reader, online=online)
-    special_getter = Special_story_getter(reader, online=online)
-    mysekai_getter = Mysekai_talk_getter(reader, online=online)
-    virtual_getter = Virtual_live_getter(reader, online=online)
+    lang_getters = Run.create_getters(((text_lang, mark_lang),), args={'online': online})
+    getters = lang_getters[text_lang]
 
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=net_connect_limit)
     ) as session:
-        # reader 最先 init：各 getter 的 init 依赖 reader 的 master 数据
-        # （如 events_json / gameCharacterUnits）
-        await reader.init(session)
-        await asyncio.gather(
-            unit_getter.init(session),
-            event_getter.init(session),
-            card_getter.init(session),
-            area_getter.init(session),
-            self_getter.init(session),
-            special_getter.init(session),
-            mysekai_getter.init(session),
-            virtual_getter.init(session),
-        )
+        await Run.init_getters(lang_getters, session)
 
         tasks = []
 
         for i in range(1, 3):
-            tasks.append(unit_getter.get(i))
+            tasks.append(getters['unit_getter'].get(i))
         for i in range(1, 4):
-            tasks.append(event_getter.get(i))
+            tasks.append(getters['event_getter'].get(i))
         for i in range(1, 4):
-            tasks.append(card_getter.get(i))
+            tasks.append(getters['card_getter'].get(i))
         for i in range(1, 4):
-            tasks.append(area_getter.get(i))
+            tasks.append(getters['area_getter'].get(i))
         for i in range(1, 3):
-            tasks.append(self_getter.get(i))
+            tasks.append(getters['self_getter'].get(i))
         for i in range(1, 5):
-            tasks.append(special_getter.get(i))
+            tasks.append(getters['special_getter'].get(i))
         for i in range(1, 5):
-            tasks.append(mysekai_getter.get_id(i))
+            tasks.append(getters['mysekai_getter'].get_id(i))
         for i in range(1, 4):
-            tasks.append(virtual_getter.get(i))
+            tasks.append(getters['virtual_getter'].get(i))
 
         await asyncio.gather(*tasks)
 

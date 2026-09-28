@@ -6,12 +6,9 @@ from aiohttp import ClientSession, TCPConnector
 import src.pjsk as pjsk
 
 from .all_pjsk import (
-    create_getters,
-    Getters_type,
     TaskList_type,
     add_common_tasks,
     add_timestamp_tasks,
-    init_getters,
     NET_CONNECT_LIMIT,
     TIMESTAMP13,
     TIMESTAMP13_EN,
@@ -25,22 +22,25 @@ async def main() -> None:
     args: dict[str, Any] = {
         'online': online,
         'parse': False,
-        'assets_save_dir': '../assets',
         'compress_assets': True,
         'force_master_online': True,
     }
 
-    lang_getters: dict[str, Getters_type] = {
-        'cn': create_getters('cn', args=args),
-        'tw': create_getters('tw', args=args),
-        'jp': create_getters('jp', mark_lang='en', args=args),
-        'en': create_getters('en', mark_lang='en', args=args),
-    }
+    lang_getters = pjsk.Run.create_getters(
+        (
+            ('cn', 'cn'),
+            ('tw', 'cn'),
+            ('jp', 'en'),
+            ('en', 'en'),
+        ),
+        assets_save_dir='..',
+        args=args,
+    )
 
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=NET_CONNECT_LIMIT)
     ) as session:
-        await init_getters(lang_getters, session)
+        await pjsk.Run.init_getters(lang_getters, session)
 
         tasks: TaskList_type = []
         add_common_tasks(tasks, lang_getters)

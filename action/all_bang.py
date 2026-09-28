@@ -1,5 +1,5 @@
-import asyncio, inspect
-from typing import Any, TypedDict
+import asyncio
+from typing import Any
 from collections.abc import Coroutine
 
 from aiohttp import ClientSession, TCPConnector
@@ -18,52 +18,7 @@ LANGS: tuple[tuple[str, str], ...] = (
 TaskList_type = list[Coroutine[Any, Any, Any]]
 
 
-class Getters_type(TypedDict):
-    reader: bang.Story_reader
-    main_getter: bang.Main_story_getter
-    band_getter: bang.Band_story_getter
-    event_getter: bang.Event_story_getter
-    card_getter: bang.Card_story_getter
-    area_getter: bang.Area_talk_getter
-    after_live_getter: bang.After_live_getter
-
-
-def create_getters(
-    use_parent_save_dir: bool = False,
-    args: dict[str, Any] | None = None,
-) -> Getters_type:
-    if args is None:
-        args = {}
-    reader = bang.Story_reader(**args)
-
-    def get_save_dir(getter_cls) -> str:
-        default = inspect.signature(getter_cls.__init__).parameters['save_dir'].default
-        return ('.' if use_parent_save_dir else '') + default
-
-    return {
-        'reader': reader,
-        'main_getter': bang.Main_story_getter(
-            reader, save_dir=get_save_dir(bang.Main_story_getter), **args
-        ),
-        'band_getter': bang.Band_story_getter(
-            reader, save_dir=get_save_dir(bang.Band_story_getter), **args
-        ),
-        'event_getter': bang.Event_story_getter(
-            reader, save_dir=get_save_dir(bang.Event_story_getter), **args
-        ),
-        'card_getter': bang.Card_story_getter(
-            reader, save_dir=get_save_dir(bang.Card_story_getter), **args
-        ),
-        'area_getter': bang.Area_talk_getter(
-            reader, save_dir=get_save_dir(bang.Area_talk_getter), **args
-        ),
-        'after_live_getter': bang.After_live_getter(
-            reader, save_dir=get_save_dir(bang.After_live_getter), **args
-        ),
-    }
-
-
-def add_all_tasks(tasks: TaskList_type, getters: Getters_type) -> None:
+def add_all_tasks(tasks: TaskList_type, getters: bang.Getters_type) -> None:
     for lang, mark_lang in LANGS:
         tasks.append(getters['main_getter'].get(None, lang, mark_lang))
         tasks.append(getters['band_getter'].get(None, None, lang, mark_lang))
@@ -76,36 +31,16 @@ def add_all_tasks(tasks: TaskList_type, getters: Getters_type) -> None:
             tasks.append(after_live_getter.get(talk_id, lang, mark_lang))
 
 
-async def init_getters(
-    getters: Getters_type,
-    session: ClientSession,
-    init_names: tuple[str, ...] | None = None,
-) -> None:
-    '''
-    reader 最先 init：各 getter 的 init 依赖 reader 的 master 数据
-    （如 cards_all_json）；其余 getter 并发 init。
-    init_names 为 None 时 init 除 reader 外的全部 getter。
-    '''
-    await getters['reader'].init(session)
-
-    if init_names is None:
-        init_names = tuple(name for name in getters.keys() if name != 'reader')
-
-    await asyncio.gather(
-        *[getters[name].init(session) for name in init_names]  # type: ignore[literal-required]
-    )
-
-
 async def main() -> None:
 
     args = {'online': False, 'missing_download': True}
 
-    getters = create_getters(use_parent_save_dir=True, args=args)
+    getters = bang.Run.create_getters(save_dir='..', args=args)
 
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=NET_CONNECT_LIMIT)
     ) as session:
-        await init_getters(getters, session)
+        await bang.Run.init_getters(getters, session)
 
         tasks: TaskList_type = []
         add_all_tasks(tasks, getters)
