@@ -682,6 +682,7 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
         missing_download: bool = True,
         compress_assets: bool = False,
         force_master_online: bool = False,
+        lang_dir: dict[str, str] | None = None,
         **args,
     ) -> None:
         util.warn_extra_args(self, args)
@@ -697,6 +698,13 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
         )
 
         self.reader = reader
+        # 输出语言 → 存储目录名的接管映射（如 en-jp → jp，写 story_jp）；
+        # 未命中的语言按原样使用
+        self.lang_dir = lang_dir or {}
+
+    def format_dir(self, lang: str) -> str:
+        """save_dir 模板按（可能被接管的）语言名展开。"""
+        return self.save_dir.format(lang=self.lang_dir.get(lang, lang))
 
     def tell_ids(self) -> list[int]:
         """该类别各自 master 表的全部 id，升序。"""
@@ -798,6 +806,7 @@ class Band_story_getter(Bdon_getter):
         maxlen_chapterId_episodeNumber: tuple[int, int] = (2, 2),
         compress_assets: bool = False,
         force_master_online: bool = False,
+        lang_dir: dict[str, str] | None = None,
         **args,
     ) -> None:
         util.warn_extra_args(self, args)
@@ -811,6 +820,7 @@ class Band_story_getter(Bdon_getter):
             missing_download,
             compress_assets,
             force_master_online,
+            lang_dir=lang_dir,
         )
         self.maxlen_chapterId_episodeNumber = maxlen_chapterId_episodeNumber
 
@@ -851,7 +861,7 @@ class Band_story_getter(Bdon_getter):
                 + (f'：{chapter_name}' if chapter_name else ''),
                 True,
             )
-            return os.path.join(self.save_dir.format(lang=lang), folder, filename(lang))
+            return os.path.join(self.format_dir(lang), folder, filename(lang))
 
         def title_of(lang: str) -> str:
             title = reader.get_adv_title(adv_id, lang)
@@ -889,6 +899,7 @@ class Friendship_story_getter(Bdon_getter):
         maxlen_friendshipId_episodeNumber: tuple[int, int] = (4, 2),
         compress_assets: bool = False,
         force_master_online: bool = False,
+        lang_dir: dict[str, str] | None = None,
         **args,
     ) -> None:
         util.warn_extra_args(self, args)
@@ -902,6 +913,7 @@ class Friendship_story_getter(Bdon_getter):
             missing_download,
             compress_assets,
             force_master_online,
+            lang_dir=lang_dir,
         )
         self.maxlen_friendshipId_episodeNumber = maxlen_friendshipId_episodeNumber
 
@@ -926,7 +938,7 @@ class Friendship_story_getter(Bdon_getter):
                 + f'{reader.get_chara_name(id_a, lang)}×{reader.get_chara_name(id_b, lang)}',
                 True,
             )
-            return os.path.join(self.save_dir.format(lang=lang), folder, filename(lang))
+            return os.path.join(self.format_dir(lang), folder, filename(lang))
 
         def filename(lang: str) -> str:
             title = reader.get_adv_title(adv_id, lang)
@@ -959,6 +971,7 @@ class Home_talk_getter(Bdon_getter):
         maxlen_spotId: int = 5,
         compress_assets: bool = False,
         force_master_online: bool = False,
+        lang_dir: dict[str, str] | None = None,
         **args,
     ) -> None:
         util.warn_extra_args(self, args)
@@ -972,6 +985,7 @@ class Home_talk_getter(Bdon_getter):
             missing_download,
             compress_assets,
             force_master_online,
+            lang_dir=lang_dir,
         )
         self.maxlen_spotId = maxlen_spotId
 
@@ -1048,9 +1062,9 @@ class Home_talk_getter(Bdon_getter):
                 else f'spot_{spot_id:0{self.maxlen_spotId}d}'
             )
             file_path = os.path.join(
-                self.save_dir.format(lang=lang), file_name + '.txt'
+                self.format_dir(lang), file_name + '.txt'
             )
-            os.makedirs(self.save_dir.format(lang=lang), exist_ok=True)
+            os.makedirs(self.format_dir(lang), exist_ok=True)
             util.remove_olds_or_rename_old(file_path, r'(\d+)')
             with open(file_path, 'w', encoding='utf8') as f:
                 f.write('\n\n'.join(parts))
@@ -1071,6 +1085,7 @@ class Live_result_story_getter(Bdon_getter):
         maxlen_episodeId: int = 3,
         compress_assets: bool = False,
         force_master_online: bool = False,
+        lang_dir: dict[str, str] | None = None,
         **args,
     ) -> None:
         util.warn_extra_args(self, args)
@@ -1084,6 +1099,7 @@ class Live_result_story_getter(Bdon_getter):
             missing_download,
             compress_assets,
             force_master_online,
+            lang_dir=lang_dir,
         )
         self.maxlen_episodeId = maxlen_episodeId
 
@@ -1107,7 +1123,7 @@ class Live_result_story_getter(Bdon_getter):
 
         def path_of(lang: str) -> str:
             return os.path.join(
-                self.save_dir.format(lang=lang), filename(lang)
+                self.format_dir(lang), filename(lang)
             )
 
         def filename(lang: str) -> str:
@@ -1134,6 +1150,7 @@ class Tutorial_story_getter(Bdon_getter):
         missing_download: bool = True,
         compress_assets: bool = False,
         force_master_online: bool = False,
+        lang_dir: dict[str, str] | None = None,
         **args,
     ) -> None:
         util.warn_extra_args(self, args)
@@ -1147,6 +1164,7 @@ class Tutorial_story_getter(Bdon_getter):
             missing_download,
             compress_assets,
             force_master_online,
+            lang_dir=lang_dir,
         )
 
     def tell_ids(self) -> list[int]:
@@ -1165,7 +1183,7 @@ class Tutorial_story_getter(Bdon_getter):
         script: str = reader.advs[adv_id]['advEpisodeAsset']
 
         def path_of(lang: str) -> str:
-            return os.path.join(self.save_dir.format(lang=lang), filename(lang))
+            return os.path.join(self.format_dir(lang), filename(lang))
 
         def filename(lang: str) -> str:
             title = reader.get_adv_title(adv_id, lang)
@@ -1198,6 +1216,7 @@ class Run:
         assets_save_dir: str = '.',
         args: dict[str, Any] | None = None,
         side: str = 'en',
+        lang_dir: dict[str, str] | None = None,
     ) -> Getters_type:
         args = {**(args or {}), 'save_dir': save_dir, 'assets_save_dir': assets_save_dir}
 
@@ -1205,11 +1224,11 @@ class Run:
 
         return {
             'reader': reader,
-            'band_getter': Band_story_getter(reader, **args),
-            'friendship_getter': Friendship_story_getter(reader, **args),
-            'home_getter': Home_talk_getter(reader, **args),
-            'live_result_getter': Live_result_story_getter(reader, **args),
-            'tutorial_getter': Tutorial_story_getter(reader, **args),
+            'band_getter': Band_story_getter(reader, lang_dir=lang_dir, **args),
+            'friendship_getter': Friendship_story_getter(reader, lang_dir=lang_dir, **args),
+            'home_getter': Home_talk_getter(reader, lang_dir=lang_dir, **args),
+            'live_result_getter': Live_result_story_getter(reader, lang_dir=lang_dir, **args),
+            'tutorial_getter': Tutorial_story_getter(reader, lang_dir=lang_dir, **args),
         }
 
     @staticmethod
@@ -1266,8 +1285,11 @@ async def main():
         tasks.append(intl['live_result_getter'].get(1))  # 10109 演出后
         tasks.append(intl['tutorial_getter'].get(10609))  # 教程（无主表，入口为 advId）
 
-        # 日服面抽验：story_jp 由日服 master + ja 段剧本表产出
-        tasks.append(side_getters['jp']['band_getter'].get(101))  # 10000 MyGO 正篇
+        # 两种日语来源并存，便于对比：
+        # story_jp   = 日服面（/jp/master + ja 段剧本表）
+        # story_en-jp = 国际服面的日语列（en-jp 合成语言）
+        tasks.append(side_getters['jp']['band_getter'].get(101))
+        tasks.append(intl['band_getter'].get(101, langs=(('en-jp', 'en'),)))
 
         await asyncio.gather(*tasks)
 

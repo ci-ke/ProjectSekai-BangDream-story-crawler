@@ -84,13 +84,16 @@ offline 模式（online=False）下缺文件且 missing_download=True 会自动�
   `master_lang`/`asset_lang` 映射从各源站取。
 - **bang**：`{lang}` 在每次 `get(id, lang, mark_lang)` 时 format，一个实例服务所有语言；
   文本取多语言数组的下标（`Constant.lang_index`）。`mark_lang`（'cn'/'en'）决定 `Mark_multi_lang` 标注风格。
-- **bdon**：按**数据面**组织（`SIDES`/`SIDE_LANGS`）——日服面 `jp`（/jp/master + ja 段剧本表，
-  近乎纯日语，产出 story_jp）与国际服面 `en`（/master + en 段剧本表，全语言，产出 story_cn/tw/en/kr）。
-  两面各自一套 reader+getter（`Run.create_getters(side=...)`）与独立缓存桶
-  （bdon-{en,jp}-master / bdon-{en,jp}-assets，基址映射在 config 的 `save_roots`）。
-  `get(master_id, langs=...)` 的 langs 缺省取所在面的 `SIDE_LANGS`；action 的 `CI_LANGS` 不产出 kr。
-  可选合成语言 `en-jp`（国际服 dump 的日语列，`text_field`/`Fallback.chain` 已登记）默认不启用。
-  目标语言缺失时按回落链取值并标注实际语言，机制在独立类 `Fallback`（静态方法+类字段）。
+- **bdon**：按**数据面**组织（`SIDES`/`SIDE_LANGS`）——国际服面 `en`（/master + en 段剧本表，
+  全语言）与日服面 `jp`（/jp/master + ja 段剧本表，近乎纯日语）。两面各自一套 reader+getter
+  （`Run.create_getters(side=..., lang_dir=...)`）与独立缓存桶（bdon-{en,jp}-master /
+  bdon-{en,jp}-assets，基址映射在 config 的 `save_roots`）。CI 的 story_jp 由国际服面的
+  合成语言 `en-jp`（国际服 dump 的日语列，`text_field`/`Fallback.chain` 已登记）产出，
+  经 getter 的 `lang_dir={'en-jp': 'jp'}` 接管存储目录写 story_jp；日服面暂不参与 action，
+  待其剧本表在发布服务稳定后用 `side='jp'` 启用（本地 main 同时产出两种日语来源供对比）。
+  `get(master_id, langs=...)` 的 langs 缺省取所在面的 `SIDE_LANGS`；action 的 `CI_LANGS`
+  不产出 kr。目标语言缺失时按回落链取值并标注实际语言，机制在独立类 `Fallback`
+  （静态方法+类字段）。
 
 ## 时间戳抓取（pjsk/bang）
 

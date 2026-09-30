@@ -6,6 +6,7 @@ from aiohttp import ClientSession, TCPConnector
 import src.bdon as bdon
 
 from .all_bdon import (
+    CI_LANGS,
     TaskList_type,
     add_all_tasks,
     NET_CONNECT_LIMIT,
@@ -23,24 +24,17 @@ async def main() -> None:
         'force_master_online': True,
     }
 
-    side_getters = {
-        side: bdon.Run.create_getters(assets_save_dir='..', args=args, side=side)
-        for side in bdon.SIDES
-    }
+    getters = bdon.Run.create_getters(
+        assets_save_dir='..', args=args, side='en', lang_dir={'en-jp': 'jp'}
+    )
 
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=NET_CONNECT_LIMIT)
     ) as session:
-        await asyncio.gather(
-            *[
-                bdon.Run.init_getters(getters, session)
-                for getters in side_getters.values()
-            ]
-        )
+        await bdon.Run.init_getters(getters, session)
 
         tasks: TaskList_type = []
-        for side, getters in side_getters.items():
-            add_all_tasks(tasks, getters, bdon.SIDE_LANGS[side])
+        add_all_tasks(tasks, getters, CI_LANGS)
         await asyncio.gather(*tasks)
 
 
