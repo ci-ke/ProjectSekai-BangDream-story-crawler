@@ -42,14 +42,14 @@
             "episode_asset": "https://assets.bdon.moe/en/Adv/Episode/{script}/{script}-Episode/{script}-Episode.json",
             "text_asset": "https://assets.bdon.moe/en/Adv/Episode/{script}/{script}-Text/{script}-Text.json",
             "video_asset": "https://assets.bdon.moe/en/Adv/Episode/{script}/{script}-Video/{script}-Video.json",
-            "episode_asset_jp": "https://assets.bdon.moe/ja/Adv/Episode/{script}/{script}-Episode/{script}-Episode.json",
-            "text_asset_jp": "https://assets.bdon.moe/ja/Adv/Episode/{script}/{script}-Text/{script}-Text.json",
-            "video_asset_jp": "https://assets.bdon.moe/ja/Adv/Episode/{script}/{script}-Video/{script}-Video.json",
+            "episode_asset_jp": "https://assets.bdon.moe/jp/ja/Adv/Episode/{script}/{script}-Episode/{script}-Episode.json",
+            "text_asset_jp": "https://assets.bdon.moe/jp/ja/Adv/Episode/{script}/{script}-Text/{script}-Text.json",
+            "video_asset_jp": "https://assets.bdon.moe/jp/ja/Adv/Episode/{script}/{script}-Video/{script}-Video.json",
             "save_roots": {
                 "https://metadata.bdon.moe/master/": "bdon-en-master",
                 "https://metadata.bdon.moe/jp/master/": "bdon-jp-master",
                 "https://assets.bdon.moe/en/": "bdon-en-assets",
-                "https://assets.bdon.moe/ja/": "bdon-jp-assets"
+                "https://assets.bdon.moe/jp/ja/": "bdon-jp-assets"
             }
         }
     },
