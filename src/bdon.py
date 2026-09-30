@@ -77,10 +77,10 @@ class Fallback:
             'english',
             'korean',
         ),
-        'jp': ('japanese', 'english', 'simplifiedChinese', 'korean'),
-        'en-jp': ('japanese', 'english', 'simplifiedChinese', 'korean'),
-        'kr': ('korean', 'english', 'japanese', 'simplifiedChinese'),
-        'en': ('english', 'japanese', 'simplifiedChinese', 'korean'),
+        'jp': ('japanese', 'english', 'simplifiedChinese', 'traditionalChinese', 'korean'),
+        'en-jp': ('japanese', 'english', 'simplifiedChinese', 'traditionalChinese', 'korean'),
+        'kr': ('korean', 'english', 'japanese', 'simplifiedChinese', 'traditionalChinese'),
+        'en': ('english', 'japanese', 'simplifiedChinese', 'traditionalChinese', 'korean'),
     }
 
     # 回落命中时行尾标注实际使用的语言（键为 Text 表字段名）
