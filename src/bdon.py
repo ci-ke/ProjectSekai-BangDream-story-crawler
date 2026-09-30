@@ -857,7 +857,8 @@ class Band_story_getter(Bdon_getter):
         def path_of(lang: str) -> str:
             chapter_name = reader.get_master_text(chapter['nameTextId'], lang)
             folder = util.valid_filename(
-                f'{band_id:02d} {reader.get_band_name(band_id, lang)}'
+                # 编号用章节 _id 而非 bandId：同一乐队的多个章节 bandId 重复（如日服第 6 章 bandId=3）
+                f'{chapter_id:02d} {reader.get_band_name(band_id, lang)}'
                 + (f'：{chapter_name}' if chapter_name else ''),
                 True,
             )
