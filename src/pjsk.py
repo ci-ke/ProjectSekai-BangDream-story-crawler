@@ -2222,6 +2222,11 @@ class Mysekai_talk_getter(Pjsk_getter):
         ttalk_list = await self.fetch_url_json(
             self.mysekaiTutorialTalks_url, force_online=self.force_master_online
         )
+        if isinstance(ttalk_list, str):
+            # 'ERROR: ...'（抓取失败）或 'Missing asset'（离线且本地缺失）：
+            # 无法枚举教程对话，跳过不写，避免把字符串当列表迭代
+            logging.warning(f'skip mysekai tutorial talks ({ttalk_list}).')
+            return
         if not ttalk_list:
             logging.info('no tutorial talks.')
             return

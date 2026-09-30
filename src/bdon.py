@@ -722,13 +722,10 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
             logging.info(f'fetch bdon script {script} done (assets only).')
             return
 
-        if (
-            isinstance(episode_json, str)
-            or isinstance(text_json, str)
-            or (isinstance(video_json, str) and video_json)
-        ):
-            # 'ERROR: ...'（抓取失败）或 'Missing asset'（离线且本地缺失）；
-            # video_json 非空串的 str 同为失败（无视频的脚本为空串，放行）
+        if util.judge_need_skip(episode_json, text_json, video_json):
+            # 任一表网络抓取失败（'ERROR: ...'）即整个脚本跳过不写；
+            # offline+missing（'Missing asset'）不算失败，照常写入占位正文
+            # （video_json 无视频时为空串天然放行，缺失时 normalize_rows 退化为空视频表）
             logging.warning(f'skip bdon script {script} (fetch failed).')
             return
 
@@ -975,6 +972,13 @@ class Home_talk_getter(Bdon_getter):
             logging.info(f'fetch bdon home spot {spot_id} done (assets only).')
             return
 
+        # 多 asset 合并写一个文件：任一分段网络抓取失败（'ERROR: ...'）即整个 spot
+        # 跳过不写；offline+missing（'Missing asset'）不算失败，照常写入占位正文，
+        # 语义与 pjsk/bang 的 util.judge_need_skip 一致
+        if util.judge_need_skip(*(result for fetch in fetched for result in fetch)):
+            logging.warning(f'skip bdon home spot {spot_id} (fetch failed).')
+            return
+
         def segment_title(adv_id: int, episode: dict[str, Any] | None, lang: str) -> str:
             title = reader.get_adv_title(adv_id, lang)
             if title:
@@ -989,13 +993,6 @@ class Home_talk_getter(Bdon_getter):
                 (adv_id, episode),
                 (episode_json, text_json, video_json),
             ) in enumerate(zip(segments, fetched), 1):
-                if (
-                    isinstance(episode_json, str)
-                    or isinstance(text_json, str)
-                    or (isinstance(video_json, str) and video_json)
-                ):
-                    logging.warning(f'skip home segment {adv_id} (fetch failed).')
-                    continue
                 title = segment_title(adv_id, episode, lang)
                 script = reader.advs[adv_id]['advEpisodeAsset']
                 head = f'{i} {adv_id}:{script} {title}'.strip()
