@@ -16,29 +16,53 @@ CONFIG: dict[str, Any] = json.load(
 URLS: dict[str, Any] = CONFIG['urls_bdon']['bdon.moe']
 _SAVE_ROOTS: dict[str, str] = URLS['save_roots']  # 服务基址 → 存盘根
 
-# 输出语言列表：(输出语言, 标记语言)。剧本 Text 表自带 5 语言，
-# 每个脚本只需抓一次即可输出全部语言目录；按需增删此表即可。
-LANGS: tuple[tuple[str, str], ...] = (
-    ('cn', 'cn'),
-    ('tw', 'cn'),
-    ('jp', 'en'),
-    ('en', 'en'),
-    ('kr', 'en'),
-)
+# 数据面：日服（jp）与国际服（en）。metadata 服务按游戏服务器分区，默认区
+# （hk-tw-mo，无独立路径即 /master）与国际服 en/kr 区同为全语言 dump（含日语列），
+# 日服 /jp/master 近乎纯日语；发布剧本表按语言段落盘（可用段：zh-Hans/zh-Hant/ja/
+# en/ko，内容今日与段无关），jp 区发布只含 ja 段。story_jp 由日服面产出，其余语言
+# 由国际服面产出。两面各自持有整套 master 与剧本表缓存
+# （bdon-en-master / bdon-jp-master / bdon-en-assets / bdon-jp-assets）。
+SIDES: tuple[str, ...] = ('en', 'jp')
+SIDE_LANGS: dict[str, tuple[tuple[str, str], ...]] = {
+    'en': (
+        ('cn', 'cn'),
+        ('tw', 'cn'),
+        ('en', 'en'),
+        ('kr', 'en'),
+        # ('en-jp', 'en'),  # 可选：国际服 dump 的日语列（story_en-jp），默认不启用
+    ),
+    'jp': (('jp', 'en'),),
+}
 
 
 class Constant:
-    # 输出语言 → 剧本 Text 表的多语言字段名
+    # 输出语言 → 剧本 Text 表的多语言字段名（缺失即缺失，不做语言回落）。
+    # en-jp 为合成语言：国际服 dump 的日语列，命名 = 来源面-目标语言
     text_field = {
         'jp': 'japanese',
         'en': 'english',
         'tw': 'traditionalChinese',
         'cn': 'simplifiedChinese',
         'kr': 'korean',
+        'en-jp': 'japanese',
     }
 
-    # 目标语言缺失时的回落链（同 bdon.moe 站点 localizeMasterText，zh 取简中）
-    fallback_chain = {
+    band_id_name = {
+        1: 'mygo',
+        2: 'mujica',
+        3: 'yumemita',
+        4: 'millsage',
+        5: 'kadan',
+    }
+
+
+class Fallback:
+    '''目标语言缺失时的回落链（列顺序同 bdon.moe 站点 localizeMasterText）。
+    正常数据各语言列齐备时不会触发，仅兜底上游数据漂移；因行为特殊（跨语言取值
+    并标注实际语言），独立成类与常规取值路径区分。'''
+
+    # 输出语言缺失时的取用列顺序
+    chain: dict[str, tuple[str, ...]] = {
         'cn': (
             'simplifiedChinese',
             'traditionalChinese',
@@ -54,12 +78,13 @@ class Constant:
             'korean',
         ),
         'jp': ('japanese', 'english', 'simplifiedChinese', 'korean'),
+        'en-jp': ('japanese', 'english', 'simplifiedChinese', 'korean'),
         'kr': ('korean', 'english', 'japanese', 'simplifiedChinese'),
         'en': ('english', 'japanese', 'simplifiedChinese', 'korean'),
     }
 
-    # 回落时行尾标注实际使用的语言（键为 Text 表字段名；与目标语言一致时不标注）
-    fallback_mark = {
+    # 回落命中时行尾标注实际使用的语言（键为 Text 表字段名）
+    mark: dict[str, dict[str, str]] = {
         'japanese': {'cn': '〔日文〕', 'en': '[ja]'},
         'english': {'cn': '〔英文〕', 'en': '[en]'},
         'traditionalChinese': {'cn': '〔繁中〕', 'en': '[zh-Hant]'},
@@ -67,13 +92,25 @@ class Constant:
         'korean': {'cn': '〔韩文〕', 'en': '[ko]'},
     }
 
-    band_id_name = {
-        1: 'mygo',
-        2: 'mujica',
-        3: 'yumemita',
-        4: 'millsage',
-        5: 'kadan',
-    }
+    @staticmethod
+    def localize(
+        text_row: dict[str, Any] | None, lang: str
+    ) -> tuple[str | None, str | None]:
+        """按回落链取目标语言文本，返回 (文本, 实际使用的字段名)。"""
+        if text_row is None:
+            return None, None
+        for field in Fallback.chain[lang]:
+            value = text_row.get(field)
+            if value:
+                return value, field
+        return None, None
+
+    @staticmethod
+    def annotate(text: str, field: str | None, lang: str, mark_lang: str) -> str:
+        """回落命中（实际字段 != 目标字段）时在行尾标注实际语言。"""
+        if field and field != Constant.text_field[lang]:
+            return text + Fallback.mark[field][mark_lang]
+        return text
 
 
 # Episode 表 _command 列的枚举（游戏内类型名 AdvCommand，见剧本表 _header 列定义）。
@@ -228,6 +265,7 @@ class Bdon_fetcher(util.Base_fetcher):
 class Story_reader(Bdon_fetcher):
     def __init__(
         self,
+        side: str = 'en',
         assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
@@ -248,15 +286,21 @@ class Story_reader(Bdon_fetcher):
             force_master_online,
         )
 
+        self.side = side
         self.debug_parse = debug_parse
         self.cg_add_link = cg_add_link
         self.strip_rich_text = strip_rich_text
 
-        # 过场大图（cmd 30）链接：assets.bdon.moe 发布服务；图片语言固定 zh-Hans，与站点行为一致。
-        # 注意比 legacy 桶 S3 key 多一层 <name>/ 段且为 .webp；全量 333 张中 21 张上游未导出（死链不可避免）。
-        self.cg_link = 'https://assets.bdon.moe/zh-Hans/Adv/Still/{dir}/{name}/data/{name}/{name}.webp'
-        # 视频（cmd 26/27）链接：Video 表 assetName → Cri/Video/<path>/<name>.mp4，语言段同样固定 zh-Hans。
-        self.video_link = 'https://assets.bdon.moe/zh-Hans/Cri/Video/{path}/{name}.mp4'
+        # 过场大图（cmd 30）链接：assets.bdon.moe 发布服务；媒体各区一致，语言段统一走
+        # 日服（ja）。注意比 legacy 桶 S3 key 多一层 <name>/ 段且为 .webp；全量 333 张中
+        # 21 张上游未导出（死链不可避免）。
+        self.cg_link = 'https://assets.bdon.moe/ja/Adv/Still/{dir}/{name}/data/{name}/{name}.webp'
+        # 视频（cmd 26/27）链接：Video 表 assetName → Cri/Video/<path>/<name>.mp4，语言段同样统一 ja。
+        self.video_link = 'https://assets.bdon.moe/ja/Cri/Video/{path}/{name}.mp4'
+
+    def url_suffix(self) -> str:
+        """本数据面在 config URLS 键上的后缀：国际服无后缀，日服为 _jp。"""
+        return '' if self.side == 'en' else '_jp'
 
     async def init(
         self,
@@ -282,7 +326,7 @@ class Story_reader(Bdon_fetcher):
         jsons = await asyncio.gather(
             *[
                 self.fetch_url_json(
-                    URLS['master'].format(table=table),
+                    URLS[f'master{self.url_suffix()}'].format(table=table),
                     force_online=self.force_master_online,
                 )
                 for table in master_tables
@@ -339,37 +383,23 @@ class Story_reader(Bdon_fetcher):
             | set(self.home_spots_by_adv)
         )
 
-    def localize_row(
-        self, text_row: dict[str, Any] | None, lang: str
-    ) -> tuple[str | None, str | None]:
-        """按回落链取目标语言文本，返回 (文本, 实际使用的字段名)。"""
-        if text_row is None:
-            return None, None
-        for field in Constant.fallback_chain[lang]:
-            value = text_row.get(field)
-            if value:
-                return value, field
-        return None, None
-
     def get_text_marked(
         self, text_row: dict[str, Any] | None, lang: str, mark_lang: str
     ) -> str:
         """台词文本；strip_rich_text 开启时剥除富文本标签（默认保留原样）。
-        缺失时按回落链取值并在行尾标注实际语言。"""
-        text, field = self.localize_row(text_row, lang)
+        目标语言缺失时按 Fallback 回落并在行尾标注实际语言。"""
+        text, field = Fallback.localize(text_row, lang)
         if text is None:
             return ''
         if self.strip_rich_text:  # 此处右侧为模块级同名函数，self. 是开关
             text = strip_rich_text(text)
-        if field and field != Constant.text_field[lang]:
-            text += Constant.fallback_mark[field][mark_lang]
-        return text
+        return Fallback.annotate(text, field, lang, mark_lang)
 
     def get_master_text(self, text_id: Any, lang: str) -> str | None:
-        """MasterText 文案（标题/章节/角色名等），不附回落标注。"""
+        """MasterText 文案（标题/章节/角色名等），回落不标注。"""
         if not text_id:
             return None
-        text, _ = self.localize_row(self.master_text.get(str(text_id)), lang)
+        text, _ = Fallback.localize(self.master_text.get(str(text_id)), lang)
         return text
 
     def get_adv_title(self, adv_id: int, lang: str) -> str:
@@ -672,19 +702,21 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
         """该类别各自 master 表的全部 id，升序。"""
         raise NotImplementedError
 
-    async def get(self, master_id: int, langs: Iterable[tuple[str, str]] = LANGS) -> None:
+    async def get(self, master_id: int, langs: Iterable[tuple[str, str]] | None = None) -> None:
         raise NotImplementedError
 
     async def fetch_script(self, script: str) -> tuple[Any, Any, Any]:
+        # 剧本表按数据面取自对应服务器的发布段（国际服 zh-Hans / 日服 ja）
+        suffix = self.reader.url_suffix()
         # Episode 需读出内容才能判断是否引用视频（不可 skip_read），文本仍按需跳读
         episode_json, text_json = await asyncio.gather(
             self.fetch_url_json(
-                URLS['episode_asset'].format(script=script),
+                URLS[f'episode_asset{suffix}'].format(script=script),
                 script,
                 compress=self.compress_assets,
             ),
             self.fetch_url_json(
-                URLS['text_asset'].format(script=script),
+                URLS[f'text_asset{suffix}'].format(script=script),
                 script,
                 compress=self.compress_assets,
                 skip_read=not self.parse,
@@ -696,7 +728,7 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
             row.get('_videoID') for row in episode_json.get('_allData', [])
         ):
             video_json = await self.fetch_url_json(
-                URLS['video_asset'].format(script=script),
+                URLS[f'video_asset{suffix}'].format(script=script),
                 script,
                 compress=self.compress_assets,
                 skip_read=not self.parse,
@@ -707,15 +739,18 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
         self,
         adv_id: int,
         script: str,
-        langs: Iterable[tuple[str, str]],
         index_regex: str,
         path_of: Callable[[str], str],
         title_of: Callable[[str], str],
         synopsis_of: Callable[[str], str | None],
+        langs: Iterable[tuple[str, str]] | None = None,
     ) -> None:
-        """抓取剧本两表并向各语言目录写出；文件头首行固定 `advId:脚本名 标题`
+        """抓取本数据面的剧本表并向各语言目录写出；文件头首行固定 `advId:脚本名 标题`
         （advId = MasterAdv._id，对应站点 /story/<advId>）。
-        index_regex 匹配文件名中稳定的首段索引用于改名/清理。"""
+        index_regex 匹配文件名中稳定的首段索引用于改名/清理。
+        langs 缺省取本数据面的语言组（SIDE_LANGS）。"""
+        if langs is None:
+            langs = SIDE_LANGS[self.reader.side]
         episode_json, text_json, video_json = await self.fetch_script(script)
 
         if not self.parse:
@@ -782,7 +817,7 @@ class Band_story_getter(Bdon_getter):
     def tell_ids(self) -> list[int]:
         return sorted(self.reader.story_episodes)  # MasterStoryEpisode._id
 
-    async def get(self, episode_id: int, langs: Iterable[tuple[str, str]] = LANGS) -> None:
+    async def get(self, episode_id: int, langs: Iterable[tuple[str, str]] | None = None) -> None:
         reader = self.reader
         episode = reader.story_episodes[episode_id]
         adv_id: int = episode['advId']
@@ -833,11 +868,11 @@ class Band_story_getter(Bdon_getter):
         await self.write_script(
             adv_id,
             script,
-            langs,
             r'(another-\d+-\d+|extra-\d+-\d+|\d+-\d+) ',
             path_of,
             title_of,
             synopsis_of,
+            langs,
         )
 
 
@@ -873,7 +908,7 @@ class Friendship_story_getter(Bdon_getter):
     def tell_ids(self) -> list[int]:
         return sorted(self.reader.friendship_episodes)  # MasterStoryFriendshipEpisode._id
 
-    async def get(self, episode_id: int, langs: Iterable[tuple[str, str]] = LANGS) -> None:
+    async def get(self, episode_id: int, langs: Iterable[tuple[str, str]] | None = None) -> None:
         reader = self.reader
         episode = reader.friendship_episodes[episode_id]
         adv_id: int = episode['advId']
@@ -908,7 +943,7 @@ class Friendship_story_getter(Bdon_getter):
         def synopsis_of(lang: str) -> str | None:
             return None  # 羁绊话主表无简介字段
 
-        await self.write_script(adv_id, script, langs, r'(\d+-\d+) ', path_of, title_of, synopsis_of)
+        await self.write_script(adv_id, script, r'(\d+-\d+) ', path_of, title_of, synopsis_of, langs)
 
 
 class Home_talk_getter(Bdon_getter):
@@ -944,8 +979,10 @@ class Home_talk_getter(Bdon_getter):
         # 入口 id = HomeSpot._id：一个 spot 一个合并文件（场景开场 + 全部点触对话）
         return sorted(self.reader.home_spots)
 
-    async def get(self, spot_id: int, langs: Iterable[tuple[str, str]] = LANGS) -> None:
+    async def get(self, spot_id: int, langs: Iterable[tuple[str, str]] | None = None) -> None:
         reader = self.reader
+        if langs is None:
+            langs = SIDE_LANGS[reader.side]
         spot = reader.home_spots[spot_id]
 
         # 该 spot 的全部脚本：场景开场在前，点触对话按 TapTalk._id 升序
@@ -1053,7 +1090,7 @@ class Live_result_story_getter(Bdon_getter):
     def tell_ids(self) -> list[int]:
         return sorted(self.reader.live_result_episodes)  # MasterStoryLiveResultEpisode._id（1..325）
 
-    async def get(self, episode_id: int, langs: Iterable[tuple[str, str]] = LANGS) -> None:
+    async def get(self, episode_id: int, langs: Iterable[tuple[str, str]] | None = None) -> None:
         reader = self.reader
         episode = reader.live_result_episodes[episode_id]
         adv_id: int = episode['advId']
@@ -1082,7 +1119,7 @@ class Live_result_story_getter(Bdon_getter):
         def synopsis_of(lang: str) -> str | None:
             return None
 
-        await self.write_script(adv_id, script, langs, r'(\d+)', path_of, title_of, synopsis_of)
+        await self.write_script(adv_id, script, r'(\d+)', path_of, title_of, synopsis_of, langs)
 
 
 class Tutorial_story_getter(Bdon_getter):
@@ -1123,7 +1160,7 @@ class Tutorial_story_getter(Bdon_getter):
             )
         )
 
-    async def get(self, adv_id: int, langs: Iterable[tuple[str, str]] = LANGS) -> None:
+    async def get(self, adv_id: int, langs: Iterable[tuple[str, str]] | None = None) -> None:
         reader = self.reader
         script: str = reader.advs[adv_id]['advEpisodeAsset']
 
@@ -1140,7 +1177,7 @@ class Tutorial_story_getter(Bdon_getter):
         def synopsis_of(lang: str) -> str | None:
             return None
 
-        await self.write_script(adv_id, script, langs, r'(\d+)', path_of, title_of, synopsis_of)
+        await self.write_script(adv_id, script, r'(\d+)', path_of, title_of, synopsis_of, langs)
 
 
 class Getters_type(TypedDict):
@@ -1160,10 +1197,11 @@ class Run:
         save_dir: str = '.',
         assets_save_dir: str = '.',
         args: dict[str, Any] | None = None,
+        side: str = 'en',
     ) -> Getters_type:
         args = {**(args or {}), 'save_dir': save_dir, 'assets_save_dir': assets_save_dir}
 
-        reader = Story_reader(**args)
+        reader = Story_reader(side=side, **args)
 
         return {
             'reader': reader,
@@ -1203,25 +1241,33 @@ async def main():
 
     online = False
 
-    getters = Run.create_getters(args={'online': online})
+    side_getters = {
+        side: Run.create_getters(args={'online': online}, side=side) for side in SIDES
+    }
 
     async with ClientSession(
         trust_env=True, connector=TCPConnector(limit=net_connect_limit)
     ) as session:
-        await Run.init_getters(getters, session)
+        await asyncio.gather(
+            *[Run.init_getters(getters, session) for getters in side_getters.values()]
+        )
 
         tasks = []
 
-        # 每类各抓少量各自 master 的 id，检测各功能可运行：
+        # 每类各抓少量各自 master 的 id，检测各功能可运行（国际服面）：
         # 正篇两乐队（mujica 含聊天气泡）+ 番外 + 视角（覆盖文件名各分支）、羁绊、首页点触、演出后、教程
-        tasks.append(getters['band_getter'].get(101))  # 10000 MyGO 正篇
-        tasks.append(getters['band_getter'].get(201))  # 10020 Ave Mujica 正篇（聊天气泡）
-        tasks.append(getters['band_getter'].get(121))  # 10100 番外
-        tasks.append(getters['band_getter'].get(124))  # 10434 视角
-        tasks.append(getters['friendship_getter'].get(1))  # 10459 灯×爱音
-        tasks.append(getters['home_getter'].get(10001))  # 首页点触
-        tasks.append(getters['live_result_getter'].get(1))  # 10109 演出后
-        tasks.append(getters['tutorial_getter'].get(10609))  # 教程（无主表，入口为 advId）
+        intl = side_getters['en']
+        tasks.append(intl['band_getter'].get(101))  # 10000 MyGO 正篇
+        tasks.append(intl['band_getter'].get(201))  # 10020 Ave Mujica 正篇（聊天气泡）
+        tasks.append(intl['band_getter'].get(121))  # 10100 番外
+        tasks.append(intl['band_getter'].get(124))  # 10434 视角
+        tasks.append(intl['friendship_getter'].get(1))  # 10459 灯×爱音
+        tasks.append(intl['home_getter'].get(10001))  # 首页点触
+        tasks.append(intl['live_result_getter'].get(1))  # 10109 演出后
+        tasks.append(intl['tutorial_getter'].get(10609))  # 教程（无主表，入口为 advId）
+
+        # 日服面抽验：story_jp 由日服 master + ja 段剧本表产出
+        tasks.append(side_getters['jp']['band_getter'].get(101))  # 10000 MyGO 正篇
 
         await asyncio.gather(*tasks)
 
