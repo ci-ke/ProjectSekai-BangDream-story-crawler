@@ -886,6 +886,20 @@ class Band_story_getter(Bdon_getter):
             langs,
         )
 
+    async def get_chapter(
+        self, chapter_id: int, langs: Iterable[tuple[str, str]] | None = None
+    ) -> None:
+        """一章一调用：并发抓写该章全部 episode（正篇/视角/番外，后两类文件名带前缀）。
+        供本地手测等按章抓取的入口；CI 的 add_all_tasks 仍按 episode 粒度遍历 tell_ids。"""
+        episode_ids = sorted(
+            eid
+            for eid, row in self.reader.story_episodes.items()
+            if row['chapterId'] == chapter_id
+        )
+        if not episode_ids:
+            raise KeyError(f'no story episode belongs to chapter {chapter_id}')
+        await asyncio.gather(*(self.get(eid, langs) for eid in episode_ids))
+
 
 class Friendship_story_getter(Bdon_getter):
     def __init__(
