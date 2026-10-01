@@ -375,7 +375,10 @@ class Story_reader(Pjsk_fetcher):
                             + '\n'
                         )
                     next_talk_need_newline = False
-                elif specialEffect['EffectType'] == util.SpecialEffectType.ChangeCardStill:
+                elif (
+                    specialEffect['EffectType']
+                    == util.SpecialEffectType.ChangeCardStill
+                ):
                     # 卡面立绘全屏插入，按插入 CG 输出（与 bang.py 同步；注意 pjsk 字段为
                     # 大写驼峰。当前 ProSeka 语料无此特效，为枚举语义完备而保留）
                     if next_talk_need_newline:
@@ -386,7 +389,10 @@ class Story_reader(Pjsk_fetcher):
                         pic += ', ' + specialEffect['StringValSub']
                     ret += f"{Mark_multi_lang['cg'][self.mark_lang]}{pic}{Mark_multi_lang[')'][self.mark_lang]}\n"
                     next_talk_need_newline = False
-                elif specialEffect['EffectType'] == util.SpecialEffectType.ChangeBackgroundStill:
+                elif (
+                    specialEffect['EffectType']
+                    == util.SpecialEffectType.ChangeBackgroundStill
+                ):
                     # 静止图背景切换，以 ：Still 后缀与 7 号普通背景区分（与 bang.py 同步；
                     # 当前 ProSeka 语料无此特效，为枚举语义完备而保留）
                     if next_talk_need_newline:
@@ -913,7 +919,9 @@ class Unit_story_getter(Pjsk_getter):
             unitStoryEpisodeGroupId = episode['unitStoryEpisodeGroupId']
             unit_outline = util.newlines_to_spaces(
                 self.unitStoryEpisodeGroups_json[
-                    self.unitStoryEpisodeGroups_lookup.find_index(unitStoryEpisodeGroupId)
+                    self.unitStoryEpisodeGroups_lookup.find_index(
+                        unitStoryEpisodeGroupId
+                    )
                 ]['outline']
             )
         else:
@@ -1440,7 +1448,10 @@ class Area_talk_getter(Pjsk_getter):
                     f.write(
                         f"{index+1} {action['id']}:{action['scenarioId']}\n\n{left}{area_name}{right}\n\n"
                     )
-                    f.write(text + '\n\n\n')
+                    if index != len(actions) - 1:
+                        f.write(text + '\n\n\n')
+                    else:
+                        f.write(text + '\n')
 
         logging.info(f'get talk {target} done.')
 
@@ -2107,7 +2118,8 @@ class Mysekai_talk_getter(Pjsk_getter):
                     f.write(f'\n{self._parse_lua_talk(lua_text)}\n')
                 else:
                     f.write('\n')
-                f.write('\n\n')
+                if idx != len(entries):
+                    f.write('\n\n')
 
     # --- Public methods ---
 
@@ -2684,7 +2696,11 @@ class Run:
         args: dict[str, Any] | None = None,
     ) -> dict[str, Getters_type]:
         '''langs 为 (lang, mark_lang) 元组列表，每语言各建一套 getter，返回值按 lang 为键。'''
-        args = {**(args or {}), 'save_dir': save_dir, 'assets_save_dir': assets_save_dir}
+        args = {
+            **(args or {}),
+            'save_dir': save_dir,
+            'assets_save_dir': assets_save_dir,
+        }
 
         lang_getters: dict[str, Getters_type] = {}
         for lang, mark_lang in langs:
@@ -2744,7 +2760,9 @@ async def main():
     text_lang = 'cn'
     mark_lang = 'cn'
 
-    lang_getters = Run.create_getters(((text_lang, mark_lang),), args={'online': online})
+    lang_getters = Run.create_getters(
+        ((text_lang, mark_lang),), args={'online': online}
+    )
     getters = lang_getters[text_lang]
 
     async with ClientSession(

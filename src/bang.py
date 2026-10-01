@@ -1163,7 +1163,10 @@ class Area_talk_getter(util.Base_getter):
                     f.write(f"{index+1}:{talk_id} {left}{area_name}{right}\n\n")
                     # if charaters:
                     #     f.write(charaters + '\n\n')
-                    f.write(text + '\n\n\n')
+                    if index != len(legal_talk_ids) - 1:
+                        f.write(text + '\n\n\n')
+                    else:
+                        f.write(text + '\n')
 
         logging.info(f'get talk {talk_type} {area_id} done.')
 
