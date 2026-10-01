@@ -126,8 +126,11 @@ class AdvCommand(int, Enum):
                                # 显示"？？？"（157 行），2 = 隐藏名框（110 行）；数据仍保留真实说话人
     Wait = 3                   # 【实测】等待 duration 秒（duration 100%）
     WaitParam = 4              # 【推断】duration 100% + parameter1 99%，带参数的条件等待？
-    TransitionIn = 5           # 【推断】转场，少量携带 adv_transition_*，与 6 成对、方向未定
-    TransitionOut = 6          # 【推断】转场，同上
+    TransitionIn = 5           # 【实测】转场遮罩盖上：画面淡入 parameter1 色幕（#FFFFFF 白为主，
+                               # 亦见 #373C38 深灰/#F2C3DA 粉等，空 = 未指定），duration = 秒；
+                               # 场景/背景/角色切换藏在幕下，与 6 成对（可跨脚本开合），
+                               # 少量携带 adv_transition_* 遮罩贴图（擦除式转场）
+    TransitionOut = 6          # 【实测】转场遮罩揭开：色幕淡出露出新场景，字段同 5
     MoveCamera = 7             # 【实测】cameraDistance 93% + positionType 99%，相机移动到目标站位
     Op9 = 9                    # positionType 100%，仅 74 行
     Op10 = 10                  # positionType 96%，仅 72 行
@@ -687,6 +690,16 @@ class Story_reader(Bdon_fetcher):
                             )
                         last_marker = ''
                         last_chat_line = ''
+            elif command is AdvCommand.TransitionIn:
+                # 转场遮罩盖上（详见 AdvCommand 注释）。只标切入点，揭开（cmd 6）不标注；
+                # 行内标记、自身不增删空行，与（背景切换）同款；但作为"下一条输出"须照常
+                # 消费 Telop 的待补空行，否则 Telop 的"上下恰好各一空行"会被挤到标记之后。
+                # 遮罩盖着发生的场景切换（如 cmd 25）照常随指令流输出，不动 last_marker
+                if telop_pending:
+                    body += '\n'
+                    telop_pending = False
+                body += prefix + Mark_multi_lang['transition'][mark_lang] + '\n'
+                last_chat_line = ''
             elif self.debug_parse:
                 body += prefix + f"cmd-{command}: {row.get('targetName')}\n"
 
