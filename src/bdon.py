@@ -446,6 +446,25 @@ class Story_reader(Bdon_fetcher):
                 return re.sub(r'\s*\n+\s*', ' ', caption).strip()
         return ''
 
+    def get_subtitle_name(
+        self,
+        target_name: str,
+        text_lookup: dict[str, dict[str, Any]],
+        lang: str,
+        mark_lang: str,
+    ) -> str:
+        """视频字幕 targetName（模型名）解析真名：按 ・ 分隔逐段加 adv_ 前缀查
+        本剧本 Text 表的名字条目（如 adv_anon → "Anon"/"愛音"），命中用显示名
+        （与 Talk 说话人同路径取值），未命中的段保留原模型名，多段用 " & " 连接。"""
+        names = []
+        for part in target_name.split('・'):
+            if not part:
+                continue
+            name_row = text_lookup.get('adv_' + part)
+            name = self.get_text_marked(name_row, lang, mark_lang) if name_row else ''
+            names.append(util.newlines_to_spaces(name or part))
+        return ' & '.join(names)
+
     def read_script(
         self,
         episode_json: dict[str, Any] | str,
@@ -533,8 +552,12 @@ class Story_reader(Bdon_fetcher):
                         body += '\n'
                         telop_pending = False
                     subtitle_name = row.get('targetName') or ''
-                    if subtitle_name and mark_lang != 'cn':
-                        subtitle_name = ' ' + subtitle_name  # 英文标记与名字间补空格
+                    if subtitle_name:
+                        subtitle_name = self.get_subtitle_name(
+                            subtitle_name, text_lookup, lang, mark_lang
+                        )
+                        if mark_lang != 'cn':
+                            subtitle_name = ' ' + subtitle_name  # 英文标记与名字间补空格
                     body += (
                         prefix
                         + Mark_multi_lang['subtitle'][mark_lang]
