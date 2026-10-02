@@ -155,6 +155,8 @@ Mark_multi_lang = {
     'cg': {'cn': '（插入CG：', 'en': '(CG insert: '},
     'still caption': {'cn': '（说明）：', 'en': '(Caption): '},
     'message': {'cn': '（消息）', 'en': '(Message) '},
+    'message send': {'cn': '（消息发送）', 'en': '(Message send) '},
+    'stamp': {'cn': '（贴图）', 'en': '(Stamp)'},
     'subtitle': {'cn': '（字幕）', 'en': '(Subtitle)'},
     'mystery': {'cn': '？？？', 'en': '??? '},
     'hidden name': {'cn': '（{}）', 'en': '({})'},  # 括注模板，须 .format(说话人) 使用

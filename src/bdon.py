@@ -170,8 +170,15 @@ class AdvCommand(int, Enum):
                                # （targetTextIDs = 联系人/群名，targetChatID = 机主头像），
                                # 同名再点名 = 关闭；消息可先于开窗指令到达（37 先于 36）
     ChatMessage = 37           # 【实测】聊天气泡：收到的消息（带文本 + targetChatID = 发送者头像；
-                               # 站点渲染为聊天窗气泡，含窗口标题与收发方向）
-    ChatStamp = 38             # 【实测】聊天贴图（adv_data_chat_*_stamp + System）
+                               # 站点渲染为聊天窗气泡，含窗口标题与收发方向）；也承载机主消息
+                               # 的发送态——紧随同文的 65 重现该气泡，输出以（消息）标记。
+                               # parameter3 = 呈现渠道（'1'/'' 气泡为主、'2' 通知中心样式
+                               # 【推断】20 条、'3' 气泡+通知 6 条、'4'/'22' 各 2/1 条待考）；
+                               # parameter4 = 'SkipTalkLog' 时游戏对话履历不收录
+                               # （输出仍保留，行首以 [SkipLog] 标注）
+    ChatStamp = 38             # 【实测】聊天贴图（adv_data_chat_*_stamp + System）。全语料 11 条
+                               # （4 个脚本），均带说话人（tids/targetName），其中 10 条带
+                               # SkipTalkLog；输出 = （消息）说话人：（贴图）
     Op39 = 39                  # 仅 1 行
     PostEffect = 43            # 【实测】targetAssetName = adv_effect_posteffect_*（含 reminiscence 回忆滤镜）
     FrameOverlay = 44          # 【实测】targetAssetName = adv_frame_*（遮幅/相框/速度线等）
@@ -193,7 +200,10 @@ class AdvCommand(int, Enum):
     Op63 = 63                  # positionType 100%
     Op64 = 64                  # positionType 100%
     ChatMessageEx = 65         # 【实测】机主自己输入/发出的消息（站点命名 chatReply，恒为发出方向）；
-                               # 全语料 9 条，6 条与同文 37 成对（输入态→发送态），3 条独立
+                               # 全语料 9 条，7 条与紧随的同文 37 成对（输入态→发送态，其中
+                               # 1 条文本同而 TextID 异），2 条独立；tids 常为空（4/9），
+                               # 说话人按 targetName 回落解析显示名；输出以（消息发送）标记，
+                               # 其中 3 条带 SkipTalkLog（游戏日志不录输入态）
     CharacterMoveTo = 66       # 【推断】targetName 100% + positionType 100% + duration 75%，与 0 近似
     Op67 = 67                  # duration 85% + parameter1 100%
     Op68 = 68                  # motionName 57%，仅 14 行
@@ -459,21 +469,22 @@ class Story_reader(Bdon_fetcher):
                 return re.sub(r'\s*\n+\s*', ' ', caption).strip()
         return ''
 
-    def get_subtitle_name(
+    def get_target_name(
         self,
         target_name: str,
         text_lookup: dict[str, dict[str, Any]],
         lang: str,
         mark_lang: str,
     ) -> str:
-        """视频字幕 targetName（模型名）解析真名：按 ・ 分隔逐段加 adv_ 前缀查
-        本剧本 Text 表的名字条目（如 adv_anon → "Anon"/"愛音"），命中用显示名
-        （与 Talk 说话人同路径取值），未命中的段保留原模型名，多段用 " & " 连接。"""
+        """targetName（模型名/聊天发送者 id）解析显示名：按 ・ 分隔逐段查本剧本
+        Text 表的名字条目——直接 id 优先（聊天发送者如 advchat_miku_01），未命中
+        再试 adv_ 前缀（模型名如 raika → adv_raika，站点 modelName 同款两级回落），
+        仍未命中的段保留原名，多段用 " & " 连接。"""
         names = []
         for part in target_name.split('・'):
             if not part:
                 continue
-            name_row = text_lookup.get('adv_' + part)
+            name_row = text_lookup.get(part) or text_lookup.get('adv_' + part)
             name = self.get_text_marked(name_row, lang, mark_lang) if name_row else ''
             names.append(util.newlines_to_spaces(name or part))
         return ' & '.join(names)
@@ -503,7 +514,6 @@ class Story_reader(Bdon_fetcher):
         debug = self.debug_parse
         telop_pending = False  # Telop 之后的下一条输出需先补一个空行（Telop 独立段落、上下恰好各一空行）
         last_marker = ''  # 上一条输出的背景资源名；仅紧邻的同资源背景指令折叠，台词输出后清空
-        last_chat_line = ''  # 上一条手机消息行：相邻完全相同的消息重发行（渲染对）只出一次
         shown_still: str | None = None  # 当前显示中的过场大图（站点同款语义：再次点名 = 隐藏）
         last_still: str | None = None  # 最近一次输出过的大图资源；背景切换后允许再次输出
 
@@ -543,19 +553,22 @@ class Story_reader(Bdon_fetcher):
                             + '\n'
                         )
                     last_marker = ''
-                    last_chat_line = ''
                 elif row.get('parameter3') == 'SkipClipTarget':
                     in_clip = False
             adv_text_id = row.get('advTextID')
 
-            if adv_text_id:
+            if adv_text_id or command is AdvCommand.ChatStamp:
                 # 凡 _advTextID 非空即有文本输出（Talk / Telop / ChatMessage / ChatMessageEx /
-                # ClipLine 均可携带），不按 command 白名单筛选，否则会丢聊天气泡与视频字幕
-                text = util.newlines_to_spaces(
-                    self.get_text_marked(
-                        text_lookup.get(str(adv_text_id)), lang, mark_lang
+                # ClipLine 均可携带），不按 command 白名单筛选，否则会丢聊天气泡与视频字幕；
+                # 聊天贴图（38）无文本行也照录，内容直接记作（贴图）
+                if command is AdvCommand.ChatStamp:
+                    text = Mark_multi_lang['stamp'][mark_lang]
+                else:
+                    text = util.newlines_to_spaces(
+                        self.get_text_marked(
+                            text_lookup.get(str(adv_text_id)), lang, mark_lang
+                        )
                     )
-                )
                 if not text.strip():
                     continue  # 文本缺失/全空的行不输出（站点同样跳过），避免孤立的"说话人："
 
@@ -566,7 +579,7 @@ class Story_reader(Bdon_fetcher):
                         telop_pending = False
                     subtitle_name = row.get('targetName') or ''
                     if subtitle_name:
-                        subtitle_name = self.get_subtitle_name(
+                        subtitle_name = self.get_target_name(
                             subtitle_name, text_lookup, lang, mark_lang
                         )
                         if mark_lang != 'cn':
@@ -580,7 +593,6 @@ class Story_reader(Bdon_fetcher):
                         + '\n'
                     )
                     last_marker = ''
-                    last_chat_line = ''
                 elif command is AdvCommand.Telop:  # 场景字幕，独立段落（pjsk Telop 样式：上下恰好各一空行，不叠加）
                     if body and not body.endswith('\n\n'):
                         body += '\n'
@@ -593,7 +605,6 @@ class Story_reader(Bdon_fetcher):
                     )
                     telop_pending = True
                     last_marker = ''
-                    last_chat_line = ''
                 else:
                     # 说话人可多人（_targetTextIDs 列表），逐个解析后用英文 " & " 连接
                     names = []
@@ -605,9 +616,14 @@ class Story_reader(Bdon_fetcher):
                             else ''
                         )
                         names.append(util.newlines_to_spaces(name or target_id))
-                    speaker = (
-                        ' & '.join(names) if names else (row.get('targetName') or '')
-                    )
+                    speaker = ' & '.join(names)
+                    if not speaker and row.get('targetName'):
+                        # tids 为空时按 targetName 回落解析显示名（站点 speakerOf 同款）。
+                        # ChatMessageEx（65）常缺 tids，不回落会以裸 id 作说话人，与同文
+                        # 配对 ChatMessage（37）的显示名行并排出现时突兀
+                        speaker = self.get_target_name(
+                            row['targetName'], text_lookup, lang, mark_lang
+                        )
                     status = row.get('targetStatus')
                     if command is AdvCommand.Talk and speaker and status in (1, 2):
                         # 实测 1 = 游戏名框显示"？？？"（身份未揭示的说话人），2 = 游戏隐藏
@@ -620,22 +636,33 @@ class Story_reader(Bdon_fetcher):
                             else wrapped
                         )
                     line = f"{speaker}{Mark_multi_lang[':'][mark_lang]}{text}\n"
-                    if command is AdvCommand.ChatMessage or command is AdvCommand.ChatMessageEx:
-                        # 手机消息（聊天窗气泡）：行前加（消息）标记；相邻完全相同的消息重发行只出一次
-                        line = Mark_multi_lang['message'][mark_lang] + line
-                        if line != last_chat_line:
-                            if telop_pending:
-                                body += '\n'
-                                telop_pending = False
-                            body += prefix + line
-                            last_chat_line = line
+                    if command in (
+                        AdvCommand.ChatMessage,
+                        AdvCommand.ChatMessageEx,
+                        AdvCommand.ChatStamp,
+                    ):
+                        # 手机消息（聊天窗气泡）：行前加标记——收到的消息、机主消息的发送态
+                        # （37）与聊天贴图（38）用（消息），机主输入/发送（65）用（消息发送）。
+                        # 65 与紧随的同文 37 是同一气泡的输入态→发送态渲染对，线性记录
+                        # 两条都保留
+                        mark_key = (
+                            'message send'
+                            if command is AdvCommand.ChatMessageEx
+                            else 'message'
+                        )
+                        line = Mark_multi_lang[mark_key][mark_lang] + line
                     else:
-                        if telop_pending:
-                            body += '\n'
-                            telop_pending = False
-                        body += prefix + line
                         last_marker = ''
-                        last_chat_line = ''
+                    # parameter4 = SkipTalkLog：游戏对话履历（talk log）不收录的行，线性
+                    # 记录仍保留、行首加 [SkipLog]（特殊标记不分语言，在消息标记之后拼接
+                    # 以保持在行首）。全语料 18 条均为聊天指令：37/65 各 5/3 条消息、
+                    # 38 贴图 11 条中的 10 条
+                    if row.get('parameter4') == 'SkipTalkLog':
+                        line = '[SkipLog] ' + line
+                    if telop_pending:
+                        body += '\n'
+                        telop_pending = False
+                    body += prefix + line
             elif command is AdvCommand.ChangeBackground:
                 # 背景采用"老实标记"，与站点的渲染模型刻意不同：
                 # 站点只渲染"当前画面"，会吞掉两类指令——与当前显示相同的重指（A→台词→A）、
@@ -652,7 +679,6 @@ class Story_reader(Bdon_fetcher):
                         telop_pending = False
                     body += prefix + Mark_multi_lang['background'][mark_lang] + '\n'
                     last_marker = bg_asset
-                    last_chat_line = ''
                     last_still = None  # 场景切换：同一张大图可重新输出
             elif command is AdvCommand.ShowStill:  # 过场大图（站点同款状态机）
                 # 每条 cmd 30（资源 A）的判定：
@@ -699,7 +725,6 @@ class Story_reader(Bdon_fetcher):
                                 + '\n'
                             )
                         last_marker = ''
-                        last_chat_line = ''
             elif command is AdvCommand.TransitionIn:
                 # 转场遮罩盖上（详见 AdvCommand 注释）。只标切入点，揭开（cmd 6）不标注；
                 # 行内标记、自身不增删空行，与（背景切换）同款；但作为"下一条输出"须照常
@@ -709,7 +734,6 @@ class Story_reader(Bdon_fetcher):
                     body += '\n'
                     telop_pending = False
                 body += prefix + Mark_multi_lang['transition'][mark_lang] + '\n'
-                last_chat_line = ''
             elif self.debug_parse:
                 body += prefix + f"cmd-{command}: {row.get('targetName')}\n"
 

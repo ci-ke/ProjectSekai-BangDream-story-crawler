@@ -9,7 +9,7 @@ Project Sekai / BanG Dream! 剧本爬虫（story-crawler）。本文件供 AI �
 6 个输出仓库和批量管理脚本，本仓库的运行产物最终输出到它们：
 
 - `../repo_story_pjsk|bang|bdon/`：剧本文本输出仓库（story_cn/en/jp/tw 目录）
-- `../repo_assets_pjsk|bang|bdon/`：assets 缓存输出仓库（assets/ 与 assets_decompress/）
+- `../repo_assets_pjsk|bang|bdon/`：assets 缓存输出仓库（assets/ 与 assets_decompress/。其中assets_decompress中存放的是用misc/decompress_assets.py解压的asset，会被git ignore）
 - `../git_status.ps1`、`../pull_all.ps1`、`../sync_dev.ps1`：7 仓库批量管理脚本
 
 本仓库结构：
