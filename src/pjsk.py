@@ -2,7 +2,7 @@ import os, math, asyncio, json, re, logging
 from pathlib import Path
 from asyncio import Semaphore
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import Any, Callable, Optional, TypedDict, cast
 
 from aiohttp import ClientSession, TCPConnector
@@ -2722,12 +2722,13 @@ class Run:
     async def init_getters(
         lang_getters: dict[str, Getters_type],
         session: ClientSession,
-        init_names: tuple[str, ...] | None = None,
+        init_names: Sequence[str] | None = None,
     ) -> None:
         '''
         reader 最先 init：各 getter 的 init 依赖 reader 的 master 数据
         （如 events_json / gameCharacterUnits）；其余 getter 并发 init。
-        init_names 为 None 时 init 除 reader 外的全部 getter。
+        init_names 为 None 时 init 除 reader 外的全部 getter；多语言逐套迭代该
+        参数（每套一遍），需可重复迭代故标 Sequence 而非 Iterable。
         '''
         await asyncio.gather(
             *[

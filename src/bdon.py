@@ -1,6 +1,6 @@
 import os, asyncio, json, logging, re
 from pathlib import Path
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from enum import Enum
 from typing import Any, Callable, TypedDict
 from asyncio import Semaphore
@@ -957,10 +957,11 @@ class Band_story_getter(Bdon_getter):
         )
 
     async def get_chapter(
-        self, chapter_id: int, langs: Iterable[tuple[str, str]] | None = None
+        self, chapter_id: int, langs: Sequence[tuple[str, str]] | None = None
     ) -> None:
         """一章一调用：并发抓写该章全部 episode（正篇/视角/番外，后两类文件名带前缀）。
-        供本地手测等按章抓取的入口；CI 的 add_all_tasks 仍按 episode 粒度遍历 tell_ids。"""
+        供本地手测等按章抓取的入口；CI 的 add_all_tasks 仍按 episode 粒度遍历 tell_ids。
+        同一 langs 转发给全部 episode 的 get（各迭代一遍），传生成器会被耗尽，故标 Sequence。"""
         episode_ids = sorted(
             eid
             for eid, row in self.reader.story_episodes.items()
@@ -1320,7 +1321,7 @@ class Run:
     async def init_getters(
         getters: Getters_type,
         session: ClientSession,
-        init_names: tuple[str, ...] | None = None,
+        init_names: Iterable[str] | None = None,
     ) -> None:
         '''
         reader 最先 init：getter 使用的 master 数据（如 story_episodes / advs）

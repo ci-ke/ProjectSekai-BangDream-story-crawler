@@ -1,5 +1,6 @@
 import os, asyncio, json, logging, copy, math
 from pathlib import Path
+from collections.abc import Iterable
 from typing import Any, TypedDict
 from asyncio import Semaphore
 
@@ -1367,7 +1368,7 @@ class Run:
     async def init_getters(
         getters: Getters_type,
         session: ClientSession,
-        init_names: tuple[str, ...] | None = None,
+        init_names: Iterable[str] | None = None,
     ) -> None:
         '''
         reader 最先 init：各 getter 的 init 依赖 reader 的 master 数据
