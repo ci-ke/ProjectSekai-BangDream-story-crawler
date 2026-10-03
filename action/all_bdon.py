@@ -30,6 +30,7 @@ def add_all_tasks(
     # 剧本表按数据面取自对应服务器的发布段
     for getter in (
         getters['band_getter'],
+        getters['special_getter'],
         getters['friendship_getter'],
         getters['home_getter'],
         getters['live_result_getter'],

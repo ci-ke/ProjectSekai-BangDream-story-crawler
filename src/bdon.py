@@ -864,6 +864,15 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
 
 
 class Band_story_getter(Bdon_getter):
+    # story_{lang} 下的固定子路径；Special_story_getter 反转 _chapter_wanted 口径并
+    # 复用其余全部逻辑（目录结构/命名/编号与 band 完全一致）
+    _story_dir = 'band'
+
+    @staticmethod
+    def _chapter_wanted(chapter: dict[str, Any]) -> bool:
+        """band 只收普通章；特殊剧情章（chapter.json 的 _isSpecialStory）归 special。"""
+        return not chapter.get('isSpecialStory')
+
     def __init__(
         self,
         reader: Story_reader,
@@ -882,7 +891,7 @@ class Band_story_getter(Bdon_getter):
         util.warn_extra_args(self, args)
         super().__init__(
             reader,
-            os.path.join(save_dir, 'story_{lang}', 'band'),
+            os.path.join(save_dir, 'story_{lang}', self._story_dir),
             assets_save_dir,
             online,
             save_assets,
@@ -895,14 +904,14 @@ class Band_story_getter(Bdon_getter):
         self.maxlen_chapterId_episodeNumber = maxlen_chapterId_episodeNumber
 
     def tell_ids(self) -> list[int]:
-        # MasterStoryEpisode._id，排除特殊剧情章（chapter.json 的 _isSpecialStory）
-        special_chapters = {
-            c['id'] for c in self.reader.story_chapters if c.get('isSpecialStory')
+        # MasterStoryEpisode._id，按 _chapter_wanted 口径筛选所属章
+        wanted_chapters = {
+            c['id'] for c in self.reader.story_chapters if self._chapter_wanted(c)
         }
         return sorted(
             episode_id
             for episode_id, episode in self.reader.story_episodes.items()
-            if episode['chapterId'] not in special_chapters
+            if episode['chapterId'] in wanted_chapters
         )
 
     async def get(self, episode_id: int, langs: Iterable[tuple[str, str]] | None = None) -> None:
@@ -913,9 +922,12 @@ class Band_story_getter(Bdon_getter):
         chapter = next(
             c for c in reader.story_chapters if c['id'] == episode['chapterId']
         )
-        if chapter.get('isSpecialStory'):
-            # 特殊剧情章不产出（tell_ids 已排除，此处兜底直接调用/按章抓取的入口）
-            logging.info(f'skip bdon band story episode {episode_id} (special story).')
+        if not self._chapter_wanted(chapter):
+            # 不属于本 getter 的章（tell_ids 已按章过滤，此处兜底直接调用/按章抓取的入口）
+            logging.info(
+                f'skip bdon {self._story_dir} story episode {episode_id}'
+                f' (isSpecialStory={chapter.get("isSpecialStory")}).'
+            )
             return
         band_id = chapter['bandId']
         chapter_id: int = chapter['id']
@@ -988,6 +1000,19 @@ class Band_story_getter(Bdon_getter):
         if not episode_ids:
             raise KeyError(f'no story episode belongs to chapter {chapter_id}')
         await asyncio.gather(*(self.get(eid, langs) for eid in episode_ids))
+
+
+class Special_story_getter(Band_story_getter):
+    """特殊剧情章 getter：目录结构与命名逻辑和 band 完全一致（目录仍按
+    `章节id 乐队名：章节名` 组织），仅收 chapter.json 的 _isSpecialStory 章，
+    写 story_{lang}/special。"""
+
+    _story_dir = 'special'
+
+    @staticmethod
+    def _chapter_wanted(chapter: dict[str, Any]) -> bool:
+        """只收特殊剧情章（chapter.json 的 _isSpecialStory）。"""
+        return bool(chapter.get('isSpecialStory'))
 
 
 class Friendship_story_getter(Bdon_getter):
@@ -1305,6 +1330,7 @@ class Tutorial_story_getter(Bdon_getter):
 class Getters_type(TypedDict):
     reader: Story_reader
     band_getter: Band_story_getter
+    special_getter: Special_story_getter
     friendship_getter: Friendship_story_getter
     home_getter: Home_talk_getter
     live_result_getter: Live_result_story_getter
@@ -1329,6 +1355,7 @@ class Run:
         return {
             'reader': reader,
             'band_getter': Band_story_getter(reader, lang_dir=lang_dir, **args),
+            'special_getter': Special_story_getter(reader, lang_dir=lang_dir, **args),
             'friendship_getter': Friendship_story_getter(reader, lang_dir=lang_dir, **args),
             'home_getter': Home_talk_getter(reader, lang_dir=lang_dir, **args),
             'live_result_getter': Live_result_story_getter(reader, lang_dir=lang_dir, **args),

@@ -72,7 +72,7 @@ offline 模式（online=False）下缺文件且 missing_download=True 会自动�
 |---|---|
 | pjsk（8 个） | event、main、card、area、self、special、mysekai、virtual_live |
 | bang（6 个） | event、band、main、card、area、after_live |
-| bdon（5 个） | band、friendship、home、live_result、tutorial |
+| bdon（6 个） | band、special（仅 chapter.json 的 _isSpecialStory 章，目录/命名逻辑与 band 共用）、friendship、home、live_result、tutorial |
 
 - assets 缓存与语言/站点分桶由 `append_save_path` 决定，与 save_dir 无关：pjsk 用 `pjsk-{lang}-master/`、
   `pjsk-{lang}-assets/`；bdon 用 config 的 `save_roots`（服务基址 → 存盘根）；bang 按 URL 路径落盘。
