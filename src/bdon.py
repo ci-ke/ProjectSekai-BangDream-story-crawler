@@ -895,7 +895,15 @@ class Band_story_getter(Bdon_getter):
         self.maxlen_chapterId_episodeNumber = maxlen_chapterId_episodeNumber
 
     def tell_ids(self) -> list[int]:
-        return sorted(self.reader.story_episodes)  # MasterStoryEpisode._id
+        # MasterStoryEpisode._id，排除特殊剧情章（chapter.json 的 _isSpecialStory）
+        special_chapters = {
+            c['id'] for c in self.reader.story_chapters if c.get('isSpecialStory')
+        }
+        return sorted(
+            episode_id
+            for episode_id, episode in self.reader.story_episodes.items()
+            if episode['chapterId'] not in special_chapters
+        )
 
     async def get(self, episode_id: int, langs: Iterable[tuple[str, str]] | None = None) -> None:
         reader = self.reader
@@ -905,6 +913,10 @@ class Band_story_getter(Bdon_getter):
         chapter = next(
             c for c in reader.story_chapters if c['id'] == episode['chapterId']
         )
+        if chapter.get('isSpecialStory'):
+            # 特殊剧情章不产出（tell_ids 已排除，此处兜底直接调用/按章抓取的入口）
+            logging.info(f'skip bdon band story episode {episode_id} (special story).')
+            return
         band_id = chapter['bandId']
         chapter_id: int = chapter['id']
         ep_number: int = episode['episodeNumber']
@@ -926,10 +938,16 @@ class Band_story_getter(Bdon_getter):
 
         def path_of(lang: str) -> str:
             chapter_name = reader.get_master_text(chapter['nameTextId'], lang)
+            band_name = reader.get_band_name(band_id, lang)
+            chapter_part = f'：{chapter_name}' if chapter_name else ''
             folder = util.valid_filename(
-                # 编号用章节 _id 而非 bandId：同一乐队的多个章节 bandId 重复（如日服第 6 章 bandId=3）
-                f'{chapter_id:02d} {reader.get_band_name(band_id, lang)}'
-                + (f'：{chapter_name}' if chapter_name else ''),
+                # 编号用章节 _id 而非 bandId：同一乐队的多个章节 bandId 重复（如日服第 6 章
+                # bandId=3）；乐队名缺失时留空，冒号紧跟章节编号（无"01 ：xxx"式空格）
+                (
+                    f'{chapter_id:02d} {band_name}{chapter_part}'
+                    if band_name
+                    else f'{chapter_id:02d}{chapter_part}'
+                ),
                 True,
             )
             return os.path.join(self.format_dir(lang), folder, filename(lang))
