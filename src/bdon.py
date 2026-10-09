@@ -822,10 +822,16 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
         title_of: Callable[[str], str],
         synopsis_of: Callable[[str], str | None],
         langs: Iterable[tuple[str, str]] | None = None,
+        folder_regs: Sequence[str] = (),
     ) -> None:
         """抓取本数据面的剧本表并向各语言目录写出；文件头首行固定 `advId:脚本名 标题`
         （advId = MasterAdv._id，对应站点 /story/<advId>）。
         index_regex 匹配文件名中稳定的首段索引用于改名/清理。
+        folder_regs 对各层编号前缀文件夹做同机制去重：由内向外登记（[0] 为文件的
+        直接父目录，[1] 为其父目录……），目录名里的章节名/乐队名/角色名等 master
+        数据变化会让新文件落进改名后的新文件夹，不去重就残留内容重复的孤儿目录；
+        正则须匹配该层名字的编号前缀（band/special 为 `07 xxx` 或无乐队名的
+        `33：xxx`，friendship 为 `0102 xxx`，故不含尾随空格）。
         langs 缺省取本数据面的语言组（SIDE_LANGS）。"""
         if langs is None:
             langs = SIDE_LANGS[self.reader.side]
@@ -844,7 +850,25 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
 
         for lang, mark_lang in langs:
             file_path = path_of(lang)
-            os.makedirs(os.path.split(file_path)[0], exist_ok=True)
+            if folder_regs:
+                # 仿 bang 的分层去重。必须从最外层开始收敛：若内层先行，尚不存在
+                # 的新外层目录会被提前 makedirs 成空壳，轮到外层去重时空壳与装着
+                # 旧内容的旧目录构成"同编号两项"，旧目录连兄弟文件一起被误删。
+                # 每层去重（单个旧目录走改名、内容随迁不丢）后确保目录存在，
+                # 内层路径随外层新名逐层重建
+                cur_dir = os.path.split(file_path)[0]
+                names: list[str] = []
+                for _ in folder_regs:
+                    cur_dir, name = os.path.split(cur_dir)
+                    names.append(name)
+                os.makedirs(cur_dir, exist_ok=True)
+                for reg, name in zip(reversed(folder_regs), reversed(names)):
+                    cur_dir = os.path.join(cur_dir, name)
+                    util.remove_olds_or_rename_old(cur_dir, reg)
+                    os.makedirs(cur_dir, exist_ok=True)
+                file_path = os.path.join(cur_dir, os.path.basename(file_path))
+            else:
+                os.makedirs(os.path.split(file_path)[0], exist_ok=True)
             util.remove_olds_or_rename_old(file_path, index_regex)
             title = title_of(lang)
             name = f'{adv_id}:{script} {title}'.strip() if title else f'{adv_id}:{script}'
@@ -984,6 +1008,7 @@ class Band_story_getter(Bdon_getter):
             title_of,
             synopsis_of,
             langs,
+            folder_regs=(r'(\d+)',),
         )
 
     async def get_chapter(
@@ -1084,7 +1109,10 @@ class Friendship_story_getter(Bdon_getter):
         def synopsis_of(lang: str) -> str | None:
             return None  # 羁绊话主表无简介字段
 
-        await self.write_script(adv_id, script, r'(\d+-\d+) ', path_of, title_of, synopsis_of, langs)
+        await self.write_script(
+            adv_id, script, r'(\d+-\d+) ', path_of, title_of, synopsis_of, langs,
+            folder_regs=(r'(\d+)',),
+        )
 
 
 class Home_talk_getter(Bdon_getter):
@@ -1194,7 +1222,8 @@ class Home_talk_getter(Bdon_getter):
                 self.format_dir(lang), file_name + '.txt'
             )
             os.makedirs(self.format_dir(lang), exist_ok=True)
-            util.remove_olds_or_rename_old(file_path, r'(\d+)')
+            # spot 名缺失时文件名为 spot_<id>（数字不在行首），正则须兼容两种形态
+            util.remove_olds_or_rename_old(file_path, r'(?:spot_)?(\d+)')
             with open(file_path, 'w', encoding='utf8') as f:
                 f.write('\n\n'.join(parts))
 
