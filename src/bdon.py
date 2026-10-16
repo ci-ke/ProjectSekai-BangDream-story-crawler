@@ -114,102 +114,96 @@ class Fallback:
 
 
 # Episode 表 _command 列的枚举（游戏内类型名 AdvCommand，见剧本表 _header 列定义）。
-# 游戏 2026-09-24 才上线、无公开枚举对照，语义由全量 946 个 Episode 表（约 15 万行）
-# 的字段关联审计推导、并与站点解析器（moenotes parser.ts）逐条比对校准：
-# 【实测】= 站点解析器行为或资源名/字段自证；【推断】= 仅由字段相关性得出，
-# 命名未必与游戏内部一致，待后续修正。
+# 游戏未公开枚举对照，语义与命名由站点解析器行为、资源名及字段相关性推导，
+# 未必与游戏内部一致；未解明的指令只记其携带的字段。
 # 审计中未出现的值（8/22/40/41/42/45/55/58）不收录；新版本新增值在解析时退回裸数值。
 class AdvCommand(int, Enum):
-    CharacterIn = 0            # 【推断】targetName=角色名 + positionType 100% + duration 91%，角色移入/入场
-    CharacterOut = 1           # 【推断】同 0 但 duration 56%、positionType 23%，角色移出/退场
-    Talk = 2                   # 【实测】对话：说话人 + 文本 + 语音（站点解析器）。targetStatus
-                               # （AdvTargetStatus 枚举）全指令恒 0、唯此指令取 1/2：1 = 名框
-                               # 显示"？？？"（157 行），2 = 隐藏名框（110 行）；数据均保留真实
-                               # 说话人（站点同款区分）
-    Wait = 3                   # 【实测】等待 duration 秒（duration 100%）
-    WaitParam = 4              # 【推断】duration 100% + parameter1 99%，带参数的条件等待？
-    TransitionIn = 5           # 【实测】转场遮罩盖上：画面淡入 parameter1 色幕（#FFFFFF 白为主，
-                               # 亦见 #373C38 深灰/#F2C3DA 粉等，空 = 未指定），duration = 秒；
-                               # 场景/背景/角色切换藏在幕下，与 6 成对（可跨脚本开合），
-                               # 少量携带 adv_transition_* 遮罩贴图（擦除式转场）
-    TransitionOut = 6          # 【实测】转场遮罩揭开：色幕淡出露出新场景，字段同 5
-    MoveCamera = 7             # 【实测】cameraDistance 93% + positionType 99%，相机移动到目标站位
-    Op9 = 9                    # positionType 100%，仅 74 行
-    Op10 = 10                  # positionType 96%，仅 72 行
-    Op11 = 11                  # duration 71%，仅 112 行
-    Op12 = 12                  # parameter1 100% + positionType 22%
-    Op13 = 13                  # positionType 100% + parameter1 100%
-    Op14 = 14                  # 同 13
-    PlayBgm = 15               # 【实测】bgmID 52%（PlayBgm 指令，报告推断）
-    Op16 = 16                  # duration 66% + parameter1 100%
-    SetExpression = 17         # 【实测】expressionName 100%，切换表情
-    Op18 = 18                  # targetName 99%（角色相关）
-    Op19 = 19                  # targetName 100%（角色相关）
-    Telop = 20                 # 【实测】场景字幕（地点/时间标题卡；全量 573 条均无句读，等价 pjsk 的
-                               # Telop；站点同款按场景卡渲染，背景切换后第一条即场景名）
-    CharacterMotion = 21       # 【实测】motionName 96% + expressionName 99%，角色动作+表情同步（行数与对话同量级）
-    LoadCharacterModel = 23    # 【推断】targetName + targetAssetName 100%（Live2D 模型路径），登场/换装
-    Op24 = 24                  # targetName 100%（角色相关）
-    ChangeBackground = 25      # 【实测】targetAssetName 100% = adv_bkg_*（站点解析器 + 资源名自证）；
-                               # 217/333 纯白、218 纯黑 = 空屏（站点按空屏处理；333 常见于
-                               # home/afterlive 场景底图）
-    Clip = 26                  # 【实测】带 videoID = 播放视频（14 行；1 行无 videoID，站点解析器忽略）
-    SkippableClip = 27         # 【实测】双语义：带 videoID = 播放视频（24 行）；无 videoID 且
-                               # parameter3 = SkipClipTarget = 视频结束/跳过恢复点（24 行）
-    ClipLine = 28              # 【实测】视频字幕行：705 行全部位于视频段内（无视频的脚本 0 行），
-                               # 其中 406 行带 targetName（模型名），299 行无说话人；
+    CharacterIn = 0            # 角色入场 / 移入
+    CharacterOut = 1           # 角色退场 / 移出
+    Talk = 2                   # 对话：说话人 + 文本 + 语音。targetStatus = 1 时游戏名框显示
+                               # "？？？"（身份未揭示的说话人），2 时隐藏名框（画外音 / 独白）；
+                               # 数据均保留真实说话人，输出按站点同款以括注区分
+    Wait = 3                   # 等待 duration 秒
+    WaitParam = 4              # 带参数的条件等待
+    TransitionIn = 5           # 转场遮罩盖上：parameter1 色幕淡入，duration = 秒；场景 / 背景 /
+                               # 角色切换藏在幕下，与 6 成对（可跨脚本开合）；少量携带
+                               # adv_transition_* 遮罩贴图（擦除式转场）
+    TransitionOut = 6          # 转场遮罩揭开：色幕淡出露出新场景，字段同 5
+    MoveCamera = 7             # 相机移动到目标站位
+    Op9 = 9                    # positionType
+    Op10 = 10                  # positionType
+    Op11 = 11                  # duration
+    Op12 = 12                  # parameter1 + positionType
+    Op13 = 13                  # positionType + parameter1
+    Op14 = 14                  # 字段同 13
+    PlayBgm = 15               # 播放 BGM
+    Op16 = 16                  # duration + parameter1
+    SetExpression = 17         # 切换表情
+    Op18 = 18                  # targetName
+    Op19 = 19                  # targetName
+    Telop = 20                 # 场景字幕（地点 / 时间标题卡，等价 pjsk 的 Telop，无句读）；
+                               # 站点同款按场景卡渲染，背景切换后第一条即场景名
+    CharacterMotion = 21       # 角色动作 + 表情同步
+    LoadCharacterModel = 23    # 载入角色模型（targetAssetName = Live2D 模型路径），登场 / 换装
+    Op24 = 24                  # targetName
+    ChangeBackground = 25      # 切换背景（targetAssetName = adv_bkg_*）；217 / 333 纯白、
+                               # 218 纯黑 = 空屏（333 常见于 home / after_live 场景底图）
+    Clip = 26                  # 播放视频（videoID）
+    SkippableClip = 27         # 双语义：带 videoID = 播放视频；无 videoID 且 parameter3 =
+                               # SkipClipTarget = 视频结束 / 跳过恢复点
+    ClipLine = 28              # 视频字幕行（仅存在于视频段内），targetName = 模型名；
                                # 空文本行 = 清除当前字幕（站点同款语义）
-    Op29 = 29                  # 仅 12 行
-    ShowStill = 30             # 【实测】targetAssetName 100% = adv_still_*（站点解析器 + 资源名自证）
-    PlaySe = 31                # 【实测】seID 99%
-    Op32 = 32                  # targetName 100% + parameter1 100%
-    Op33 = 33                  # 仅 1 行
-    Op34 = 34                  # duration 54% + parameter1 100%
-    ChangeTalkWindow = 35      # 【实测】targetAssetName = UICenterTalkWindow / UIDefaultTalkWindow
-    ChatOpen = 36              # 【实测】聊天窗开/关切换（无文本；站点解析器）：点名新窗口 = 打开
-                               # （targetTextIDs = 联系人/群名，targetChatID = 机主头像），
+    Op29 = 29
+    ShowStill = 30             # 过场大图（targetAssetName = adv_still_*）；再次点名 = 隐藏
+    PlaySe = 31                # 播放音效
+    Op32 = 32                  # targetName + parameter1
+    Op33 = 33
+    Op34 = 34                  # duration + parameter1
+    ChangeTalkWindow = 35      # 切换对话框（targetAssetName = UICenterTalkWindow /
+                               # UIDefaultTalkWindow）
+    ChatOpen = 36              # 聊天窗开 / 关切换（无文本）：点名新窗口 = 打开
+                               # （targetTextIDs = 联系人 / 群名，targetChatID = 机主头像），
                                # 同名再点名 = 关闭；消息可先于开窗指令到达（37 先于 36）。
-                               # 输出 = 开窗时单写一行（消息标题）+ 窗口标题（联系人/群名，
+                               # 输出 = 开窗时单写一行（消息标题）+ 窗口标题（联系人 / 群名，
                                # 与气泡说话人同款解析）；关窗不输出，开合成对只留开窗一行
-    ChatMessage = 37           # 【实测】聊天气泡：收到的消息（带文本 + targetChatID = 发送者头像；
-                               # 站点渲染为聊天窗气泡，含窗口标题与收发方向）；也承载机主消息
-                               # 的发送态——紧随同文的 65 重现该气泡，输出以（消息）标记。
-                               # parameter3 = 呈现渠道（'1'/'' 气泡为主、'2' 通知中心样式
-                               # 【推断】20 条、'3' 气泡+通知 6 条、'4'/'22' 各 2/1 条待考）；
+    ChatMessage = 37           # 聊天气泡：收到的消息（带文本 + targetChatID = 发送者头像；
+                               # 站点渲染为聊天窗气泡，含窗口标题与收发方向）；也承载机主
+                               # 消息的发送态——紧随同文的 65 重现该气泡，输出以（消息）标记。
+                               # parameter3 = 呈现渠道（'1' / '' 气泡为主、'2' 通知中心样式、
+                               # '3' 气泡 + 通知、'4' / '22' 罕见）；
                                # parameter4 = 'SkipTalkLog' 时游戏对话履历不收录
                                # （输出仍保留，行首以 [SkipLog] 标注）
-    ChatStamp = 38             # 【实测】聊天贴图（adv_data_chat_*_stamp + System）。全语料 11 条
-                               # （4 个脚本），均带说话人（tids/targetName），其中 10 条带
-                               # SkipTalkLog；输出 = （消息）说话人：（贴图）
-    Op39 = 39                  # 仅 1 行
-    PostEffect = 43            # 【实测】targetAssetName = adv_effect_posteffect_*（含 reminiscence 回忆滤镜）
-    FrameOverlay = 44          # 【实测】targetAssetName = adv_frame_*（遮幅/相框/速度线等）
-    CharacterTransform1 = 46   # 【推断】targetName 100% + parameter1 93% + duration 64%，角色变形/位移
-    CharacterTransform2 = 47   # 【推断】parameter1 100%
-    CharacterTransform3 = 48   # 【推断】parameter1 100%
-    CharacterTransform4 = 49   # 【推断】parameter1 100% + positionType 76%
-    Op50 = 50                  # duration 19% + parameter1 99%
-    Op51 = 51                  # duration 48%
-    PlayVoice = 52             # 【实测】voiceIDs 100%（仅 7 行）
-    Op53 = 53                  # duration 76% + parameter1 100%
-    StageEffect = 54           # 【实测】targetAssetName = adv_effect_spotlight / adv_effect_stage_*
-    Op56 = 56                  # 仅 57 行
-    Op57 = 57                  # parameter1 100%
-    Op59 = 59                  # 仅 688 行
-    Op60 = 60                  # positionType 100%
-    Op61 = 61                  # positionType 100%
-    Op62 = 62                  # positionType 100%
-    Op63 = 63                  # positionType 100%
-    Op64 = 64                  # positionType 100%
-    ChatMessageEx = 65         # 【实测】机主自己输入/发出的消息（站点命名 chatReply，恒为发出方向）；
-                               # 全语料 9 条，7 条与紧随的同文 37 成对（输入态→发送态，其中
-                               # 1 条文本同而 TextID 异），2 条独立；tids 常为空（4/9），
-                               # 说话人按 targetName 回落解析显示名；输出以（消息发送）标记，
-                               # 其中 3 条带 SkipTalkLog（游戏日志不录输入态）
-    CharacterMoveTo = 66       # 【推断】targetName 100% + positionType 100% + duration 75%，与 0 近似
-    Op67 = 67                  # duration 85% + parameter1 100%
-    Op68 = 68                  # motionName 57%，仅 14 行
-    Op69 = 69                  # targetName 100%，仅 65 行
+    ChatStamp = 38             # 聊天贴图（adv_data_chat_*_stamp + System），均带说话人；
+                               # 输出 = （消息）说话人：（贴图）
+    Op39 = 39
+    PostEffect = 43            # 后期滤镜（targetAssetName = adv_effect_posteffect_*，
+                               # 含 reminiscence 回忆滤镜）
+    FrameOverlay = 44          # 遮幅 / 相框 / 速度线等（targetAssetName = adv_frame_*）
+    CharacterTransform1 = 46   # 角色变形 / 位移
+    CharacterTransform2 = 47   # parameter1
+    CharacterTransform3 = 48   # parameter1
+    CharacterTransform4 = 49   # parameter1 + positionType
+    Op50 = 50                  # duration + parameter1
+    Op51 = 51                  # duration
+    PlayVoice = 52             # 播放语音
+    Op53 = 53                  # duration + parameter1
+    StageEffect = 54           # 舞台效果（targetAssetName = adv_effect_spotlight /
+                               # adv_effect_stage_*）
+    Op56 = 56
+    Op57 = 57                  # parameter1
+    Op59 = 59
+    Op60 = 60                  # positionType
+    Op61 = 61                  # positionType
+    Op62 = 62                  # positionType
+    Op63 = 63                  # positionType
+    Op64 = 64                  # positionType
+    ChatMessageEx = 65         # 机主自己输入 / 发出的消息（站点命名 chatReply，恒为发出方向）；
+                               # tids 常为空，说话人按 targetName 回落解析显示名；
+                               # 输出以（消息发送）标记
+    CharacterMoveTo = 66       # 角色移动（targetName + positionType + duration），与 0 近似
+    Op67 = 67                  # duration + parameter1
+    Op68 = 68                  # motionName
+    Op69 = 69                  # targetName
 
 
 def normalize_rows(table_json: Any) -> list[dict[str, Any]]:
