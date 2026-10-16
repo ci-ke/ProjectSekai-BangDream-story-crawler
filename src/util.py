@@ -156,6 +156,7 @@ Mark_multi_lang = {
     'still caption': {'cn': '（说明）：', 'en': '(Caption): '},
     'message': {'cn': '（消息）', 'en': '(Message) '},
     'message send': {'cn': '（消息发送）', 'en': '(Message send) '},
+    'message title': {'cn': '（消息标题）', 'en': '(Message title) '},
     'stamp': {'cn': '（贴图）', 'en': '(Stamp)'},
     'subtitle': {'cn': '（字幕）', 'en': '(Subtitle)'},
     'mystery': {'cn': '？？？', 'en': '??? '},

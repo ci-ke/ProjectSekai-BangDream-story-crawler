@@ -168,7 +168,9 @@ class AdvCommand(int, Enum):
     ChangeTalkWindow = 35      # 【实测】targetAssetName = UICenterTalkWindow / UIDefaultTalkWindow
     ChatOpen = 36              # 【实测】聊天窗开/关切换（无文本；站点解析器）：点名新窗口 = 打开
                                # （targetTextIDs = 联系人/群名，targetChatID = 机主头像），
-                               # 同名再点名 = 关闭；消息可先于开窗指令到达（37 先于 36）
+                               # 同名再点名 = 关闭；消息可先于开窗指令到达（37 先于 36）。
+                               # 输出 = 开窗时单写一行（消息标题）+ 窗口标题（联系人/群名，
+                               # 与气泡说话人同款解析）；关窗不输出，开合成对只留开窗一行
     ChatMessage = 37           # 【实测】聊天气泡：收到的消息（带文本 + targetChatID = 发送者头像；
                                # 站点渲染为聊天窗气泡，含窗口标题与收发方向）；也承载机主消息
                                # 的发送态——紧随同文的 65 重现该气泡，输出以（消息）标记。
@@ -516,6 +518,29 @@ class Story_reader(Bdon_fetcher):
         last_marker = ''  # 上一条输出的背景资源名；仅紧邻的同资源背景指令折叠，台词输出后清空
         shown_still: str | None = None  # 当前显示中的过场大图（站点同款语义：再次点名 = 隐藏）
         last_still: str | None = None  # 最近一次输出过的大图资源；背景切换后允许再次输出
+        chat_window: str | None = None  # 当前打开的聊天窗（cmd 36 的 targetName）；同名再点名 = 关窗
+
+        def speaker_of(row: dict[str, Any]) -> str:
+            """本行说话人（chat 窗标题同款）：_targetTextIDs 可多人，逐个查本剧本
+            Text 表后用 " & " 连接，条目缺失时保留裸 id；tids 为空时按 targetName
+            回落解析显示名（站点 speakerOf 同款）。ChatMessageEx（65）常缺 tids，
+            不回落会以裸 id 作说话人，与同文配对 ChatMessage（37）的显示名行并排
+            出现时突兀。"""
+            names = []
+            for target_id in row.get('targetTextIDs') or []:
+                speaker_row = text_lookup.get(str(target_id))
+                name = (
+                    self.get_text_marked(speaker_row, lang, mark_lang)
+                    if speaker_row
+                    else ''
+                )
+                names.append(util.newlines_to_spaces(name or target_id))
+            speaker = ' & '.join(names)
+            if not speaker and row.get('targetName'):
+                return self.get_target_name(
+                    row['targetName'], text_lookup, lang, mark_lang
+                )
+            return speaker
 
         # 遍历 Episode 指令流（数组顺序即剧本顺序，勿用 _index 当行号）
         in_clip = False  # 视频播放中：26/27 带 videoID 开始，27 带 SkipClipTarget 参数结束
@@ -607,23 +632,7 @@ class Story_reader(Bdon_fetcher):
                     last_marker = ''
                 else:
                     # 说话人可多人（_targetTextIDs 列表），逐个解析后用英文 " & " 连接
-                    names = []
-                    for target_id in row.get('targetTextIDs') or []:
-                        speaker_row = text_lookup.get(str(target_id))
-                        name = (
-                            self.get_text_marked(speaker_row, lang, mark_lang)
-                            if speaker_row
-                            else ''
-                        )
-                        names.append(util.newlines_to_spaces(name or target_id))
-                    speaker = ' & '.join(names)
-                    if not speaker and row.get('targetName'):
-                        # tids 为空时按 targetName 回落解析显示名（站点 speakerOf 同款）。
-                        # ChatMessageEx（65）常缺 tids，不回落会以裸 id 作说话人，与同文
-                        # 配对 ChatMessage（37）的显示名行并排出现时突兀
-                        speaker = self.get_target_name(
-                            row['targetName'], text_lookup, lang, mark_lang
-                        )
+                    speaker = speaker_of(row)
                     status = row.get('targetStatus')
                     if command is AdvCommand.Talk and speaker and status in (1, 2):
                         # 实测 1 = 游戏名框显示"？？？"（身份未揭示的说话人），2 = 游戏隐藏
@@ -663,6 +672,31 @@ class Story_reader(Bdon_fetcher):
                         body += '\n'
                         telop_pending = False
                     body += prefix + line
+            elif command is AdvCommand.ChatOpen:
+                # 聊天窗开/关（含自身状态的括号输出）：同名再点名 = 关窗（站点同款状态机，
+                # 但不做站点那套"消息先于开窗"的排队补偿——文本是线性记录，36 行本身
+                # 即开窗事件，照实写在它自己的位置上）。只写开窗那一行，关窗不产出，
+                # 故开合成对时窗口标题只出现一次；窗口内消息先于 36 到达时（站点
+                # parser 允许的乱序），标题会落在消息之后，与（背景切换）同款忠实标记。
+                # 标题取 _targetTextIDs（联系人/群名）解析出的显示名，与气泡说话人同款；
+                # _targetChatID 是机主头像（MasterAdvChat），不参与文本。
+                window = str(row.get('targetName') or '')
+                if chat_window != window:
+                    chat_window = window
+                    title = speaker_of(row)
+                    if title:
+                        if telop_pending:
+                            body += '\n'
+                            telop_pending = False
+                        body += (
+                            prefix
+                            + Mark_multi_lang['message title'][mark_lang]
+                            + title
+                            + '\n'
+                        )
+                        last_marker = ''
+                else:
+                    chat_window = None  # 同名再点名 = 关窗（不产出）
             elif command is AdvCommand.ChangeBackground:
                 # 背景采用"老实标记"，与站点的渲染模型刻意不同：
                 # 站点只渲染"当前画面"，会吞掉两类指令——与当前显示相同的重指（A→台词→A）、
