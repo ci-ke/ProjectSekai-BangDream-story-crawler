@@ -29,7 +29,9 @@ SIDE_LANGS: dict[str, tuple[tuple[str, str], ...]] = {
         ('tw', 'cn'),
         ('en', 'en'),
         ('kr', 'en'),
-        # ('en-jp', 'en'),  # 可选：国际服 dump 的日语列（story_en-jp），默认不启用
+        # 国际服 dump 的日语列（story_en-jp）；CI 经 lang_dir 接管仍写 story_jp。
+        # 日服面（side='jp'）是另一套数据面，与 en-jp 并存，不是替代关系。
+        ('en-jp', 'en'),
     ),
     'jp': (('jp', 'en'),),
 }
@@ -1500,10 +1502,9 @@ async def main():
         tasks.append(intl['tutorial_getter'].get(10609))  # 教程（无主表，入口为 advId）
 
         # 两种日语来源并存，便于对比：
-        # story_jp   = 日服面（/jp/master + ja 段剧本表）
-        # story_en-jp = 国际服面的日语列（en-jp 合成语言）
+        # story_jp    = 日服面（/jp/master + ja 段剧本表）
+        # story_en-jp = 国际服面的日语列（en-jp 已在 SIDE_LANGS['en'] 中默认启用）
         tasks.append(side_getters['jp']['band_getter'].get(101))
-        tasks.append(intl['band_getter'].get(101, langs=(('en-jp', 'en'),)))
 
         await asyncio.gather(*tasks)
 
