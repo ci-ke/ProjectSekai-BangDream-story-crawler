@@ -7,7 +7,9 @@
         "pjsk_eventStories": {
             "key": "eventId",
             "items": {
-                "97": { "bannerGameCharacterUnitId": 10 }
+                "97": {
+                    "bannerGameCharacterUnitId": 10
+                }
             }
         }
     },
@@ -71,6 +73,9 @@
             "self_asset": "https://storage.sekai.best/sekai-{lang}-assets/scenario/profile/{{scenarioId}}.asset",
             "special_asset": "https://storage.sekai.best/sekai-{lang}-assets/scenario/special/{{assetbundleName}}/{{scenarioId}}.asset",
             "mysekai_talk_asset": "https://storage.sekai.best/sekai-{lang}-assets/{{assetbundleName}}/{{lua}}.lua.txt",
+            "mysekai_talk_asset_ext_replace": {
+                ".lua.txt": ".lua"
+            },
             "virtual_live_asset": "https://storage.sekai.best/sekai-{lang}-assets/virtual_live/mc/{{mc_type}}/{{assetbundleName}}/{{assetbundleName}}.{{file_type}}",
             "asset_lang": {
                 "cn": "cn",
@@ -78,6 +83,14 @@
                 "tw": "tc",
                 "en": "en",
                 "kr": "kr"
+            },
+            "save_roots": {
+                "master": {
+                    "https://sekai-world.github.io/sekai-master-db-{master_lang}diff/": "pjsk-{lang}-master"
+                },
+                "asset": {
+                    "https://storage.sekai.best/sekai-{asset_lang}-assets/": "pjsk-{lang}-assets"
+                }
             }
         },
         "haruki": {
@@ -104,6 +117,15 @@
                 "tw": "tw",
                 "en": "en",
                 "kr": "kr"
+            },
+            "save_roots": {
+                "master": {
+                    "https://raw.githubusercontent.com/Team-Haruki/haruki-sekai-{master_lang}master/refs/heads/main/master/": "pjsk-{lang}-master"
+                },
+                "asset": {
+                    "https://sekai-assets-bdf29c81.seiunx.net/{asset_lang}-assets/startapp/": "pjsk-{lang}-assets",
+                    "https://sekai-assets-bdf29c81.seiunx.net/{asset_lang}-assets/ondemand/": "pjsk-{lang}-assets"
+                }
             }
         },
         "pjsk.moe": {
@@ -116,20 +138,52 @@
                 "kr": "kr"
             },
             "unit_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/scenario/unitstory/{{assetbundleName}}/{{scenarioId}}.json",
+            "unit_asset_ext_replace": {
+                ".json": ".asset"
+            },
             "event_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/event_story/{{assetbundleName}}/scenario/{{scenarioId}}.json",
+            "event_asset_ext_replace": {
+                ".json": ".asset"
+            },
             "card_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/character/member/{{assetbundleName}}/{{scenarioId}}.json",
+            "card_asset_ext_replace": {
+                ".json": ".asset"
+            },
             "card_asset_en": "https://storage.exmeaning.com/sekai-en-assets/character/member_scenario/{assetbundleName}/{scenarioId}.json",
+            "card_asset_en_ext_replace": {
+                ".json": ".asset"
+            },
             "talk_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/scenario/actionset/group{{group}}/{{scenarioId}}.json",
+            "talk_asset_ext_replace": {
+                ".json": ".asset"
+            },
             "self_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/scenario/profile/{{scenarioId}}.json",
+            "self_asset_ext_replace": {
+                ".json": ".asset"
+            },
             "special_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/scenario/special/{{assetbundleName}}/{{scenarioId}}.json",
+            "special_asset_ext_replace": {
+                ".json": ".asset"
+            },
             "mysekai_talk_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/{{assetbundleName}}/{{lua}}.lua",
             "virtual_live_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/virtual_live/mc/{{mc_type}}/{{assetbundleName}}/{{assetbundleName}}.json",
+            "virtual_live_asset_ext_replace": {
+                ".json": ".asset"
+            },
             "asset_lang": {
                 "cn": "cn",
                 "jp": "jp",
                 "tw": "tw",
                 "en": "en",
                 "kr": "kr"
+            },
+            "save_roots": {
+                "master": {
+                    "https://metadata.exmeaning.com/{master_lang}/master/": "pjsk-{lang}-master"
+                },
+                "asset": {
+                    "https://storage.exmeaning.com/sekai-{asset_lang}-assets/": "pjsk-{lang}-assets"
+                }
             }
         }
     }

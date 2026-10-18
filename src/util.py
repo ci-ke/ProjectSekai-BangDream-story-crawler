@@ -2,8 +2,9 @@ import os, json, asyncio, bisect, logging, re, shutil
 from pathlib import Path
 from urllib.parse import urlsplit
 from enum import Enum
-from typing import Any, Callable
+from typing import Any, Callable, NamedTuple, cast
 from asyncio import Semaphore
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
@@ -17,6 +18,28 @@ LATE_TIMESTAMP13 = int(
 )
 
 MISSING_MSG = 'Missing asset'
+
+
+class UrlSpec(NamedTuple):
+    '''一次抓取目标：URL + 随行 note（如 asset key），note 不参与请求。'''
+
+    url: str
+    note: str = ''
+
+    def format(self, *args: Any, **kwargs: Any) -> 'UrlSpec':
+        return UrlSpec(self.url.format(*args, **kwargs), self.note)
+
+
+UrlParam = str | UrlSpec | Iterable[str | UrlSpec]
+
+
+def normalize_urls(url: UrlParam) -> list[UrlSpec]:
+    '''统一成 UrlSpec 列表；裸字符串仍按无 note 处理。'''
+    if isinstance(url, UrlSpec):
+        return [url]
+    if isinstance(url, str):
+        return [UrlSpec(url)]
+    return [item if isinstance(item, UrlSpec) else UrlSpec(item) for item in url]
 
 
 def load_bypass_urls(file: str | Path = 'bypass.txt') -> frozenset[str]:
@@ -57,8 +80,9 @@ def apply_patches(data: list[dict[str, Any]], table: str) -> int:
     if patch is None:
         return 0
     applied = 0
-    key = patch['key']
-    for key_val, fields in patch['items'].items():
+    key = cast(str, patch['key'])
+    items = cast(dict[str, dict[str, Any]], patch['items'])
+    for key_val, fields in items.items():
         for record in data:
             if str(record.get(key)) == str(key_val):
                 record.update(fields)
@@ -309,7 +333,7 @@ class Base_fetcher:
 
     async def fetch_url_json(
         self,
-        url: str | list[str],
+        url: UrlParam,
         extra_record_msg: str = '',
         print_done: bool = False,
         append_save_path: str | None = None,
@@ -551,7 +575,7 @@ class _BypassError(Exception):
 
 
 async def fetch_url_json(
-    url: str | list[str],
+    url: UrlParam,
     online: bool,
     save: bool,
     save_dir: str,
@@ -579,7 +603,7 @@ async def fetch_url_json(
     if network_semaphore is None:
         network_semaphore = _net_semaphore
 
-    urls = [url] if isinstance(url, str) else url
+    urls = [spec.url for spec in normalize_urls(url)]
 
     if bypass_urls is None:
         bypass_urls = _bypass_urls

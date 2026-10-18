@@ -47,21 +47,26 @@ class Constant:
     @staticmethod
     def get_srcs_url(
         lang: str, srcs: list[str], file_type: str, file: str
-    ) -> list[str]:
+    ) -> list[util.UrlSpec]:
         '''
         lang: cn jp tw
 
         file_type: master or asset
+
+        返回的 note 是 config 中的 key（asset 的 note 用于查对应 *_ext_replace）。
         '''
-        base_urls = []
+        base_urls: list[util.UrlSpec] = []
         for src in srcs:
             if lang not in Constant.urls[src]['master_lang']:
                 continue
             if file_type == 'master':
                 base_url: str = Constant.urls[src]['master']
                 base_urls.append(
-                    base_url.format(
-                        lang=Constant.urls[src]['master_lang'][lang], file=file
+                    util.UrlSpec(
+                        base_url.format(
+                            lang=Constant.urls[src]['master_lang'][lang], file=file
+                        ),
+                        note=file,
                     )
                 )
             else:
@@ -70,44 +75,63 @@ class Constant:
                     if f'{file}_asset' in Constant.urls[src]:
                         base_url = Constant.urls[src][f'{file}_asset']
                         base_urls.append(
-                            base_url.format(lang=Constant.urls[src]['asset_lang'][lang])
+                            util.UrlSpec(
+                                base_url.format(
+                                    lang=Constant.urls[src]['asset_lang'][lang]
+                                ),
+                                note=f'{file}_asset',
+                            )
                         )
                 else:
-                    base_urls.append(Constant.urls[src][sp_key])
+                    base_urls.append(
+                        util.UrlSpec(Constant.urls[src][sp_key], note=sp_key)
+                    )
         assert len(base_urls) > 0
         return base_urls
 
 
 class Pjsk_fetcher(util.Base_fetcher):
     @staticmethod
-    def __url_to_apd_path_master(url: str, lang: str) -> str:
-        master_name_match = re.search(r'master.*/(\w+\.json)', url)
-        if master_name_match:
-            master_name = master_name_match.group(1)
-        else:
-            raise RuntimeError(url)
-        return os.path.normpath(os.path.join(f'pjsk-{lang}-master', master_name))
+    def __url_to_save_path(url: str, lang: str, note: str) -> str:
+        '''按各源 config 的 save_roots 把 URL 映射为缓存相对路径。
 
-    @staticmethod
-    def __url_to_apd_path_asset(
-        url: str, lang: str, actual_ext: str | None = None
-    ) -> str:
-        asset_name_match = re.search(r'(ondemand|startapp|sekai-\w+-assets)/(.*)', url)
-        if asset_name_match:
-            asset_name = asset_name_match.group(2)
-            if asset_name.endswith('.json'):
-                asset_name = asset_name[:-5] + '.asset'
-            elif asset_name.endswith('.lua.txt'):
-                asset_name = asset_name[:-4]
-        else:
-            raise RuntimeError(url)
-        if actual_ext is not None:
-            asset_name = asset_name[asset_name.rindex('.') + 1 :] + actual_ext
-        return os.path.normpath(os.path.join(f'pjsk-{lang}-assets', asset_name))
+        基址模板里的 {master_lang}/{asset_lang} 用剧本语言对应的站内语言填充；
+        存盘根模板里的 {lang} 始终是剧本语言（如 tw 在 sekai.best 取 tc 资产，
+        缓存仍落 pjsk-tw-assets）。note 是 get_srcs_url 给出的 config key，
+        asset 组据此查对应的 *_ext_replace。
+        '''
+        for src in Constant.urls.values():
+            master_lang = cast(dict[str, str], src['master_lang'])
+            asset_lang = cast(dict[str, str], src['asset_lang'])
+            if lang not in master_lang or lang not in asset_lang:
+                continue
+            url_langs: dict[str, str] = {
+                'master_lang': master_lang[lang],
+                'asset_lang': asset_lang[lang],
+            }
+            save_roots = cast(dict[str, dict[str, str]], src['save_roots'])
+            for file_type, roots in save_roots.items():
+                for base_tmpl, root_tmpl in roots.items():
+                    base = base_tmpl.format(**url_langs)
+                    if not url.startswith(base):
+                        continue
+                    rel_path = url[len(base):]
+                    if file_type == 'asset':
+                        ext_replace = cast(
+                            dict[str, str], src.get(f'{note}_ext_replace', {})
+                        )
+                        for old_ext, new_ext in ext_replace.items():
+                            if rel_path.endswith(old_ext):
+                                rel_path = rel_path[: -len(old_ext)] + new_ext
+                                break
+                    return os.path.normpath(
+                        os.path.join(root_tmpl.format(lang=lang), rel_path)
+                    )
+        raise RuntimeError(url)
 
     async def fetch_url_json(
         self,
-        url: str | list[str],
+        url: util.UrlParam,
         extra_record_msg: str = '',
         print_done: bool = False,
         append_save_path: str | None = None,
@@ -119,7 +143,6 @@ class Pjsk_fetcher(util.Base_fetcher):
         format: str = 'json',
         bypass_urls: frozenset[str] | None = None,
         lang_for_path: str | None = None,
-        actual_ext: str | None = None,
     ) -> Any:
         assert append_save_path is None
 
@@ -130,20 +153,13 @@ class Pjsk_fetcher(util.Base_fetcher):
         )
         assert lang_for_path is not None
 
-        urls = [url] if isinstance(url, str) else url
-
-        master_name_match = re.search(r'master.*/(\w+\.json)', urls[0])
-        if master_name_match:
-            append_save_path = Pjsk_fetcher.__url_to_apd_path_master(
-                urls[0], lang_for_path
-            )
-        else:
-            append_save_path = Pjsk_fetcher.__url_to_apd_path_asset(
-                urls[0], lang_for_path, actual_ext
-            )
+        urls = util.normalize_urls(url)
+        append_save_path = Pjsk_fetcher.__url_to_save_path(
+            urls[0].url, lang_for_path, urls[0].note
+        )
 
         return await super().fetch_url_json(
-            url,
+            urls,
             extra_record_msg,
             print_done,
             append_save_path=append_save_path,

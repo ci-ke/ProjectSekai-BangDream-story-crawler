@@ -4,6 +4,7 @@
 
 # test
 test*
+local/
 
 # content
 story_*

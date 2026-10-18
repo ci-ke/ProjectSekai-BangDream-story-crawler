@@ -249,7 +249,7 @@ class Bdon_fetcher(util.Base_fetcher):
 
     async def fetch_url_json(
         self,
-        url: str | list[str],
+        url: util.UrlParam,
         extra_record_msg: str = '',
         print_done: bool = False,
         append_save_path: str | None = None,
@@ -263,11 +263,11 @@ class Bdon_fetcher(util.Base_fetcher):
     ) -> Any:
         assert append_save_path is None
 
-        urls = [url] if isinstance(url, str) else url
-        append_save_path = Bdon_fetcher.__url_to_save_path(urls[0])
+        urls = util.normalize_urls(url)
+        append_save_path = Bdon_fetcher.__url_to_save_path(urls[0].url)
 
         return await super().fetch_url_json(
-            url,
+            urls,
             extra_record_msg,
             print_done,
             append_save_path=append_save_path,

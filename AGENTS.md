@@ -74,8 +74,12 @@ offline 模式（online=False）下缺文件且 missing_download=True 会自动�
 | bang（6 个） | event、band、main、card、area、after_live |
 | bdon（6 个） | band、special（仅 chapter.json 的 _isSpecialStory 章，目录/命名逻辑与 band 共用）、friendship、home、live_result、tutorial |
 
-- assets 缓存与语言/站点分桶由 `append_save_path` 决定，与 save_dir 无关：pjsk 用 `pjsk-{lang}-master/`、
-  `pjsk-{lang}-assets/`；bdon 用 config 的 `save_roots`（服务基址 → 存盘根）；bang 按 URL 路径落盘。
+- assets 缓存与语言/站点分桶由 `append_save_path` 决定，与 save_dir 无关：pjsk 用 config 的
+  `save_roots`（按 master/asset 分组；基址模板里的 `{master_lang}`/`{asset_lang}` 取站内语言，
+  存盘根里的 `{lang}` 是剧本语言，故 tw 的 tc 资产仍落 `pjsk-tw-assets/`）；`get_srcs_url`
+  返回 `util.UrlSpec(url, note=config_key)`，asset 按 note 查 `<key>_ext_replace` 改缓存后缀
+  （如 pjsk.moe 的 `.json` → `.asset`）；bdon 用 config 的 `save_roots`（服务基址 → 存盘根）；
+  bang 按 URL 路径落盘。
 
 ## 三条产品线的语言机制差异（重要）
 
