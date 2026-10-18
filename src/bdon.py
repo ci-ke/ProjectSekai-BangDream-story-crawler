@@ -47,6 +47,17 @@ class Constant:
         'en-jp': 'japanese',
     }
 
+    # 输出语言 → assets.bdon.moe 的语言段（站点语言码 ja/en/zh-Hant/zh-Hans/ko）。
+    # en-jp 为国际服 dump 的日语列，资源同 jp，走 ja。
+    asset_lang = {
+        'jp': 'ja',
+        'en-jp': 'ja',
+        'en': 'en',
+        'tw': 'zh-Hant',
+        'cn': 'zh-Hans',
+        'kr': 'ko',
+    }
+
     band_id_name = {
         1: 'mygo',
         2: 'mujica',
@@ -310,12 +321,19 @@ class Story_reader(Bdon_fetcher):
         self.cg_add_link = cg_add_link
         self.strip_rich_text = strip_rich_text
 
-        # 过场大图（cmd 30）链接：assets.bdon.moe 发布服务；媒体各区一致，语言段统一走
-        # 日服（ja）。注意比 legacy 桶 S3 key 多一层 <name>/ 段且为 .webp；全量 333 张中
-        # 21 张上游未导出（死链不可避免）。
-        self.cg_link = 'https://assets.bdon.moe/ja/Adv/Still/{dir}/{name}/data/{name}/{name}.webp'
-        # 视频（cmd 26/27）链接：Video 表 assetName → Cri/Video/<path>/<name>.mp4，语言段同样统一 ja。
-        self.video_link = 'https://assets.bdon.moe/ja/Cri/Video/{path}/{name}.mp4'
+        # 资源服务路径见站点 src/lib/assets/release.ts：默认区（tw）为 /{language}/{key}，
+        # 其他区加 /{region} 前缀；JP 目录只发布 ja（非 ja 语言回落到 ja）。国际服面
+        # 用默认区短路径，日服面用 JP 目录，因此同为日语来源的 en-jp 与 jp 链接不同：
+        #   en-jp → https://assets.bdon.moe/ja/...
+        #   jp    → https://assets.bdon.moe/jp/ja/...
+        asset_base = 'https://assets.bdon.moe' + ('' if side == 'en' else '/jp')
+        # 过场大图（cmd 30）：Adv/Still/<dir>/data/<name> 按图片资源发布为
+        # <key>/<name>.webp，语言段取 Constant.asset_lang；比 legacy 桶 S3 key 多一层
+        # <name>/ 段。全量 333 张中 21 张上游未导出（死链不可避免）。
+        self.cg_link = asset_base + '/{lang}/Adv/Still/{dir}/{name}/data/{name}/{name}.webp'
+        # 视频（cmd 26/27）：Video 表 assetName → Cri/Video/<path>/<name>.mp4，文件名同名，
+        # 语言段同样按剧本语言取（各区文件内容相同，站点 URL 仍带语言段）。
+        self.video_link = asset_base + '/{lang}/Cri/Video/{path}/{name}.mp4'
 
     def url_suffix(self) -> str:
         """本数据面在 config URLS 键上的后缀：国际服无后缀，日服为 _jp。"""
@@ -559,7 +577,11 @@ class Story_reader(Bdon_fetcher):
                     body += (
                         prefix
                         + Mark_multi_lang['video'][mark_lang]
-                        + self.video_link.format(path=path, name=path.rsplit('/', 1)[-1])
+                        + self.video_link.format(
+                            lang=Constant.asset_lang[lang],
+                            path=path,
+                            name=path.rsplit('/', 1)[-1],
+                        )
                         + Mark_multi_lang[')'][mark_lang]
                         + '\n'
                     )
@@ -734,7 +756,11 @@ class Story_reader(Bdon_fetcher):
                             body += '\n'
                             telop_pending = False
                         if self.cg_add_link:  # 仿 pjsk：链接替换资源名
-                            cg_text = self.cg_link.format(dir=dir_name, name=still_name)
+                            cg_text = self.cg_link.format(
+                                lang=Constant.asset_lang[lang],
+                                dir=dir_name,
+                                name=still_name,
+                            )
                         else:
                             cg_text = still_name
                         body += (
