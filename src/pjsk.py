@@ -115,7 +115,7 @@ class Pjsk_fetcher(util.Base_fetcher):
                     base = base_tmpl.format(**url_langs)
                     if not url.startswith(base):
                         continue
-                    rel_path = url[len(base):]
+                    rel_path = url[len(base) :]
                     if file_type == 'asset':
                         ext_replace = cast(
                             dict[str, str], src.get(f'{note}_ext_replace', {})
@@ -622,7 +622,10 @@ class Event_story_getter(Pjsk_getter):
     }
 
     def get_event_unit_abbr(self, event_id: int) -> str:
-        type_str = self.event_type_map[event_id]
+        try:
+            type_str = self.event_type_map[event_id]
+        except KeyError:
+            return ''
         return Constant.unit_code_abbr[
             Event_story_getter.__type_str_code_map.get(type_str, 'mix')
         ]
@@ -658,30 +661,35 @@ class Event_story_getter(Pjsk_getter):
 
         event_unit_abbr = self.get_event_unit_abbr(event_id)
 
-        if event_type == 'world_bloom':
-            banner_name = f'{event_unit_abbr}_WL'
-        else:
-            assert banner_chara_unit_id is not None
-            banner_chara_unit_index = self.gameCharacterUnits_lookup.find_index(
-                banner_chara_unit_id
-            )
-            assert banner_chara_unit_index != -1
-            chara_unit, banner_chara_name, _ = self.reader.get_chara_unitAbbr_names(
-                self.gameCharacterUnits[banner_chara_unit_index]['gameCharacterId']
-            )
-            if chara_unit == 'VS':
-                banner_chara_name += (
-                    '-'
-                    + Constant.unit_code_abbr[
-                        self.gameCharacterUnits[banner_chara_unit_index]['unit']
-                    ]
+        if event_unit_abbr != '':
+            if event_type == 'world_bloom':
+                banner_name = f'{event_unit_abbr}_WL'
+            else:
+                assert banner_chara_unit_id is not None
+                banner_chara_unit_index = self.gameCharacterUnits_lookup.find_index(
+                    banner_chara_unit_id
                 )
-            banner_name = f'{event_unit_abbr}_{banner_chara_name}'
+                assert banner_chara_unit_index != -1
+                chara_unit, banner_chara_name, _ = self.reader.get_chara_unitAbbr_names(
+                    self.gameCharacterUnits[banner_chara_unit_index]['gameCharacterId']
+                )
+                if chara_unit == 'VS':
+                    banner_chara_name += (
+                        '-'
+                        + Constant.unit_code_abbr[
+                            self.gameCharacterUnits[banner_chara_unit_index]['unit']
+                        ]
+                    )
+                banner_name = f'{event_unit_abbr}_{banner_chara_name}'
 
-        save_folder_name = util.valid_filename(
-            f'{event_id:0{self.maxlen_eventId_episode[0]}} {event_name} ({banner_name})',
-            True,
-        )
+            save_folder_name = util.valid_filename(
+                f'{event_id:0{self.maxlen_eventId_episode[0]}} {event_name} ({banner_name})',
+                True,
+            )
+        else:
+            save_folder_name = util.valid_filename(
+                f'{event_id:0{self.maxlen_eventId_episode[0]}} {event_name}', True
+            )
 
         event_save_dir = os.path.join(self.save_dir, save_folder_name)
         if self.parse:
