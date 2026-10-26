@@ -2183,11 +2183,21 @@ class Mysekai_talk_getter(Pjsk_getter):
             self.group_conditions_map[gid].append(cid)
 
         # Build release condition sentence map for read_event_story_episode_id
+        # 注意：master 里偶有 event_story 条件缺 releaseConditionTypeId（新活动的数据
+        # 未补全时上游会漏该字段，如 7.1.0.35 的 id=122120），无法映射到任何
+        # read_event_story_episode_id 值，跳过即可，不能让 init 直接崩。
         self.release_cond_eventID_map: dict[int, int] = {}
         for rc in self.releaseConditions_json:
-            if rc['releaseConditionType'] == 'event_story':
-                type_id = rc['releaseConditionTypeId']
-                self.release_cond_eventID_map[type_id] = int(str(rc['id'])[1:4]) + 1
+            if rc['releaseConditionType'] != 'event_story':
+                continue
+            type_id = rc.get('releaseConditionTypeId')
+            if type_id is None:
+                logging.warning(
+                    f'releaseCondition {rc["id"]} (event_story) has no '
+                    f'releaseConditionTypeId, skipped: {rc.get("sentence")}'
+                )
+                continue
+            self.release_cond_eventID_map[type_id] = int(str(rc['id'])[1:4]) + 1
 
     def _get_chara_info(self, gameCharacterUnitId: int) -> tuple[int, str, str]:
         """Return (gameCharacterId, unit_abbr, full_name)."""
@@ -2222,8 +2232,17 @@ class Mysekai_talk_getter(Pjsk_getter):
             elif cond_type == 'mysekai_character_visit_count':
                 parts.append(f'character_visit_count-{cond_value}')
             elif cond_type == 'read_event_story_episode_id':
-                eventID = self.release_cond_eventID_map[cond_value]
-                parts.append(f'read_event_story-{eventID}')
+                # 未被 releaseConditions 收录的 episode（上游字段缺失）兜底，
+                # 保留原始 episode id 以便人工排查
+                eventID = self.release_cond_eventID_map.get(cond_value)
+                if eventID is None:
+                    logging.warning(
+                        f'read_event_story_episode_id {cond_value} not found '
+                        'in releaseConditions.'
+                    )
+                    parts.append(f'read_event_story-unknown-{cond_value}')
+                else:
+                    parts.append(f'read_event_story-{eventID}')
             elif cond_type == 'mysekai_fixture_id':
                 fix_index = self.mysekaiFixtures_lookup.find_index(cond_value)
                 assert fix_index != -1
