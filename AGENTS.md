@@ -80,24 +80,34 @@ offline 模式（online=False）下缺文件且 missing_download=True 会自动�
   返回 `util.UrlSpec(url, note=config_key)`，asset 按 note 查 `<key>_ext_replace` 改缓存后缀
   （如 pjsk.moe 的 `.json` → `.asset`）；bdon 用 config 的 `save_roots`（服务基址 → 存盘根）；
   bang 按 URL 路径落盘。
+- **pjsk 各 getter 的默认源统一为 `src=['sekai.best']`**（唯一例外是 `Mysekai_talk_getter`，
+  默认 `['haruki', 'pjsk.moe', 'sekai.best']`——它的文本只有 haruki / pjsk.moe 提供）。
+  这是 `e9686568` 之后回调的结论：haruki 的容器转储丢 PathID，live 台词只能推断。
 - `virtual_live` 的取数按 `src` **逐个源**尝试（`_fetch_mc`，不再把多源塞进一个 URL 列表）：
   一个源必须「本语言包 +（cn/tw 的 timeline 还要）jp 对照包」都拿到才算可用，任一 404
   就整段换下一个源；全失败才返回错误串。各源扩展名不同（`.playable` / `.asset` / `.json`），
   由 config 模板决定，格式化时统一带 `file_type`。
+  `Virtual_live_getter.__init__` 的默认值是 `src=['sekai.best']`：`.playable` 带上游注入的
+  `__timelineParse`，零推断。代价是 sekai.best 没镜像的 bundle 会整段缺失（en 52 个、
+  cn/tw 各 2 个），需要时由调用方传 `src=['sekai.best', 'haruki']` 换源。
 - `mc_timeline` / `virtual_message` 支持两种上游格式，靠内容自动判别（`_timeline_format`）：
   sekai.best 的 `.playable` 带上游注入的 `__timelineParse`（已解析 events + meta.characters），
   直接可用；haruki / pjsk.moe 是整包对象转储（`container` + `objects`），走
   `_timeline_events_from_container`。
 - 转储格式的坑：每个对象只有 `name/asset_type/data`，没有自身 PathID，轨道 clip 的
   `m_Asset.m_PathID` 回指不到 `CharacterTalkClip`（其 characterId / Character 恒为空、
-  Offset 恒为 0）。因此台词归属只能间接配（`_match_talk_cues`，四级）：
-  1. 先把 jp 包自己的 clip 与台词对象按文本配好（同语言 Serif ≈ m_DisplayName）；
-  2. 本语言 clip 按「轨道名 + 开始时间」对到 jp 的同名 clip，继承它的 `CueName`；
-  3. 对不上的退回文本比对（`_text_key` 忽略空白，两语言换行/空格常不同）；
-  4. 仍对不上的按轨道内顺序对齐（同角色剩余 cue 按场次序号 ↔ 剩余 clip 时间序）——
-     覆盖 `m_DisplayName` 与正文措辞不一致的行（如显示名写「あなたは」、正文「君は」）。
-  `CueName` 末尾数字即 characterId、`_90_<罗马音>` 后缀用于同文多角色消歧
-  （`_cue_romaji_character` 只是这一步的补表，缺项会自动退回顺序配对）。
+  Offset 恒为 0）。因此台词归属只能间接配（`_match_talk_cues`），每一步都要有据可依：
+  1. **文本唯一命中**：clip 的 `m_DisplayName` 在台词对象里唯一对应一条 `Serif`；
+     同文多角色再用 `CueName` 的角色编号与轨道 `CharacterId` 对齐消歧；空 display 不参与；
+  2. **pid 排名**（`_rank_mapping`）：`m_Asset.m_PathID` 升序 ↔ 台词对象的出现顺序。
+     这是同一份文件内的结构关系，实测 jp 403/415、en 210/220 个 bundle 成立；
+     用「display 就在本包 Serif 里」的 clip 当锚点全量自检，不通过就整体弃用。
+     它专治 display 与正文措辞不一致的行（显示名「あなたは」、正文「君は」）；
+  3. **轨道名 + 开始时间**：本语言 clip 对到参考包同名 clip，继承 `CueName`；
+  4. **文本兜底**：`_text_key` 忽略空白再比一次（两语言换行/空格常不同）。
+  四步都不成立的行不输出——没有「按场次序号硬配」这类猜测层。
+  `CueName` 解析只看末尾：末段数字即 characterId，`90` 是合唱占位、真人在后缀
+  （`_90_meiko`），行号可能带字母（`_14a_90_kaito`）。
 - 是否需要 jp 对照包**按数据判断**（`_fetch_mc` 里用 `_is_self_describing`），不写死语言：
   jp / en 的 `m_DisplayName` 已本地化、单包自足；未本地化的语言（cn / tw / kr …）才取对照包。
   jp 包经 `lang_for_path='jp'` 落 `pjsk-jp-assets/`，与剧本语言无关，各语言共用一份。

@@ -508,7 +508,7 @@ class Event_story_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['haruki', 'sekai.best', 'pjsk.moe'],
+        src: list[str] = ['sekai.best'],
         save_dir: str = '.',
         assets_save_dir: str = '.',
         online: bool = True,
@@ -1030,7 +1030,7 @@ class Unit_story_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['haruki', 'sekai.best', 'pjsk.moe'],
+        src: list[str] = ['sekai.best'],
         save_dir: str = '.',
         assets_save_dir: str = '.',
         online: bool = True,
@@ -1210,7 +1210,7 @@ class Card_story_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['haruki', 'sekai.best', 'pjsk.moe'],
+        src: list[str] = ['sekai.best'],
         save_dir: str = '.',
         assets_save_dir: str = '.',
         online: bool = True,
@@ -1502,7 +1502,7 @@ class Area_talk_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['haruki', 'sekai.best', 'pjsk.moe'],
+        src: list[str] = ['sekai.best'],
         save_dir: str = '.',
         assets_save_dir: str = '.',
         online: bool = True,
@@ -1800,7 +1800,7 @@ class Self_intro_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['haruki', 'sekai.best', 'pjsk.moe'],
+        src: list[str] = ['sekai.best'],
         save_dir: str = '.',
         assets_save_dir: str = '.',
         online: bool = True,
@@ -1926,7 +1926,7 @@ class Special_story_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['haruki', 'sekai.best', 'pjsk.moe'],
+        src: list[str] = ['sekai.best'],
         save_dir: str = '.',
         assets_save_dir: str = '.',
         online: bool = True,
@@ -2618,7 +2618,7 @@ class Virtual_live_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['haruki', 'sekai.best', 'pjsk.moe'],
+        src: list[str] = ['sekai.best'],
         save_dir: str = '.',
         assets_save_dir: str = '.',
         online: bool = True,
@@ -2805,9 +2805,23 @@ class Virtual_live_getter(Pjsk_getter):
     def _event_chara_name(
         self, ev: dict[str, Any], chara3d_map: dict[str, list[int]]
     ) -> tuple[str, int | None]:
-        '''事件角色名 → (服务器语言角色名, character3dId)；映射失败回退原文。'''
+        '''事件角色名 → (服务器语言角色名, character3dId)。
+
+        meta.characters 里的 name 不可靠：同一场里可能有两个 3d 模型共用一个显示名
+        （如 countdown 的 1786 实际是 KAITO，却被标成「レン」）。talk 事件的 cueName
+        末段数字才是精确的 characterId，先用它把候选 id 收敛，再取本地化名字。
+        '''
         raw_name: str = ev['character']
-        for cid in chara3d_map[raw_name]:
+        own = ev.get('character3dId')
+        if own is not None:
+            return self._get_chara_name(own) or raw_name, own
+        cands = chara3d_map[raw_name]
+        want = self._cue_character(ev.get('cueName') or '')
+        if want is not None:
+            for cid in cands:
+                if self._chara3d_character_id(cid) == want:
+                    return self._get_chara_name(cid) or raw_name, cid
+        for cid in cands:
             localized = self._get_chara_name(cid)
             if localized:
                 return localized, cid
@@ -2885,17 +2899,17 @@ class Virtual_live_getter(Pjsk_getter):
         return int(match.group(1)) if match else -1
 
     def _cue_character(self, cue: str) -> int | None:
-        '''cue 里的人物：数字后缀即 characterId（_14 → 14）；
-        合唱行是 _90_<罗马音>，查 _cue_romaji_character；_90_wonder 这类全组合唱
-        无法定位，返回 None。
+        '''cue 里的人物：末尾数字即 characterId（_29_14 → 14、_64_26_piapro → 26）；
+        合唱行的 90 是占位符，真人在后缀（_90_meiko → 25）。行号可能带字母
+        （_14a_90_kaito），所以只从末尾取一段，不做整串匹配。
         '''
-        match = re.search(r'_(\d+)_(\d+)(?:_([a-z]+))?$', cue)
+        match = re.search(r'_(\d+)(?:_([a-z]+))?$', cue)
         if match is None:
             return None
-        suffix = match.group(3)
-        if suffix is None:
-            return int(match.group(2))
-        return self._cue_romaji_character.get(suffix)
+        number = int(match.group(1))
+        if number == 90:
+            return self._cue_romaji_character.get(match.group(2) or '')
+        return number if 1 <= number <= 26 else None
 
     # 临时登场角色（只在中途露一面的客串）的台词/登场/退场不放在 <角色>_Talk 轨道，
     # 而是落在这三条通用轨道上，角色由轨道自身的 CharacterId 指定。
@@ -2978,7 +2992,9 @@ class Virtual_live_getter(Pjsk_getter):
     ) -> dict[int, str]:
         '''按文本把 clip 对到台词对象，返回 pid → CueName（used 里的 cue 不参与）。
 
-        同文多角色时用 cue 的人物编号与轨道 CharacterId 对齐消歧，仍歧义则按场次序号取。
+        只有两种可判的情形才建立对应：文本唯一命中；或同文多角色但 cue 里的人物
+        编号与轨道 CharacterId 一致。仍歧义（如 _90_wonder 全组合唱）就不建立——
+        宁可留空，也不按序号猜一个。
         '''
         if used is None:
             used = set()
@@ -3001,13 +3017,15 @@ class Virtual_live_getter(Pjsk_getter):
         cue_of: dict[int, str] = {}
         # 第一轮：文本唯一可判
         for clip in clips:
+            if not clip['display'].strip():
+                continue  # 空显示名没有信息量，交给排名对齐
             cands = candidates(clip)
             if len(cands) == 1:
                 cue_of[clip['pid']] = cands[0][2]
                 used.add(cands[0][2])
         # 第二轮：同文多角色，用人物编号消歧
         for clip in clips:
-            if clip['pid'] in cue_of:
+            if clip['pid'] in cue_of or not clip['display'].strip():
                 continue
             character_id = self._chara3d_character_id(clip['character3dId'])
             cands = [
@@ -3018,15 +3036,37 @@ class Virtual_live_getter(Pjsk_getter):
             if len(cands) == 1:
                 cue_of[clip['pid']] = cands[0][2]
                 used.add(cands[0][2])
-        # 第三轮：仍歧义（如全组合唱），按场次序号取剩余最靠前的
-        for clip in clips:
-            if clip['pid'] in cue_of:
-                continue
-            cands = candidates(clip)
-            if cands:
-                cue_of[clip['pid']] = cands[0][2]
-                used.add(cands[0][2])
         return cue_of
+
+    def _rank_mapping(
+        self,
+        clips: list[dict[str, Any]],
+        texts: list[dict[str, Any]],
+    ) -> dict[int, str] | None:
+        '''按「pid 升序 ↔ 台词对象在转储里的出现顺序」建立对应，自检不过就返回 None。
+
+        这是同一份文件内部的结构关系：Unity 的 m_Asset.m_PathID 与对象落盘顺序同源，
+        实测 jp 403/415、en 210/220 个 bundle 严格成立。自检用「display 就在本包
+        Serif 集合里」的 clip 当锚点——它们本可以按文本直接定，若按排名得到的 cue
+        与之不符，说明这个包的顺序被打乱（如 CharacterTalkClip(Clone) 混排），整体弃用。
+        '''
+        if not clips or len(clips) != len(texts):
+            return None
+        ordered = sorted(clips, key=lambda c: c['pid'])
+        mapping = {
+            clip['pid']: texts[i].get('CueName') or '' for i, clip in enumerate(ordered)
+        }
+        serif_of = {t.get('CueName') or '': t.get('Serif') or '' for t in texts}
+        domain = {t.get('Serif') or '' for t in texts}
+        checked = 0
+        for clip in clips:
+            display = clip['display']
+            if not display.strip() or display not in domain:
+                continue
+            checked += 1
+            if serif_of.get(mapping[clip['pid']]) != display:
+                return None
+        return mapping if checked else None
 
     def _match_talk_cues(
         self,
@@ -3036,19 +3076,34 @@ class Virtual_live_getter(Pjsk_getter):
     ) -> dict[int, str]:
         '''本语言 talk clip ↔ 台词对象配对，返回 pid → CueName。
 
-        台词对象没有自身 PathID（haruki / pjsk.moe 的转储把它剥掉了），只能间接配：
-        1) 先把 jp 包自己的 talk clip 与它的台词对象配好——同语言下
-           m_DisplayName 与 Serif 逐字相同，可靠；
-        2) 再按「轨道名 + 开始时间」把本语言 clip 对到 jp 的同名 clip，继承它的 cue；
-        3) 时间对不上（两语言版本有差异）的，退回文本比对（忽略空白）。
+        台词对象没有自身 PathID（haruki / pjsk.moe 的转储把它剥掉了），只能间接配，
+        且每一步都必须有据可依：
+        1) 参考包（jp）内部：文本唯一命中 / cue 人物编号消歧；仍歧义就交给第 2 步；
+        2) 参考包内部：pid 排名（_rank_mapping，带锚点自检）——专治 display 与正文
+           措辞不一致的行（如显示名「あなたは」、正文「君は」）；
+        3) 跨语言：本语言 clip 按「轨道名 + 开始时间」对到参考包同名 clip，继承 cue；
+        4) 时间对不上的，再退回文本比对（忽略空白）。
+        四步都不成立的行不输出（宁可留空，也不按场次序号猜）。
         '''
         pool_cue = self._match_by_text(pool_clips, pool_texts)
 
+        ranked = self._rank_mapping(pool_clips, pool_texts)
+        if ranked is not None:
+            pool_used = set(pool_cue.values())
+            for clip in pool_clips:
+                if clip['pid'] in pool_cue:
+                    continue
+                cue = ranked[clip['pid']]
+                if cue in pool_used:
+                    continue
+                pool_cue[clip['pid']] = cue
+                pool_used.add(cue)
+
         by_track: dict[str, list[tuple[float, str]]] = defaultdict(list)
         for clip in pool_clips:
-            cue = pool_cue.get(clip['pid'])
-            if cue:
-                by_track[clip['track']].append((clip['start'], cue))
+            pooled = pool_cue.get(clip['pid'])
+            if pooled:
+                by_track[clip['track']].append((clip['start'], pooled))
 
         cue_of: dict[int, str] = {}
         used: set[str] = set()
@@ -3066,30 +3121,6 @@ class Virtual_live_getter(Pjsk_getter):
         leftover = [t for t in talks if t['pid'] not in cue_of]
         if leftover:
             cue_of.update(self._match_by_text(leftover, pool_texts, used))
-
-        # 4) 仍配不上的：轨道内顺序对齐（同一角色的剩余 cue 按场次序号，
-        #    与剩余 clip 的时间序一一对应）。用于 m_DisplayName 与实际脚本措辞
-        #    不一致的行（如显示名写「あなたは」、正文是「君は」）。
-        rest = [t for t in talks if t['pid'] not in cue_of]
-        if rest:
-            unused_by_char: dict[int | None, list[str]] = defaultdict(list)
-            for text in pool_texts:
-                cue = text.get('CueName') or ''
-                if cue not in used:
-                    unused_by_char[self._cue_character(cue)].append(cue)
-            for cues in unused_by_char.values():
-                cues.sort(key=self._cue_number)
-
-            groups: dict[tuple[str, int | None], list[dict[str, Any]]] = defaultdict(list)
-            for talk in rest:
-                groups[(talk['track'], talk['character3dId'])].append(talk)
-            for (_, character3dId), group in groups.items():
-                cues = unused_by_char.get(self._chara3d_character_id(character3dId), [])
-                if len(cues) != len(group):
-                    continue
-                for talk, cue in zip(sorted(group, key=lambda t: t['start']), cues):
-                    cue_of[talk['pid']] = cue
-                    used.add(cue)
         return cue_of
 
     def _timeline_events_from_container(
@@ -3104,6 +3135,22 @@ class Virtual_live_getter(Pjsk_getter):
             # jp / en：m_DisplayName 就是本地化台词，逐条精确，无需配对
             for talk in talks:
                 talk['serif'] = talk['display']
+            # 例外：个别 clip 的 display 与正文措辞不一致（编辑器标签没同步改）。
+            # 这些行用 pid 排名补正文——排名的自检覆盖整个包，通过才采纳。
+            domain = {t.get('Serif') or '' for t in texts}
+            drifted = [
+                t for t in talks if not t['display'].strip() or t['display'] not in domain
+            ]
+            if drifted:
+                ranked = self._rank_mapping(talks, texts)
+                if ranked is not None:
+                    serif_of = {
+                        t.get('CueName') or '': t.get('Serif') or '' for t in texts
+                    }
+                    for talk in drifted:
+                        text = serif_of.get(ranked.get(talk['pid'], ''), '')
+                        if text.strip():
+                            talk['serif'] = text
         else:
             # cn / tw：本地化文本只在 Serif 里，回填靠 jp 包的 cue 对齐
             jp_clips = self._container_timeline_clips(jp_container) if jp_container else []
