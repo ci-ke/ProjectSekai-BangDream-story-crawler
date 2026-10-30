@@ -207,7 +207,7 @@ class Story_reader(Pjsk_fetcher):
         self.debug_parse = debug_parse
         self.cg_add_link = cg_add_link
 
-        # self.cg_link = 'https://sekai-assets-bdf29c81.seiunx.net/jp-assets/ondemand/scenario/background/{pic_name}/{pic_name}.png'
+        #self.cg_link = f'https://sekai-assets-bdf29c81.seiunx.net/{self.lang}-assets/ondemand/scenario/background/{{pic_name}}/{{pic_name}}.png'
         self.cg_link = 'https://storage.sekai.best/sekai-jp-assets/scenario/background/{pic_name}/{pic_name}.webp'
 
         self.gameCharacters_url = Constant.get_srcs_url(
@@ -508,7 +508,7 @@ class Event_story_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['sekai.best'],
+        src: list[str] = ['haruki', 'sekai.best', 'pjsk.moe'],
         save_dir: str = '.',
         assets_save_dir: str = '.',
         online: bool = True,
@@ -1030,7 +1030,7 @@ class Unit_story_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['sekai.best'],
+        src: list[str] = ['haruki', 'sekai.best', 'pjsk.moe'],
         save_dir: str = '.',
         assets_save_dir: str = '.',
         online: bool = True,
@@ -1210,7 +1210,7 @@ class Card_story_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['sekai.best'],
+        src: list[str] = ['haruki', 'sekai.best', 'pjsk.moe'],
         save_dir: str = '.',
         assets_save_dir: str = '.',
         online: bool = True,
@@ -1502,7 +1502,7 @@ class Area_talk_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['sekai.best'],
+        src: list[str] = ['haruki', 'sekai.best', 'pjsk.moe'],
         save_dir: str = '.',
         assets_save_dir: str = '.',
         online: bool = True,
@@ -1800,7 +1800,7 @@ class Self_intro_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['sekai.best'],
+        src: list[str] = ['haruki', 'sekai.best', 'pjsk.moe'],
         save_dir: str = '.',
         assets_save_dir: str = '.',
         online: bool = True,
@@ -1926,7 +1926,7 @@ class Special_story_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['sekai.best'],
+        src: list[str] = ['haruki', 'sekai.best', 'pjsk.moe'],
         save_dir: str = '.',
         assets_save_dir: str = '.',
         online: bool = True,
@@ -2586,7 +2586,7 @@ class Virtual_live_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['sekai.best'],
+        src: list[str] = ['haruki', 'sekai.best', 'pjsk.moe'],
         save_dir: str = '.',
         assets_save_dir: str = '.',
         online: bool = True,
