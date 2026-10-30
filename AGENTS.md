@@ -80,6 +80,32 @@ offline 模式（online=False）下缺文件且 missing_download=True 会自动�
   返回 `util.UrlSpec(url, note=config_key)`，asset 按 note 查 `<key>_ext_replace` 改缓存后缀
   （如 pjsk.moe 的 `.json` → `.asset`）；bdon 用 config 的 `save_roots`（服务基址 → 存盘根）；
   bang 按 URL 路径落盘。
+- `virtual_live` 的取数按 `src` **逐个源**尝试（`_fetch_mc`，不再把多源塞进一个 URL 列表）：
+  一个源必须「本语言包 +（cn/tw 的 timeline 还要）jp 对照包」都拿到才算可用，任一 404
+  就整段换下一个源；全失败才返回错误串。各源扩展名不同（`.playable` / `.asset` / `.json`），
+  由 config 模板决定，格式化时统一带 `file_type`。
+- `mc_timeline` / `virtual_message` 支持两种上游格式，靠内容自动判别（`_timeline_format`）：
+  sekai.best 的 `.playable` 带上游注入的 `__timelineParse`（已解析 events + meta.characters），
+  直接可用；haruki / pjsk.moe 是整包对象转储（`container` + `objects`），走
+  `_timeline_events_from_container`。
+- 转储格式的坑：每个对象只有 `name/asset_type/data`，没有自身 PathID，轨道 clip 的
+  `m_Asset.m_PathID` 回指不到 `CharacterTalkClip`（其 characterId / Character 恒为空、
+  Offset 恒为 0）。因此台词归属只能间接配（`_match_talk_cues`，四级）：
+  1. 先把 jp 包自己的 clip 与台词对象按文本配好（同语言 Serif ≈ m_DisplayName）；
+  2. 本语言 clip 按「轨道名 + 开始时间」对到 jp 的同名 clip，继承它的 `CueName`；
+  3. 对不上的退回文本比对（`_text_key` 忽略空白，两语言换行/空格常不同）；
+  4. 仍对不上的按轨道内顺序对齐（同角色剩余 cue 按场次序号 ↔ 剩余 clip 时间序）——
+     覆盖 `m_DisplayName` 与正文措辞不一致的行（如显示名写「あなたは」、正文「君は」）。
+  `CueName` 末尾数字即 characterId、`_90_<罗马音>` 后缀用于同文多角色消歧
+  （`_cue_romaji_character` 只是这一步的补表，缺项会自动退回顺序配对）。
+  jp 包经 `lang_for_path='jp'` 落 `pjsk-jp-assets/`，与剧本语言无关，四语言共用一份。
+- 转储里的轨道命名还有两个坑：
+  - Unity 复制轨道会带 ` (1)` / ` (2)` 后缀（如 `穂波_Talk (1)`），匹配前要剥掉，
+    否则整条轨道的台词会静默丢失；
+  - 中途客串的角色（只露一面）不建 `<角色>_Talk`，其台词/登场/退场落在三条通用轨道
+    `MC Timeline Character Talk Track` / `... Spawn Track` / `... Un Spawn Track` 上，
+    角色由轨道 `CharacterId` 指定（见 `_generic_track_kind`）。
+  `mc`（scenario）段不受影响：haruki 的 `.asset` 就是 MCScenario 本体。
 
 ## 三条产品线的语言机制差异（重要）
 
