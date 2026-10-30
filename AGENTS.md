@@ -98,7 +98,9 @@ offline 模式（online=False）下缺文件且 missing_download=True 会自动�
      覆盖 `m_DisplayName` 与正文措辞不一致的行（如显示名写「あなたは」、正文「君は」）。
   `CueName` 末尾数字即 characterId、`_90_<罗马音>` 后缀用于同文多角色消歧
   （`_cue_romaji_character` 只是这一步的补表，缺项会自动退回顺序配对）。
-  jp 包经 `lang_for_path='jp'` 落 `pjsk-jp-assets/`，与剧本语言无关，四语言共用一份。
+- 是否需要 jp 对照包**按数据判断**（`_fetch_mc` 里用 `_is_self_describing`），不写死语言：
+  jp / en 的 `m_DisplayName` 已本地化、单包自足；未本地化的语言（cn / tw / kr …）才取对照包。
+  jp 包经 `lang_for_path='jp'` 落 `pjsk-jp-assets/`，与剧本语言无关，各语言共用一份。
 - 转储里的轨道命名还有两个坑：
   - Unity 复制轨道会带 ` (1)` / ` (2)` 后缀（如 `穂波_Talk (1)`），匹配前要剥掉，
     否则整条轨道的台词会静默丢失；

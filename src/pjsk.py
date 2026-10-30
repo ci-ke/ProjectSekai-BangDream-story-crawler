@@ -3204,15 +3204,31 @@ class Virtual_live_getter(Pjsk_getter):
                 skip_read=not self.parse,
             )
             if isinstance(payload, str):
+                # 换源会静默改变数据来源（尤其离线时可能落到别的源的旧缓存），
+                # 这里明确记一条，便于在日志里发现
+                logging.warning(
+                    f'{record}: {src_name} 取包失败（{payload[:80]}），换下一个源'
+                )
                 last_error = payload
                 continue
 
-            # cn / tw 的 timeline 转储要靠 jp 包当外键；jp / en 自带本地化，不用另取
+            # 只有「本包没有本地化台词」的语言才需要 jp 对照包，按数据判断：
+            # jp / en 的 m_DisplayName 就是本地化文本（自描述），cn / tw / kr 保留日文。
+            # 这样新语言不用改代码；sekai.best 的预解析格式也不需要对照。
             need_jp = (
                 mc_type == 'timeline'
                 and bool(jp_urls)
-                and self.reader.lang in ('cn', 'tw')
+                and self._timeline_format(payload) == 'container'
             )
+            if need_jp:
+                talks = [
+                    c
+                    for c in self._container_timeline_clips(payload)
+                    if c['type'] == 'talk'
+                ]
+                need_jp = not self._is_self_describing(
+                    talks, self._container_texts(payload)
+                )
             if not need_jp:
                 return payload, None
 
