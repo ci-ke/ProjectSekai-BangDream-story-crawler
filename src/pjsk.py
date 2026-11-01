@@ -2845,7 +2845,7 @@ class Virtual_live_getter(Pjsk_getter):
         else:
             logging.warning(
                 f"{payload.get('m_Name', payload.get('container', '?'))}: "
-                '无法识别的 timeline 格式，跳过该段 MC'
+                'unknown timeline format, skipped this segment.'
             )
             return ''
         return self._render_timeline_events(events)
@@ -3157,8 +3157,8 @@ class Virtual_live_getter(Pjsk_getter):
             jp_texts = self._container_texts(jp_container) if jp_container else []
             if jp_container is None:
                 logging.warning(
-                    f"{container.get('container', '?')}: 缺少 jp 对照包，"
-                    '该段 MC 的台词无法回填'
+                    f"{container.get('container', '?')}: missing jp reference "
+                    'bundle, talk lines of this segment cannot be resolved.'
                 )
             cue_of = self._match_talk_cues(
                 talks, [c for c in jp_clips if c['type'] == 'talk'], jp_texts
@@ -3217,6 +3217,20 @@ class Virtual_live_getter(Pjsk_getter):
             return 'container'
         return 'unknown'
 
+    @staticmethod
+    def _is_skip_read(payload: Any) -> bool:
+        '''assets 模式（parse=False）读缓存时 util 返回的占位串，不是取包失败。'''
+        return isinstance(payload, str) and payload.startswith('ERROR: skip read')
+
+    @staticmethod
+    def _brief_error(payload: str) -> str:
+        '''错误串只取首段。
+
+        完整错误（含 URL、异常类型）util 的 fetch_url_json 已经打过一条日志，
+        这里只补「哪个 record、哪个源」这层上下文，不重复 URL。
+        '''
+        return payload.split(' || ', 1)[0].removeprefix('ERROR: ')
+
     async def _fetch_mc(
         self,
         mc_type: str,
@@ -3251,10 +3265,12 @@ class Virtual_live_getter(Pjsk_getter):
                 skip_read=not self.parse,
             )
             if isinstance(payload, str):
+                if self._is_skip_read(payload):
+                    return payload, None
                 # 换源会静默改变数据来源（尤其离线时可能落到别的源的旧缓存），
-                # 这里明确记一条，便于在日志里发现
+                # 这里明确记一条，便于在日志里发现；只报这个源失败，不预告换源。
                 logging.warning(
-                    f'{record}: {src_name} 取包失败（{payload[:80]}），换下一个源'
+                    f'{record}: {src_name} failed: {self._brief_error(payload)}'
                 )
                 last_error = payload
                 continue
@@ -3287,8 +3303,11 @@ class Virtual_live_getter(Pjsk_getter):
                 lang_for_path='jp',
             )
             if isinstance(jp_payload, str):
+                if self._is_skip_read(jp_payload):
+                    return payload, None
                 logging.warning(
-                    f'{record}: {src_name} 缺 jp 对照包（{jp_payload}），换下一个源'
+                    f'{record}: {src_name} has no jp reference bundle: '
+                    f'{self._brief_error(jp_payload)}'
                 )
                 last_error = jp_payload
                 continue
