@@ -135,7 +135,8 @@ class AdvCommand(int, Enum):
     CharacterOut = 1           # 角色退场 / 移出
     Talk = 2                   # 对话：说话人 + 文本 + 语音。targetStatus = 1 时游戏名框显示
                                # "？？？"（身份未揭示的说话人），2 时隐藏名框（画外音 / 独白）；
-                               # 数据均保留真实说话人，输出按站点同款以括注区分
+                               # 数据均保留真实说话人，输出按站点同款以括注区分。显示名里没有
+                               # 真实短名时（舞台名 Doloris、伪装 sakiko_role「仆人」等）另括注短名
     Wait = 3                   # 等待 duration 秒
     WaitParam = 4              # 带参数的条件等待
     TransitionIn = 5           # 转场遮罩盖上：parameter1 色幕淡入，duration = 秒；场景 / 背景 /
@@ -380,6 +381,33 @@ class Story_reader(Bdon_fetcher):
         self.master_text = {str(row['id']): row for row in rows['MasterText']}
         self.advs = {row['id']: row for row in rows['MasterAdv']}
         self.characters = {row['id']: row for row in rows['MasterCharacter']}
+        # 说话人名条目 → 真实角色 id 的两张表（名字本身仍由 MasterCharacter 的
+        # nameTextID / shortNameTextID 指向 MasterText，这里只存角色 id）：
+        # 1) stage_aliases：舞台名。Ave Mujica 的 Doloris / Mortis / Timoris / Amoris /
+        #    Oblivionis 在 MasterCharacter 里是四段式 nameTextID
+        #    （Character_Name_<舞台名>_<真名>，其余角色均为三段），shortNameTextID 则指向
+        #    真实角色短名（Character_Short_Name_<真名>）；剧本 Text 表以 adv_<舞台名>
+        #    称呼她们（adv_doloris）。两处校验（四段式 + 短名 id 尾段一致）任一不成立即
+        #    跳过：上游改版时宁可不标注，也不能张冠李戴。
+        # 2) chara_by_key：角色键（短名 id 尾段，如 sakiko）→ 角色 id，供
+        #    adv_<角色键>_<后缀> 这种条目用（sakiko_role = 僕人、mutsumi_role2 = 姫 …）。
+        #    后缀不参与判断：是不是**另一个人**由显示名里有没有真名来区分。
+        self.stage_aliases: dict[str, int] = {}
+        self.chara_by_key: dict[str, int] = {}
+        for chara in rows['MasterCharacter']:
+            chara_id = int(chara['id'])
+            short_id = str(chara.get('shortNameTextID') or '')
+            parts = str(chara.get('nameTextID') or '').split('_')
+            if len(parts) == 4 and parts[:2] == ['Character', 'Name'] and parts[2]:
+                if short_id == f'Character_Short_Name_{parts[3]}':
+                    self.stage_aliases.setdefault(parts[2].lower(), chara_id)
+                else:
+                    logging.warning(
+                        f'skip stage alias {chara.get("nameTextID")} ({short_id}).'
+                    )
+            key = short_id.rsplit('_', 1)[-1].lower()
+            if key:
+                self.chara_by_key.setdefault(key, chara_id)
         self.bands = {row['id']: row for row in rows['MasterBand']}
         self.story_chapters = rows['MasterStoryChapter']
         # 剧情表各自以本表 _id 为键（getter 的入口 id），行内 advId 用于定位脚本
@@ -454,6 +482,43 @@ class Story_reader(Bdon_fetcher):
         key = 'shortNameTextID' if short else 'nameTextID'
         return self.get_master_text(chara.get(key), lang) or ''
 
+    def _real_chara_id(self, speaker_key: str) -> int | None:
+        """说话人名条目键（已去 adv_、转小写）→ 真实角色 id；认不出返回 None。
+
+        ① 四段式舞台名（doloris / mortis …）直接查 stage_aliases；
+        ② adv_<角色键>_<后缀> 取角色键对应的角色——后缀是 _role（身份伪装）、
+           _child（幼年）还是 _maybe（未确定身份）都不影响，因为「是不是**另一个人**」
+           交给显示名判断（见 annotate_real_name），不在这里枚举后缀。
+        角色键全部来自 MasterCharacter 的 shortNameTextID，不解析任何资源路径。"""
+        alias = self.stage_aliases.get(speaker_key)
+        if alias is not None:
+            return alias
+        char_key, _, suffix = speaker_key.partition('_')
+        if not suffix:
+            return None
+        return self.chara_by_key.get(char_key)
+
+    def annotate_real_name(
+        self, chara_id: int | None, display: str, lang: str, mark_lang: str
+    ) -> str:
+        """显示名里没有真实短名时才括注：Doloris（初华）、仆人（祥子）。
+
+        判据就是「短名不在显示名里」。于是宁月的父亲 / 灯的母亲 / 幼年凪 / 睦？ 这些
+        本来就带着真名的显示名不会再标一遍，而「称呼另一个人」的条目（必有真名在显示名
+        里）也就天然被排除了——不需要维护亲属后缀名单。
+        chara_id 缺失、display 为空或短名缺失时原样返回（宁缺不错）。"""
+        if not display or chara_id is None:
+            return display
+        short_name = self.get_chara_name(chara_id, lang, short=True)
+        if not short_name or short_name in display:
+            return display
+        return (
+            display
+            + Mark_multi_lang['('][mark_lang]
+            + short_name
+            + Mark_multi_lang[')'][mark_lang]
+        )
+
     def get_band_name(self, band_id: Any, lang: str) -> str:
         band = self.bands.get(band_id)
         if band is None:
@@ -495,14 +560,24 @@ class Story_reader(Bdon_fetcher):
         """targetName（模型名/聊天发送者 id）解析显示名：按 ・ 分隔逐段查本剧本
         Text 表的名字条目——直接 id 优先（聊天发送者如 advchat_miku_01），未命中
         再试 adv_ 前缀（模型名如 raika → adv_raika，站点 modelName 同款两级回落），
-        仍未命中的段保留原名，多段用 " & " 连接。"""
+        仍未命中的段保留原名，多段用 " & " 连接。解析出名字的段另按
+        _real_chara_id + annotate_real_name 括注真实角色短名。"""
         names = []
         for part in target_name.split('・'):
             if not part:
                 continue
             name_row = text_lookup.get(part) or text_lookup.get('adv_' + part)
             name = self.get_text_marked(name_row, lang, mark_lang) if name_row else ''
-            names.append(util.newlines_to_spaces(name or part))
+            # 显示名里没有真实短名时括注；未解析出名字时不标注裸 id
+            display = util.newlines_to_spaces(name or part)
+            if name:
+                key = part.lower()
+                if key.startswith('adv_'):
+                    key = key[len('adv_'):]
+                display = self.annotate_real_name(
+                    self._real_chara_id(key), display, lang, mark_lang
+                )
+            names.append(display)
         return ' & '.join(names)
 
     def read_script(
@@ -536,20 +611,32 @@ class Story_reader(Bdon_fetcher):
 
         def speaker_of(row: dict[str, Any]) -> str:
             """本行说话人（chat 窗标题同款）：_targetTextIDs 可多人，逐个查本剧本
-            Text 表后用 " & " 连接，条目缺失时保留裸 id；tids 为空时按 targetName
-            回落解析显示名（站点 speakerOf 同款）。ChatMessageEx（65）常缺 tids，
-            不回落会以裸 id 作说话人，与同文配对 ChatMessage（37）的显示名行并排
-            出现时突兀。"""
+            Text 表后用 " & " 连接，条目缺失时保留裸 id；显示名里没有真实短名时另
+            括注（见 annotate_real_name）。tids 为空时按 targetName 回落解析显示名
+            （站点 speakerOf 同款），括注由 get_target_name 负责、此处不可再包一层。
+            ChatMessageEx（65）常缺 tids，不回落会以裸 id 作说话人，与同文配对
+            ChatMessage（37）的显示名行并排出现时突兀。"""
             names = []
             for target_id in row.get('targetTextIDs') or []:
-                speaker_row = text_lookup.get(str(target_id))
+                target_id = str(target_id)
+                speaker_row = text_lookup.get(target_id)
                 name = (
                     self.get_text_marked(speaker_row, lang, mark_lang)
                     if speaker_row
                     else ''
                 )
-                names.append(util.newlines_to_spaces(name or target_id))
+                # 显示名里没有真实短名时括注；条目缺失保留裸 id、不括注
+                display = util.newlines_to_spaces(name or target_id)
+                if name:
+                    key = target_id.lower()
+                    if key.startswith('adv_'):
+                        key = key[len('adv_'):]
+                    display = self.annotate_real_name(
+                        self._real_chara_id(key), display, lang, mark_lang
+                    )
+                names.append(display)
             speaker = ' & '.join(names)
+            # get_target_name 内部已含真实名括注，此处不可再包一层
             if not speaker and row.get('targetName'):
                 return self.get_target_name(
                     row['targetName'], text_lookup, lang, mark_lang
