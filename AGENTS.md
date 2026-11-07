@@ -1,6 +1,7 @@
 # AGENTS.md
 
-Project Sekai / BanG Dream! 剧本爬虫（story-crawler）。本文件供 AI 助手快速了解项目结构与约定，
+Project Sekai / BanG Dream! 剧本爬虫（story-crawler）。本文件只记 AI 开发必要的概览与约定：
+仓库结构、运行方式、模块边界、路径与验证清单。解析算法等实现细节以代码注释为准，不在此展开。
 所有路径默认相对本仓库根目录，改动涉及的结构若有变化应同步更新此文件。
 
 ## 仓库结构
@@ -74,50 +75,20 @@ offline 模式（online=False）下缺文件且 missing_download=True 会自动�
 | bang（6 个） | event、band、main、card、area、after_live |
 | bdon（6 个） | band、special（仅 chapter.json 的 _isSpecialStory 章，目录/命名逻辑与 band 共用）、friendship、home、live_result、tutorial |
 
-- assets 缓存与语言/站点分桶由 `append_save_path` 决定，与 save_dir 无关：pjsk 用 config 的
-  `save_roots`（按 master/asset 分组；基址模板里的 `{master_lang}`/`{asset_lang}` 取站内语言，
-  存盘根里的 `{lang}` 是剧本语言，故 tw 的 tc 资产仍落 `pjsk-tw-assets/`）；`get_srcs_url`
-  返回 `util.UrlSpec(url, note=config_key)`，asset 按 note 查 `<key>_ext_replace` 改缓存后缀
-  （如 pjsk.moe 的 `.json` → `.asset`）；bdon 用 config 的 `save_roots`（服务基址 → 存盘根）；
-  bang 按 URL 路径落盘。
+- assets 缓存的分桶与 save_dir 无关（`append_save_path`）：pjsk / bdon 按 config `save_roots` 的
+  「服务基址 → 存盘根」映射落盘（pjsk 按 master/asset 分组，模板里的 `{lang}` 是剧本语言，
+  故 tw 的 tc 资产仍落 `pjsk-tw-assets/`），bang 按 URL 路径落盘。
+  缓存后缀替换（`_ext_replace`）等细节见 config.json。
+
+## pjsk 源选择与 virtual live
+
 - **pjsk 各 getter 的默认源统一为 `src=['sekai.best']`**（唯一例外是 `Mysekai_talk_getter`，
-  默认 `['haruki', 'pjsk.moe', 'sekai.best']`——它的文本只有 haruki / pjsk.moe 提供）。
-  这是 `e9686568` 之后回调的结论：haruki 的容器转储丢 PathID，live 台词只能推断。
-- `virtual_live` 的取数按 `src` **逐个源**尝试（`_fetch_mc`，不再把多源塞进一个 URL 列表）：
-  一个源必须「本语言包 +（cn/tw 的 timeline 还要）jp 对照包」都拿到才算可用，任一 404
-  就整段换下一个源；全失败才返回错误串。各源扩展名不同（`.playable` / `.asset` / `.json`），
-  由 config 模板决定，格式化时统一带 `file_type`。
-  `Virtual_live_getter.__init__` 的默认值是 `src=['sekai.best']`：`.playable` 带上游注入的
-  `__timelineParse`，零推断。代价是 sekai.best 没镜像的 bundle 会整段缺失（en 52 个、
-  cn/tw 各 2 个），需要时由调用方传 `src=['sekai.best', 'haruki']` 换源。
-- `mc_timeline` / `virtual_message` 支持两种上游格式，靠内容自动判别（`_timeline_format`）：
-  sekai.best 的 `.playable` 带上游注入的 `__timelineParse`（已解析 events + meta.characters），
-  直接可用；haruki / pjsk.moe 是整包对象转储（`container` + `objects`），走
-  `_timeline_events_from_container`。
-- 转储格式的坑：每个对象只有 `name/asset_type/data`，没有自身 PathID，轨道 clip 的
-  `m_Asset.m_PathID` 回指不到 `CharacterTalkClip`（其 characterId / Character 恒为空、
-  Offset 恒为 0）。因此台词归属只能间接配（`_match_talk_cues`），每一步都要有据可依：
-  1. **文本唯一命中**：clip 的 `m_DisplayName` 在台词对象里唯一对应一条 `Serif`；
-     同文多角色再用 `CueName` 的角色编号与轨道 `CharacterId` 对齐消歧；空 display 不参与；
-  2. **pid 排名**（`_rank_mapping`）：`m_Asset.m_PathID` 升序 ↔ 台词对象的出现顺序。
-     这是同一份文件内的结构关系，实测 jp 403/415、en 210/220 个 bundle 成立；
-     用「display 就在本包 Serif 里」的 clip 当锚点全量自检，不通过就整体弃用。
-     它专治 display 与正文措辞不一致的行（显示名「あなたは」、正文「君は」）；
-  3. **轨道名 + 开始时间**：本语言 clip 对到参考包同名 clip，继承 `CueName`；
-  4. **文本兜底**：`_text_key` 忽略空白再比一次（两语言换行/空格常不同）。
-  四步都不成立的行不输出——没有「按场次序号硬配」这类猜测层。
-  `CueName` 解析只看末尾：末段数字即 characterId，`90` 是合唱占位、真人在后缀
-  （`_90_meiko`），行号可能带字母（`_14a_90_kaito`）。
-- 是否需要 jp 对照包**按数据判断**（`_fetch_mc` 里用 `_is_self_describing`），不写死语言：
-  jp / en 的 `m_DisplayName` 已本地化、单包自足；未本地化的语言（cn / tw / kr …）才取对照包。
-  jp 包经 `lang_for_path='jp'` 落 `pjsk-jp-assets/`，与剧本语言无关，各语言共用一份。
-- 转储里的轨道命名还有两个坑：
-  - Unity 复制轨道会带 ` (1)` / ` (2)` 后缀（如 `穂波_Talk (1)`），匹配前要剥掉，
-    否则整条轨道的台词会静默丢失；
-  - 中途客串的角色（只露一面）不建 `<角色>_Talk`，其台词/登场/退场落在三条通用轨道
-    `MC Timeline Character Talk Track` / `... Spawn Track` / `... Un Spawn Track` 上，
-    角色由轨道 `CharacterId` 指定（见 `_generic_track_kind`）。
-  `mc`（scenario）段不受影响：haruki 的 `.asset` 就是 MCScenario 本体。
+  其文本只有 haruki / pjsk.moe 提供）。haruki 转储丢 PathID、live 台词只能推断，故不作默认；
+  sekai.best 未镜像的 bundle 会整段缺失，需要时由调用方传 `src=['sekai.best', 'haruki']` 换源。
+- `virtual_live` 按 src 逐个源尝试：一个源要「本语言包 +（cn/tw 的 timeline 还要）jp 对照包」
+  都拿到才算可用，任一 404 就整段换下一个源；是否需要对照包按数据判断（jp/en 单包自足）。
+  转储解析与台词归属（`_timeline_format` / `_match_talk_cues` / `_rank_mapping`）的实现细节
+  见 src/pjsk.py 注释。
 
 ## 三条产品线的语言机制差异（重要）
 
@@ -127,26 +98,21 @@ offline 模式（online=False）下缺文件且 missing_download=True 会自动�
 - **bang**：`{lang}` 在每次 `get(id, lang, mark_lang)` 时 format，一个实例服务所有语言；
   文本取多语言数组的下标（`Constant.lang_index`）。`mark_lang`（'cn'/'en'）决定 `Mark_multi_lang` 标注风格。
 - **bdon**：按**数据面**组织（`SIDES`/`SIDE_LANGS`）——国际服面 `en`（/master + en 段剧本表，
-  全语言）与日服面 `jp`（/jp/master + ja 段剧本表，近乎纯日语）。两面各自一套 reader+getter
+  全语言）与日服面 `jp`（/jp/master + ja 段剧本表）。两面各自一套 reader+getter
   （`Run.create_getters(side=..., lang_dir=...)`）与独立缓存桶（bdon-{en,jp}-master /
-  bdon-{en,jp}-assets，基址映射在 config 的 `save_roots`）。CI 的 story_jp 由国际服面的
-  合成语言 `en-jp`（国际服 dump 的日语列，`text_field`/`Fallback.chain` 已登记）产出，
-  经 getter 的 `lang_dir={'en-jp': 'jp'}` 接管存储目录写 story_jp；日服面暂不参与 action，
-  待其剧本表在发布服务稳定后用 `side='jp'` 启用（本地 main 同时产出两种日语来源供对比）。
+  bdon-{en,jp}-assets）。CI 的 story_jp 由国际服面的合成语言 `en-jp` 产出，经
+  `lang_dir={'en-jp': 'jp'}` 接管存储目录写 story_jp；日服面暂不参与 action。
   `get(master_id, langs=...)` 的 langs 缺省取所在面的 `SIDE_LANGS`；action 的 `CI_LANGS`
-  不产出 kr。目标语言缺失时按回落链取值并标注实际语言，机制在独立类 `Fallback`
-  （静态方法+类字段）。
+  不产出 kr。语言缺失时的回落与标注机制见 `Fallback`。
 
 ## 时间戳抓取（pjsk/bang）
 
-- `TIMESTAMP13` = UTC+36h（cn/tw 服务器先行），`TIMESTAMP13_EN` 再 +15h（定义在 action/all_pjsk.py）。
-- `util.LATE_TIMESTAMP13` = +365 天 ≈ 全抓，是 timestamp13 的默认值。
-- pjsk/bang 带时间戳字段的 getter 的 `get()` 都带 `timestamp13` 过滤（None 为不过滤）：
-  pjsk 为 event/card/special/virtual/area，bang 为 event/card。
-- pjsk/bang 的 event、card 另保留 `get_newest`（按 quantity 取最新若干条，quantity=0 为全抓）；
-  其内部调 `get(..., timestamp13=None)`（id 层已按 timestamp13 筛过，避免 get 层二次过滤）。
-- 其余 getter 由 action 遍历 `tell_ids()` / `tell_categories()` 并把 timestamp13 传入 get
-  （见 all_pjsk 的 `add_timestamp_tasks`）。
+- `TIMESTAMP13` = UTC+36h（cn/tw 服务器先行），`TIMESTAMP13_EN` 再 +15h（action/all_pjsk.py）；
+  `util.LATE_TIMESTAMP13` = +365 天 ≈ 全抓，是 timestamp13 的默认值。
+- 带时间戳字段的 getter 的 `get()` 都带 `timestamp13` 过滤（None 为不过滤）：
+  pjsk 为 event/card/special/virtual/area，bang 为 event/card。event/card 另有 `get_newest`
+  （quantity=0 全抓，内部以 timestamp13=None 调 get，避免二次过滤）。
+- 其余 getter 由 action 遍历 `tell_ids()` / `tell_categories()` 并把 timestamp13 传入 get。
 
 ## action/（CI 入口）
 
