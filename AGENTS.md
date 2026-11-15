@@ -85,10 +85,11 @@ offline 模式（online=False）下缺文件且 missing_download=True 会自动�
 - **pjsk 各 getter 的默认源统一为 `src=['sekai.best']`**（唯一例外是 `Mysekai_talk_getter`，
   其文本只有 haruki / pjsk.moe 提供）。haruki 转储丢 PathID、live 台词只能推断，故不作默认；
   sekai.best 未镜像的 bundle 会整段缺失，需要时由调用方传 `src=['sekai.best', 'haruki']` 换源。
-- `virtual_live` 按 src 逐个源尝试：一个源要「本语言包 +（cn/tw 的 timeline 还要）jp 对照包」
-  都拿到才算可用，任一 404 就整段换下一个源；是否需要对照包按数据判断（jp/en 单包自足）。
-  转储解析与台词归属（`_timeline_format` / `_match_talk_cues` / `_rank_mapping`）的实现细节
-  见 src/pjsk.py 注释。
+- `virtual_live` 的 timeline 类型（mc_timeline / virtual_message）只认 sekai.best 的预解析格式
+  （`__timelineParse`）。haruki / pjsk.moe 的整包对象转储缺台词对象的 PathID、台词归属无法可靠
+  还原，那段解析已整体移除（回到引入前的形态）；把这两个源传给 timeline 段会因缺 `__timelineParse`
+  直接报错，即 timeline 只能用 sekai.best。src 回退由 util 的顺序试取完成，`get()` 只发一次
+  `fetch_url_json`，不再单独编排。
 
 ## 三条产品线的语言机制差异（重要）
 

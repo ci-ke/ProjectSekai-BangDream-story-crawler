@@ -2583,38 +2583,6 @@ class Mysekai_talk_getter(Pjsk_getter):
 
 
 class Virtual_live_getter(Pjsk_getter):
-    # CueName 末尾的罗马音 → characterId（voice_mc_xxx_11_90_minori 这类合唱行的后缀）。
-    # 无后缀时末尾数字本身就是 characterId（_13 司 / _21 Miku / _26 KAITO），故只列后缀表。
-    # 仅用于「多人同说一句」时的归属消歧，缺项会自动退回按场次顺序配对。
-    _cue_romaji_character: dict[str, int] = {
-        'ichika': 1,
-        'saki': 2,
-        'honami': 3,
-        'shiho': 4,
-        'minori': 5,
-        'haruka': 6,
-        'airi': 7,
-        'shizuku': 8,
-        'kohane': 9,
-        'an': 10,
-        'akito': 11,
-        'toya': 12,
-        'tsukasa': 13,
-        'emu': 14,
-        'nene': 15,
-        'rui': 16,
-        'kanade': 17,
-        'mafuyu': 18,
-        'ena': 19,
-        'mizuki': 20,
-        'miku': 21,
-        'rin': 22,
-        'len': 23,
-        'luka': 24,
-        'meiko': 25,
-        'kaito': 26,
-    }
-
     def __init__(
         self,
         reader: Story_reader,
@@ -2655,29 +2623,9 @@ class Virtual_live_getter(Pjsk_getter):
         self.musics_url = Constant.get_srcs_url(
             self.reader.lang, src, 'master', 'musics'
         )
-        # timeline 类型（mc_timeline / virtual_message）的两种上游格式：
-        # - sekai.best 的 .playable 带上游预解析的 __timelineParse，直接可用；
-        # - haruki / pjsk.moe 是整包对象转储（container + objects），对象自身没有
-        #   PathID，轨道 clip 的 m_Asset.m_PathID 指不到台词对象，只能拿 clip 的
-        #   m_DisplayName（日文）去比文本。cn / tw 包的 m_DisplayName 保留日文，
-        #   所以需要同 bundle 的 jp 包当对照（jp 的 Serif 就是日文本体）。
-        # 按源分成一组组 URL：一个源要「本语言包 + jp 包」都拿到才算可用，
-        # 缺一个就整段换下一个源（见 _fetch_mc）。各源扩展名不同（.playable /
-        # .asset / .json），由 config 里的模板决定，格式化时统一带上 file_type。
-        self.virtual_live_src_urls: list[
-            tuple[str, list[util.UrlSpec], list[util.UrlSpec]]
-        ] = []
-        for src_name in src:
-            urls = Constant.get_srcs_url(self.reader.lang, [src_name], 'asset', 'virtual_live')
-            if not urls:
-                continue
-            # 只有转储格式的源才有「jp 对照包」；sekai.best 自带预解析，不需要
-            jp_urls = (
-                Constant.get_srcs_url('jp', [src_name], 'asset', 'virtual_live')
-                if src_name in ('haruki', 'pjsk.moe')
-                else []
-            )
-            self.virtual_live_src_urls.append((src_name, urls, jp_urls))
+        self.virtual_live_asset_url = Constant.get_srcs_url(
+            self.reader.lang, src, 'asset', 'virtual_live'
+        )
 
     async def init(
         self,
@@ -2805,21 +2753,26 @@ class Virtual_live_getter(Pjsk_getter):
     def _event_chara_name(
         self, ev: dict[str, Any], chara3d_map: dict[str, list[int]]
     ) -> tuple[str, int | None]:
-        '''事件角色名 → (服务器语言角色名, character3dId)。
+        '''事件角色名 → (服务器语言角色名, character3dId)；映射失败回退原文。
 
-        meta.characters 里的 name 不可靠：同一场里可能有两个 3d 模型共用一个显示名
-        （如 countdown 的 1786 实际是 KAITO，却被标成「レン」）。talk 事件的 cueName
-        末段数字才是精确的 characterId，先用它把候选 id 收敛，再取本地化名字。
+        meta.characters 的 name 不可靠：同一场里可能有两个 3d 模型共用一个显示名
+        （如 countdown 的 1786 实际是 KAITO，却被标成「レン」）。事件自带的
+        character3dId 最可靠，其次是 cueName 末段的人物编号（_29_14 → 14、
+        _64_26_piapro → 26），两者都没有才按名字取第一个候选。合唱行的
+        _90_<罗马音> 只是占位，实测从不改变归属，故不参与判断。
         '''
         raw_name: str = ev['character']
         own = ev.get('character3dId')
         if own is not None:
             return self._get_chara_name(own) or raw_name, own
         cands = chara3d_map[raw_name]
-        want = self._cue_character(ev.get('cueName') or '')
-        if want is not None:
+        cue = re.search(r'_(\d+)(?:_[a-z]+)?$', ev.get('cueName') or '')
+        wanted = int(cue.group(1)) if cue is not None else 0
+        if 1 <= wanted <= 26:
             for cid in cands:
-                if self._chara3d_character_id(cid) == want:
+                index = self.character3ds_lookup.find_index(cid)
+                row = self.character3ds_json[index] if index != -1 else None
+                if row is not None and row['characterId'] == wanted:
                     return self._get_chara_name(cid) or raw_name, cid
         for cid in cands:
             localized = self._get_chara_name(cid)
@@ -2827,33 +2780,8 @@ class Virtual_live_getter(Pjsk_getter):
                 return localized, cid
         return raw_name, None
 
-    def parse_mc_timeline(
-        self, payload: dict[str, Any], jp_payload: dict[str, Any] | None = None
-    ) -> str:
-        '''解析 mc_timeline / virtual_message 类型（.playable）的对话。
-
-        按内容自动判别格式（无需调用方指定）：
-        - sekai.best：文件里带上游预解析的 __timelineParse，直接转事件表；
-        - haruki / pjsk.moe：整包对象转储（container + objects），走
-          _timeline_events_from_container（cn/tw 需 jp 包当外键）。
-        '''
-        payload_format = self._timeline_format(payload)
-        if payload_format == 'parsed':
-            events = self._timeline_events_from_parse(payload)
-        elif payload_format == 'container':
-            events = self._timeline_events_from_container(payload, jp_payload)
-        else:
-            logging.warning(
-                f"{payload.get('m_Name', payload.get('container', '?'))}: "
-                'unknown timeline format, skipped this segment.'
-            )
-            return ''
-        return self._render_timeline_events(events)
-
-    def _timeline_events_from_parse(
-        self, playable: dict[str, Any]
-    ) -> list[dict[str, Any]]:
-        '''sekai.best 的 __timelineParse → 统一事件表。'''
+    def parse_mc_timeline(self, playable: dict[str, Any]) -> str:
+        '''解析 mc_timeline / virtual_message 类型（.playable）的对话。'''
         timeline = playable['__timelineParse']
 
         # talk 事件只带角色名文本，不带 3d id；用带 character3dId 的事件
@@ -2865,455 +2793,27 @@ class Virtual_live_getter(Pjsk_getter):
             if 'character3dId' in ev:
                 chara3d_map[ev['character']].append(ev['character3dId'])
 
-        events: list[dict[str, Any]] = []
-        for ev in timeline['events']:
-            ev_type: str = ev['type']
-            if ev_type not in ('talk', 'spawn', 'unspawn'):
-                continue
-            chara_name, cid = self._event_chara_name(ev, chara3d_map)
-            events.append(
-                {
-                    'type': ev_type,
-                    'start': ev['start'],
-                    'character3dId': cid,
-                    'name': chara_name,
-                    'serif': ev.get('serif', '') if ev_type == 'talk' else '',
-                }
-            )
-        return events
-
-    def _chara3d_character_id(self, character3dId: int | None) -> int | None:
-        '''character3dId → characterId（cue 里的人物编号是后者）。'''
-        if character3dId is None:
-            return None
-        index = self.character3ds_lookup.find_index(character3dId)
-        if index == -1:
-            return None
-        characterId: int = self.character3ds_json[index]['characterId']
-        return characterId
-
-    @staticmethod
-    def _cue_number(cue: str) -> int:
-        '''cue 里的场次序号（voice_mc_xxx_29_14 → 29），用于同组内排序。'''
-        match = re.search(r'_(\d+)_(\d+)(?:_[a-z]+)?$', cue)
-        return int(match.group(1)) if match else -1
-
-    def _cue_character(self, cue: str) -> int | None:
-        '''cue 里的人物：末尾数字即 characterId（_29_14 → 14、_64_26_piapro → 26）；
-        合唱行的 90 是占位符，真人在后缀（_90_meiko → 25）。行号可能带字母
-        （_14a_90_kaito），所以只从末尾取一段，不做整串匹配。
-        '''
-        match = re.search(r'_(\d+)(?:_([a-z]+))?$', cue)
-        if match is None:
-            return None
-        number = int(match.group(1))
-        if number == 90:
-            return self._cue_romaji_character.get(match.group(2) or '')
-        return number if 1 <= number <= 26 else None
-
-    # 临时登场角色（只在中途露一面的客串）的台词/登场/退场不放在 <角色>_Talk 轨道，
-    # 而是落在这三条通用轨道上，角色由轨道自身的 CharacterId 指定。
-    _generic_track_kind: dict[str, str] = {
-        'MC Timeline Character Talk Track': 'talk',
-        'MC Timeline Character Spawn Track': 'spawn',
-        'MC Timeline Character Un Spawn Track': 'unspawn',
-    }
-
-    @classmethod
-    def _container_timeline_clips(
-        cls, container: dict[str, Any]
-    ) -> list[dict[str, Any]]:
-        '''container 转储里的角色轨道 clip（_Talk / _入場 / _退場 + 三条通用轨道）。
-
-        子轨道自带 CharacterId（即 character3dId），时间与日文原文（m_DisplayName）
-        都在 clip 上，唯一缺的是「这个 clip 用哪条台词对象」——见 _match_talk_cues。
-        '''
-        clips: list[dict[str, Any]] = []
-        for obj in container['objects']:
-            data = obj['data']
-            # Unity 复制轨道会带 ' (1)' 之类的后缀（如 '穂波_Talk (1)'），先剥掉再判类型
-            track = re.sub(r' \(\d+\)$', '', data.get('m_Name', ''))
-            track_clips = data.get('m_Clips')
-            if track_clips is None:
-                continue
-            if track.endswith('_Talk'):
-                kind, name = 'talk', track[: -len('_Talk')]
-            elif track.endswith('_入場'):
-                kind, name = 'spawn', track[: -len('_入場')]
-            elif track.endswith('_退場'):
-                kind, name = 'unspawn', track[: -len('_退場')]
-            elif track in cls._generic_track_kind:
-                kind, name = cls._generic_track_kind[track], ''
-            else:
-                continue
-            for clip in track_clips:
-                clips.append(
-                    {
-                        'type': kind,
-                        'start': clip['m_Start'],
-                        'display': clip.get('m_DisplayName') or '',
-                        'pid': clip['m_Asset']['m_PathID'],
-                        'character3dId': data.get('CharacterId'),
-                        'track': track,  # 归一化后的轨道名，跨语言一致，用于结构配对
-                        'chara_name': name,  # 名字查不到时的兜底显示名（通用轨道为空）
-                    }
-                )
-        return clips
-
-    @staticmethod
-    def _container_texts(container: dict[str, Any]) -> list[dict[str, Any]]:
-        '''container 转储里的台词对象（CharacterTalkClip：Serif + CueName）。'''
-        return [obj['data'] for obj in container['objects'] if 'Serif' in obj['data']]
-
-    def _is_self_describing(
-        self, talks: list[dict[str, Any]], texts: list[dict[str, Any]]
-    ) -> bool:
-        '''这个语言的包是否自带本地化台词（jp / en 是，cn / tw 不是）。
-
-        判据：clip 的 m_DisplayName 能否在本包的 Serif 里找到。jp/en 的
-        m_DisplayName 就是本地化文本，命中率 ~100%；cn/tw 保留日文，命中率 0。
-        '''
-        if not talks:
-            return True
-        serifs = {text.get('Serif') or '' for text in texts}
-        hit = sum(1 for t in talks if t['display'] and t['display'] in serifs)
-        return hit >= 0.9 * len(talks)
-
-    @staticmethod
-    def _text_key(text: str) -> str:
-        '''文本比对键：去掉所有空白（同一条台词在 cn / jp 包里换行、空格可能不同）。'''
-        return re.sub(r'\s+', '', text or '')
-
-    def _match_by_text(
-        self,
-        clips: list[dict[str, Any]],
-        texts: list[dict[str, Any]],
-        used: set[str] | None = None,
-    ) -> dict[int, str]:
-        '''按文本把 clip 对到台词对象，返回 pid → CueName（used 里的 cue 不参与）。
-
-        只有两种可判的情形才建立对应：文本唯一命中；或同文多角色但 cue 里的人物
-        编号与轨道 CharacterId 一致。仍歧义（如 _90_wonder 全组合唱）就不建立——
-        宁可留空，也不按序号猜一个。
-        '''
-        if used is None:
-            used = set()
-        pool_by_text: dict[str, list[tuple[int, int | None, str]]] = defaultdict(list)
-        for text in texts:
-            cue = text.get('CueName') or ''
-            pool_by_text[self._text_key(text.get('Serif') or '')].append(
-                (self._cue_number(cue), self._cue_character(cue), cue)
-            )
-        for cands in pool_by_text.values():
-            cands.sort(key=lambda c: (c[0], c[1] or 0))
-
-        def candidates(clip: dict[str, Any]) -> list[tuple[int, int | None, str]]:
-            return [
-                c
-                for c in pool_by_text.get(self._text_key(clip['display']), [])
-                if c[2] not in used
-            ]
-
-        cue_of: dict[int, str] = {}
-        # 第一轮：文本唯一可判
-        for clip in clips:
-            if not clip['display'].strip():
-                continue  # 空显示名没有信息量，交给排名对齐
-            cands = candidates(clip)
-            if len(cands) == 1:
-                cue_of[clip['pid']] = cands[0][2]
-                used.add(cands[0][2])
-        # 第二轮：同文多角色，用人物编号消歧
-        for clip in clips:
-            if clip['pid'] in cue_of or not clip['display'].strip():
-                continue
-            character_id = self._chara3d_character_id(clip['character3dId'])
-            cands = [
-                c
-                for c in candidates(clip)
-                if c[1] is not None and c[1] == character_id
-            ]
-            if len(cands) == 1:
-                cue_of[clip['pid']] = cands[0][2]
-                used.add(cands[0][2])
-        return cue_of
-
-    def _rank_mapping(
-        self,
-        clips: list[dict[str, Any]],
-        texts: list[dict[str, Any]],
-    ) -> dict[int, str] | None:
-        '''按「pid 升序 ↔ 台词对象在转储里的出现顺序」建立对应，自检不过就返回 None。
-
-        这是同一份文件内部的结构关系：Unity 的 m_Asset.m_PathID 与对象落盘顺序同源，
-        实测 jp 403/415、en 210/220 个 bundle 严格成立。自检用「display 就在本包
-        Serif 集合里」的 clip 当锚点——它们本可以按文本直接定，若按排名得到的 cue
-        与之不符，说明这个包的顺序被打乱（如 CharacterTalkClip(Clone) 混排），整体弃用。
-        '''
-        if not clips or len(clips) != len(texts):
-            return None
-        ordered = sorted(clips, key=lambda c: c['pid'])
-        mapping = {
-            clip['pid']: texts[i].get('CueName') or '' for i, clip in enumerate(ordered)
-        }
-        serif_of = {t.get('CueName') or '': t.get('Serif') or '' for t in texts}
-        domain = {t.get('Serif') or '' for t in texts}
-        checked = 0
-        for clip in clips:
-            display = clip['display']
-            if not display.strip() or display not in domain:
-                continue
-            checked += 1
-            if serif_of.get(mapping[clip['pid']]) != display:
-                return None
-        return mapping if checked else None
-
-    def _match_talk_cues(
-        self,
-        talks: list[dict[str, Any]],
-        pool_clips: list[dict[str, Any]],
-        pool_texts: list[dict[str, Any]],
-    ) -> dict[int, str]:
-        '''本语言 talk clip ↔ 台词对象配对，返回 pid → CueName。
-
-        台词对象没有自身 PathID（haruki / pjsk.moe 的转储把它剥掉了），只能间接配，
-        且每一步都必须有据可依：
-        1) 参考包（jp）内部：文本唯一命中 / cue 人物编号消歧；仍歧义就交给第 2 步；
-        2) 参考包内部：pid 排名（_rank_mapping，带锚点自检）——专治 display 与正文
-           措辞不一致的行（如显示名「あなたは」、正文「君は」）；
-        3) 跨语言：本语言 clip 按「轨道名 + 开始时间」对到参考包同名 clip，继承 cue；
-        4) 时间对不上的，再退回文本比对（忽略空白）。
-        四步都不成立的行不输出（宁可留空，也不按场次序号猜）。
-        '''
-        pool_cue = self._match_by_text(pool_clips, pool_texts)
-
-        ranked = self._rank_mapping(pool_clips, pool_texts)
-        if ranked is not None:
-            pool_used = set(pool_cue.values())
-            for clip in pool_clips:
-                if clip['pid'] in pool_cue:
-                    continue
-                cue = ranked[clip['pid']]
-                if cue in pool_used:
-                    continue
-                pool_cue[clip['pid']] = cue
-                pool_used.add(cue)
-
-        by_track: dict[str, list[tuple[float, str]]] = defaultdict(list)
-        for clip in pool_clips:
-            pooled = pool_cue.get(clip['pid'])
-            if pooled:
-                by_track[clip['track']].append((clip['start'], pooled))
-
-        cue_of: dict[int, str] = {}
-        used: set[str] = set()
-        for talk in sorted(talks, key=lambda t: t['start']):
-            best: tuple[float, str] | None = None
-            for start, cue in by_track.get(talk['track'], []):
-                if cue in used or abs(start - talk['start']) > 0.05:
-                    continue
-                if best is None or abs(start - talk['start']) < abs(best[0] - talk['start']):
-                    best = (start, cue)
-            if best is not None:
-                cue_of[talk['pid']] = best[1]
-                used.add(best[1])
-
-        leftover = [t for t in talks if t['pid'] not in cue_of]
-        if leftover:
-            cue_of.update(self._match_by_text(leftover, pool_texts, used))
-        return cue_of
-
-    def _timeline_events_from_container(
-        self, container: dict[str, Any], jp_container: dict[str, Any] | None
-    ) -> list[dict[str, Any]]:
-        '''haruki / pjsk.moe 的 container 转储 → 统一事件表。'''
-        clips = self._container_timeline_clips(container)
-        talks = [c for c in clips if c['type'] == 'talk']
-        texts = self._container_texts(container)
-
-        if self._is_self_describing(talks, texts):
-            # jp / en：m_DisplayName 就是本地化台词，逐条精确，无需配对
-            for talk in talks:
-                talk['serif'] = talk['display']
-            # 例外：个别 clip 的 display 与正文措辞不一致（编辑器标签没同步改）。
-            # 这些行用 pid 排名补正文——排名的自检覆盖整个包，通过才采纳。
-            domain = {t.get('Serif') or '' for t in texts}
-            drifted = [
-                t for t in talks if not t['display'].strip() or t['display'] not in domain
-            ]
-            if drifted:
-                ranked = self._rank_mapping(talks, texts)
-                if ranked is not None:
-                    serif_of = {
-                        t.get('CueName') or '': t.get('Serif') or '' for t in texts
-                    }
-                    for talk in drifted:
-                        text = serif_of.get(ranked.get(talk['pid'], ''), '')
-                        if text.strip():
-                            talk['serif'] = text
-        else:
-            # cn / tw：本地化文本只在 Serif 里，回填靠 jp 包的 cue 对齐
-            jp_clips = self._container_timeline_clips(jp_container) if jp_container else []
-            jp_texts = self._container_texts(jp_container) if jp_container else []
-            if jp_container is None:
-                logging.warning(
-                    f"{container.get('container', '?')}: missing jp reference "
-                    'bundle, talk lines of this segment cannot be resolved.'
-                )
-            cue_of = self._match_talk_cues(
-                talks, [c for c in jp_clips if c['type'] == 'talk'], jp_texts
-            )
-            cue2serif = {t.get('CueName') or '': t.get('Serif') or '' for t in texts}
-            for talk in talks:
-                talk['serif'] = cue2serif.get(cue_of.get(talk['pid'], ''), '')
-
-        events: list[dict[str, Any]] = []
-        for clip in clips:
-            character3dId = clip['character3dId']
-            # 名字优先用服务器语言角色名，查不到（character3ds 缺项）时回退轨道名前缀
-            events.append(
-                {
-                    'type': clip['type'],
-                    'start': clip['start'],
-                    'character3dId': character3dId,
-                    'name': self._get_chara_name(character3dId) or clip['chara_name'],
-                    'serif': clip.get('serif', ''),
-                }
-            )
-        return events
-
-    def _render_timeline_events(self, events: list[dict[str, Any]]) -> str:
-        '''事件表 → 文本（按时间排列；talk 输出「人名：台词」，其余登场/退场）。'''
         mark_lang = self.reader.mark_lang
         lines: list[str] = []
-        for ev in sorted(events, key=lambda e: e['start']):
+        for ev in timeline['events']:
             ev_type: str = ev['type']
-            chara_name: str = ev['name']
+
             if ev_type == 'talk':
                 serif = re.sub(r'\r\n|\r|\n', ' ', ev['serif']).strip()
                 if not serif:
                     continue
-                chara_name = self._annotate_vs_unit(
-                    chara_name, ev['character3dId'], 'paren'
-                )
+                chara_name, cid = self._event_chara_name(ev, chara3d_map)
+                chara_name = self._annotate_vs_unit(chara_name, cid, 'paren')
                 lines.append(f'{chara_name}{Mark_multi_lang[":"][mark_lang]}{serif}')
-            else:
+            elif ev_type in ('spawn', 'unspawn'):
                 # 登场 / 退场
-                chara_name = self._annotate_vs_unit(
-                    chara_name, ev['character3dId'], 'dash'
-                )
+                chara_name, cid = self._event_chara_name(ev, chara3d_map)
+                chara_name = self._annotate_vs_unit(chara_name, cid, 'dash')
                 lines.append(
                     f'{Mark_multi_lang[ev_type][mark_lang]}{chara_name}'
                     f'{Mark_multi_lang[")"][mark_lang]}'
                 )
         return '\n'.join(lines)
-
-    @staticmethod
-    def _timeline_format(payload: dict[str, Any]) -> str:
-        '''自动判别 timeline 资产格式：sekai.best 的预解析 / haruki、pjsk.moe 的转储。'''
-        if '__timelineParse' in payload:
-            return 'parsed'
-        if 'objects' in payload and 'container' in payload:
-            return 'container'
-        return 'unknown'
-
-    @staticmethod
-    def _is_skip_read(payload: Any) -> bool:
-        '''assets 模式（parse=False）读缓存时 util 返回的占位串，不是取包失败。'''
-        return isinstance(payload, str) and payload.startswith('ERROR: skip read')
-
-    @staticmethod
-    def _brief_error(payload: str) -> str:
-        '''错误串只取首段。
-
-        完整错误（含 URL、异常类型）util 的 fetch_url_json 已经打过一条日志，
-        这里只补「哪个 record、哪个源」这层上下文，不重复 URL。
-        '''
-        return payload.split(' || ', 1)[0].removeprefix('ERROR: ')
-
-    async def _fetch_mc(
-        self,
-        mc_type: str,
-        file_type: str,
-        assetbundleName: str,
-        record: str,
-    ) -> tuple[Any, dict[str, Any] | None]:
-        '''按 src 顺序取一段 MC 资产，返回 (本语言 payload, jp 对照 payload)。
-
-        一个源必须「本语言包 +（cn/tw 的 timeline 还要）jp 对照包」都拿到才算可用，
-        任一缺失（404 等）就整段换下一个源；全失败时返回最后一个错误串。
-        各源扩展名不同（.playable / .asset / .json），由 config 模板决定，
-        格式化时统一带 file_type，本函数不关心具体后缀。
-        '''
-        last_error: Any = ''
-
-        def format_urls(urls: list[util.UrlSpec]) -> list[util.UrlSpec]:
-            return [
-                url.format(
-                    mc_type=mc_type,
-                    assetbundleName=assetbundleName,
-                    file_type=file_type,
-                )
-                for url in urls
-            ]
-
-        for src_name, urls, jp_urls in self.virtual_live_src_urls:
-            payload = await self.fetch_url_json(
-                format_urls(urls),
-                record,
-                compress=self.compress_assets,
-                skip_read=not self.parse,
-            )
-            if isinstance(payload, str):
-                if self._is_skip_read(payload):
-                    return payload, None
-                # 换源会静默改变数据来源（尤其离线时可能落到别的源的旧缓存），
-                # 这里明确记一条，便于在日志里发现；只报这个源失败，不预告换源。
-                logging.warning(
-                    f'{record}: {src_name} failed: {self._brief_error(payload)}'
-                )
-                last_error = payload
-                continue
-
-            # 只有「本包没有本地化台词」的语言才需要 jp 对照包，按数据判断：
-            # jp / en 的 m_DisplayName 就是本地化文本（自描述），cn / tw / kr 保留日文。
-            # 这样新语言不用改代码；sekai.best 的预解析格式也不需要对照。
-            need_jp = (
-                mc_type == 'timeline'
-                and bool(jp_urls)
-                and self._timeline_format(payload) == 'container'
-            )
-            if need_jp:
-                talks = [
-                    c
-                    for c in self._container_timeline_clips(payload)
-                    if c['type'] == 'talk'
-                ]
-                need_jp = not self._is_self_describing(
-                    talks, self._container_texts(payload)
-                )
-            if not need_jp:
-                return payload, None
-
-            jp_payload = await self.fetch_url_json(
-                format_urls(jp_urls),
-                f'{record}:jp',
-                compress=self.compress_assets,
-                skip_read=not self.parse,
-                lang_for_path='jp',
-            )
-            if isinstance(jp_payload, str):
-                if self._is_skip_read(jp_payload):
-                    return payload, None
-                logging.warning(
-                    f'{record}: {src_name} has no jp reference bundle: '
-                    f'{self._brief_error(jp_payload)}'
-                )
-                last_error = jp_payload
-                continue
-            return payload, jp_payload
-
-        return last_error, None
 
     def _music_title(self, music_id: int | None) -> str:
         if music_id is None:
@@ -3379,6 +2879,14 @@ class Virtual_live_getter(Pjsk_getter):
 
             assetbundleName: str = sl['assetbundleName']
 
+            urls = [
+                url.format(
+                    mc_type=mc_type,
+                    assetbundleName=assetbundleName,
+                    file_type=file_type,
+                )
+                for url in self.virtual_live_asset_url
+            ]
             entry_index = len(entries)
             entries.append(
                 f"{sl['seq']} [{stype}] {assetbundleName}"
@@ -3392,30 +2900,28 @@ class Virtual_live_getter(Pjsk_getter):
                         'assetbundleName': assetbundleName,
                         'setlist': sl,
                     },
-                    self._fetch_mc(
-                        mc_type,
-                        file_type,
-                        assetbundleName,
+                    self.fetch_url_json(
+                        urls,
                         f"vl{target}:{sl['seq']}:{stype}:{assetbundleName}",
+                        compress=self.compress_assets,
+                        skip_read=not self.parse,
                     ),
                 )
             )
 
-        results = await asyncio.gather(*[task for _, task in pending]) if pending else []
-        pending_results = [payload for payload, _ in results]
-        jp_payloads = {
-            i: jp for i, (_, jp) in enumerate(results) if isinstance(jp, dict)
-        }
+        pending_results = (
+            await asyncio.gather(*[task for _, task in pending]) if pending else []
+        )
 
         if self.parse and not util.judge_need_skip(*pending_results):
             os.makedirs(self.save_dir, exist_ok=True)
 
-            for i, ((meta, _), result) in enumerate(zip(pending, pending_results)):
+            for (meta, _), result in zip(pending, pending_results):
                 if isinstance(result, str):  # ERROR / Missing asset
                     entries[meta['entry_index']] += f"\n\n{result}"
                     continue
                 if meta['mc_type'] == 'timeline':
-                    text = self.parse_mc_timeline(result, jp_payloads.get(i))
+                    text = self.parse_mc_timeline(result)
                 else:
                     text = self.parse_mc_scenario(result)
                 entries[meta['entry_index']] += f"\n\n{text}" if text else ''
