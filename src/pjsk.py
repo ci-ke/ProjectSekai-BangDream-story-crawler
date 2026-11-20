@@ -865,12 +865,12 @@ class Event_story_getter(Pjsk_getter):
         eventStory_index = self.eventStories_lookup.find_index(event_id)
 
         if (event_index == -1) or (eventStory_index == -1):
-            logging.info(f'event {event_id} does not exist.')
+            logging.info(f'{self.reader.lang} event {event_id} does not exist.')
             return
 
         event = self.events_json[event_index]
         if timestamp13 is not None and event['startAt'] > timestamp13:
-            logging.info(f'event {event_id} does not exist.')
+            logging.info(f'{self.reader.lang} event {event_id} does not exist.')
             return
 
         eventStory: dict[str, Any] = self.eventStories_json[eventStory_index]
@@ -985,7 +985,7 @@ class Event_story_getter(Pjsk_getter):
                 f.write(episode_name + '\n\n')
                 f.write(text + '\n')
 
-        logging.info(f'get event {event_id} {event_name} {episode_name} done.')
+        logging.info(f'get {self.reader.lang} event {event_id} {event_name} {episode_name} done.')
 
     async def get_newest(
         self,
@@ -1107,7 +1107,7 @@ class Unit_story_getter(Pjsk_getter):
                 unitCode = unitProfile['unit']
                 break
         else:
-            logging.info(f'unit {unit_id} does not exist.')
+            logging.info(f'{self.reader.lang} unit {unit_id} does not exist.')
             return
 
         for unitStory in self.unitStories_json:
@@ -1116,7 +1116,7 @@ class Unit_story_getter(Pjsk_getter):
                 episodes = unitStory['chapters'][0]['episodes']
                 break
         else:
-            logging.info(f'unit {unit_id} does not exist.')
+            logging.info(f'{self.reader.lang} unit {unit_id} does not exist.')
             return
 
         save_folder_name = util.valid_filename(
@@ -1197,7 +1197,7 @@ class Unit_story_getter(Pjsk_getter):
                 f.write(episode_name + '\n\n')
                 f.write(text + '\n')
 
-        logging.info(f'get unit {unit_id} {unitName} {episode_name} done.')
+        logging.info(f'get {self.reader.lang} unit {unit_id} {unitName} {episode_name} done.')
 
     def tell_ids(self) -> list[int]:
         ret = []
@@ -1291,12 +1291,12 @@ class Card_story_getter(Pjsk_getter):
         cardEpisode_index = self.cardEpisodes_lookup.find_index(card_id)
 
         if (card_index == -1) or (cardEpisode_index == -1):
-            logging.info(f'card {card_id} does not exist.')
+            logging.info(f'{self.reader.lang} card {card_id} does not exist.')
             return
 
         card: dict[str, Any] = self.cards_json[card_index]
         if timestamp13 is not None and card['releaseAt'] > timestamp13:
-            logging.info(f'card {card_id} does not exist.')
+            logging.info(f'{self.reader.lang} card {card_id} does not exist.')
             return
 
         cardEpisode_1 = self.cardEpisodes_json[cardEpisode_index]
@@ -1413,7 +1413,7 @@ class Card_story_getter(Pjsk_getter):
                 )
                 f.write(text_2 + '\n')
 
-        logging.info(f'get card {card_story_name} done.')
+        logging.info(f'get {self.reader.lang} card {card_story_name} done.')
 
     async def get_event(self, event_id: int) -> None:
         newest_event_id = self.eventCards_json[-1]['eventId']
@@ -1611,7 +1611,7 @@ class Area_talk_getter(Pjsk_getter):
         未来一年内纳入，超远未来（一年以上）不抓）
         '''
         if target == 38 and self.reader.lang == 'en':  # special case of EN
-            logging.info(f'talk {target} does not exist.')
+            logging.info(f'{self.reader.lang} talk {target} does not exist.')
             return
 
         actions = [
@@ -1635,7 +1635,7 @@ class Area_talk_getter(Pjsk_getter):
             ]
 
         if len(actions) == 0:
-            logging.info(f'talk {target} does not exist.')
+            logging.info(f'{self.reader.lang} talk {target} does not exist.')
             return
 
         tasks = []
@@ -1700,7 +1700,7 @@ class Area_talk_getter(Pjsk_getter):
                     else:
                         f.write(text + '\n')
 
-        logging.info(f'get talk {target} done.')
+        logging.info(f'get {self.reader.lang} talk {target} done.')
 
     # mainly for update new talk
     async def get_id_range(
@@ -1725,7 +1725,7 @@ class Area_talk_getter(Pjsk_getter):
     async def get_id_to_single_file(self, talk_id: int) -> None:
         actionSets_index = self.actionSets_json_lookup.find_index(talk_id)
         if actionSets_index == -1:
-            logging.info(f'talk {talk_id} does not exist.')
+            logging.info(f'{self.reader.lang} talk {talk_id} does not exist.')
             return
 
         actionSet = self.actionSets_json[actionSets_index]
@@ -1733,7 +1733,7 @@ class Area_talk_getter(Pjsk_getter):
         cate = self.__get_category(actionSet)
 
         if 'scenarioId' not in actionSet:
-            logging.info(f'talk {talk_id} does have content.')
+            logging.info(f'{self.reader.lang} talk {talk_id} does have content.')
             return
 
         if self.parse:
@@ -1773,7 +1773,7 @@ class Area_talk_getter(Pjsk_getter):
                 )
                 f.write(text + '\n')
 
-        logging.info(f'get talk {talk_id} done.')
+        logging.info(f'get {self.reader.lang} talk {talk_id} done.')
 
     def tell_categories(self, timestamp13: int | None = None) -> set[str | int]:
         '''timestamp13: 只返回存在 archivePublishedAt <= timestamp13 的
@@ -1853,7 +1853,7 @@ class Self_intro_getter(Pjsk_getter):
     async def get(self, chara_id: int) -> None:
         profile_index = self.characterProfiles_lookup.find_index(chara_id)
         if profile_index == -1:
-            logging.info(f'character {chara_id} does not exist.')
+            logging.info(f'{self.reader.lang} character {chara_id} does not exist.')
             return
 
         chara_unit_name = '_'.join(self.reader.get_chara_unitAbbr_names(chara_id)[:2])
@@ -1913,7 +1913,7 @@ class Self_intro_getter(Pjsk_getter):
                 )
                 f.write(text_2 + '\n')
 
-        logging.info(f'get self intro {filename} done.')
+        logging.info(f'get {self.reader.lang} self intro {filename} done.')
 
     def tell_ids(self) -> list[int]:
         ret = []
@@ -1984,12 +1984,12 @@ class Special_story_getter(Pjsk_getter):
         '''
         story_index = self.specialStories_lookup.find_index(id)
         if story_index == -1 or id == 2:  # special case id2
-            logging.info(f'special story {id} does not exist.')
+            logging.info(f'{self.reader.lang} special story {id} does not exist.')
             return
 
         story = self.specialStories_json[story_index]
         if timestamp13 is not None and story['startAt'] > timestamp13:
-            logging.info(f'special story {id} does not exist.')
+            logging.info(f'{self.reader.lang} special story {id} does not exist.')
             return
 
         episodes = story['episodes']
@@ -2038,7 +2038,7 @@ class Special_story_getter(Pjsk_getter):
                         )
                         f.write(text + '\n\n\n')
 
-            logging.info(f'get special {filename} done.')
+            logging.info(f'get {self.reader.lang} special {filename} done.')
 
     def tell_ids(self, timestamp13: int | None = None) -> list[int]:
         '''timestamp13: 只返回 startAt <= timestamp13 的 special id（None 为全部）'''
@@ -2397,12 +2397,14 @@ class Mysekai_talk_getter(Pjsk_getter):
                 talk = t
                 break
         if talk is None:
-            logging.error(f'talk_id {talk_id} not found in mysekaiCharacterTalks')
+            logging.error(
+                f'{self.reader.lang} talk_id {talk_id} not found in mysekaiCharacterTalks'
+            )
             return
 
         meta = self._get_talk_meta(talk)
         if meta is None:
-            logging.error(f'talk {talk_id}: group not found')
+            logging.error(f'{self.reader.lang} talk {talk_id}: group not found')
             return
 
         comma = Mark_multi_lang[','][self.reader.mark_lang]
@@ -2426,7 +2428,7 @@ class Mysekai_talk_getter(Pjsk_getter):
             filepath = os.path.join(self.save_dir, f'mysekai_talk_{talk_id}.txt')
             self._write_entries(filepath, entries, lua_map)
 
-        logging.info(f'get mysekai talk {talk_id} done.')
+        logging.info(f'get {self.reader.lang} mysekai talk {talk_id} done.')
 
     async def get(self, gameCharacterUnitId: int) -> None:
         """Fetch all mysekai talks for one character (by gameCharacterUnitId),
@@ -2480,7 +2482,7 @@ class Mysekai_talk_getter(Pjsk_getter):
                 lua_keys.append(lua_key)
 
         if not entries:
-            logging.info(f'no talks found for {chara_key}')
+            logging.info(f'{self.reader.lang} no talks found for {chara_key}')
             return
 
         lua_map, lua_results = await self._fetch_lua_map(lua_keys)
@@ -2492,7 +2494,9 @@ class Mysekai_talk_getter(Pjsk_getter):
             util.remove_olds_or_rename_old(filepath, r'(\d+) ')
             self._write_entries(filepath, entries, lua_map, is_first_group_id)
 
-        logging.info(f'get mysekai talk of character {gameCharacterUnitId} done.')
+        logging.info(
+            f'get {self.reader.lang} mysekai talk of character {gameCharacterUnitId} done.'
+        )
 
     async def get_tutorial(self) -> None:
         """Fetch all mysekai tutorial talks, save to _tutorial.txt."""
@@ -2503,10 +2507,12 @@ class Mysekai_talk_getter(Pjsk_getter):
         if isinstance(ttalk_list, str):
             # 'ERROR: ...'（抓取失败）或 'Missing asset'（离线且本地缺失）：
             # 无法枚举教程对话，跳过不写，避免把字符串当列表迭代
-            logging.warning(f'skip mysekai tutorial talks ({ttalk_list}).')
+            logging.warning(
+                f'{self.reader.lang} skip mysekai tutorial talks ({ttalk_list}).'
+            )
             return
         if not ttalk_list:
-            logging.info('no tutorial talks.')
+            logging.info(f'{self.reader.lang} no tutorial talks.')
             return
 
         lua_keys: list[tuple[str, str]] = []
@@ -2537,7 +2543,7 @@ class Mysekai_talk_getter(Pjsk_getter):
             with open(filepath, 'w', encoding='utf8') as f:
                 f.write('\n'.join(parts) + '\n')
 
-        logging.info('get mysekai talk tutorial done.')
+        logging.info(f'get {self.reader.lang} mysekai talk tutorial done.')
 
     def tell_ids(self) -> list[int]:
         """Return gameCharacterUnitIds for mysekai talks.
@@ -2833,16 +2839,16 @@ class Virtual_live_getter(Pjsk_getter):
         未来一年内纳入，超远未来（一年以上）不抓）
         '''
         if target >= 10000:
-            logging.info(f'virtual live {target} does not exist.')
+            logging.info(f'{self.reader.lang} virtual live {target} does not exist.')
             return
         vl_index = self.virtualLives_lookup.find_index(target)
         if vl_index == -1:
-            logging.info(f'virtual live {target} does not exist.')
+            logging.info(f'{self.reader.lang} virtual live {target} does not exist.')
             return
 
         vl = self.virtualLives_json[vl_index]
         if timestamp13 is not None and vl['startAt'] > timestamp13:
-            logging.info(f'virtual live {target} does not exist.')
+            logging.info(f'{self.reader.lang} virtual live {target} does not exist.')
             return
 
         setlists = sorted(vl['virtualLiveSetlists'], key=lambda sl: sl['seq'])
@@ -2852,7 +2858,7 @@ class Virtual_live_getter(Pjsk_getter):
             sl['virtualLiveSetlistType'] in ('mc', 'mc_timeline', 'virtual_message')
             for sl in setlists
         ):
-            logging.info(f'virtual live {target} has no talk segments.')
+            logging.info(f'{self.reader.lang} virtual live {target} has no talk segments.')
             return
 
         # 按 seq 顺序组装每一段的输出；MC 类段先发起 fetch
@@ -2947,7 +2953,7 @@ class Virtual_live_getter(Pjsk_getter):
                 f.write(f"{target} {vl['name']}{event_suffix}\n\n")
                 f.write(''.join(out) + '\n')
 
-        logging.info(f'get virtual live {target} done.')
+        logging.info(f'get {self.reader.lang} virtual live {target} done.')
 
     def tell_ids(self, timestamp13: int | None = None) -> list[int]:
         '''timestamp13: 只返回 startAt <= timestamp13 的 live id（None 为全部）'''

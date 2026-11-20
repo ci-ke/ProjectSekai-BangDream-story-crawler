@@ -359,7 +359,7 @@ class Event_story_getter(util.Base_getter):
         未来一年内纳入，超远未来（一年以上）不抓）
         '''
         if event_id not in self.events_ids or event_id == 5001:  # special case for tw
-            logging.info(f'event {event_id} does not exist.')
+            logging.info(f'{lang} event {event_id} does not exist.')
             return
 
         # startAt 为多语言数组，个别语言缺失（None）视为最早，必通过过滤
@@ -371,7 +371,7 @@ class Event_story_getter(util.Base_getter):
             and startAt is not None
             and int(startAt) > timestamp13
         ):
-            logging.info(f'event {event_id} does not exist.')
+            logging.info(f'{lang} event {event_id} does not exist.')
             return
 
         info_json: dict[str, Any] = await self.fetch_url_json(
@@ -384,7 +384,7 @@ class Event_story_getter(util.Base_getter):
             logging.info(f'event {event_id} has no {lang.upper()}.')
             return
         if len(info_json['stories']) == 0:
-            logging.info(f'event {event_id} has no story.')
+            logging.info(f'{lang} event {event_id} has no story.')
             return
 
         event_filename = util.valid_filename(event_name, True)
@@ -455,7 +455,7 @@ class Event_story_getter(util.Base_getter):
                 f.write(f'{synopsis}' + '\n\n')
                 f.write(text + '\n')
 
-        logging.info(f'get event {event_id} {event_name} {name} done.')
+        logging.info(f'get {lang} event {event_id} {event_name} {name} done.')
 
     async def get_newest(
         self,
@@ -639,7 +639,7 @@ class Band_story_getter(util.Base_getter):
                 f.write(text + '\n')
 
         logging.info(
-            f'get band story {band_name} {band_story["mainTitle"][Constant.lang_index[lang]]} {name} done.'
+            f'get {lang} band story {band_name} {band_story["mainTitle"][Constant.lang_index[lang]]} {name} done.'
         )
 
 
@@ -742,7 +742,7 @@ class Main_story_getter(util.Base_getter):
                 f.write(synopsis + '\n\n')
                 f.write(text + '\n')
 
-        logging.info(f'get main story {name} done.')
+        logging.info(f'get {lang} main story {name} done.')
 
 
 class Card_story_getter(util.Base_getter):
@@ -808,7 +808,7 @@ class Card_story_getter(util.Base_getter):
         未来一年内纳入，超远未来（一年以上）不抓）
         '''
         if card_id not in self.cards_ids:
-            logging.info(f'card {card_id} does not exist.')
+            logging.info(f'{lang} card {card_id} does not exist.')
             return
 
         card_name = self.reader.cards_all_json[str(card_id)]['prefix'][
@@ -827,7 +827,7 @@ class Card_story_getter(util.Base_getter):
             and releasedAt is not None
             and int(releasedAt) > timestamp13
         ):
-            logging.info(f'card {card_id} does not exist.')
+            logging.info(f'{lang} card {card_id} does not exist.')
             return
 
         card = await self.fetch_url_json(
@@ -837,7 +837,7 @@ class Card_story_getter(util.Base_getter):
         )
 
         if 'episodes' not in card:
-            logging.info(f'card {card_id} does not have story.')
+            logging.info(f'{lang} card {card_id} does not have story.')
             return
 
         chara_bandAbbr, chara_name, _ = self.reader.get_chara_bandAbbr_and_names(
@@ -951,7 +951,7 @@ class Card_story_getter(util.Base_getter):
                 )
                 f.write(text_2 + '\n')
 
-        logging.info(f'get card {card_story_filename} done.')
+        logging.info(f'get {lang} card {card_story_filename} done.')
 
     async def get_newest(
         self,
@@ -1048,11 +1048,11 @@ class Area_talk_getter(util.Base_getter):
         self, area_id: int, talk_type: str, lang: str = 'cn', mark_lang: str = 'cn'
     ) -> None:
         if str(area_id) not in self.area_name_json:
-            logging.info(f'talk area {area_id} does not exist.')
+            logging.info(f'{lang} talk area {area_id} does not exist.')
             return
 
         if talk_type not in self.types:
-            logging.info(f'talk type {talk_type} does not exist.')
+            logging.info(f'{lang} talk type {talk_type} does not exist.')
             return
 
         collected_talk_ids = []
@@ -1093,7 +1093,7 @@ class Area_talk_getter(util.Base_getter):
             legal_talk_actionset_jsons.append(talk_actionset_json)
 
         if len(legal_talk_ids) == 0:
-            logging.info(f'talk {talk_type} {area_id} does not exist.')
+            logging.info(f'{lang} talk {talk_type} {area_id} does not exist.')
             return
 
         async def noop(x: str) -> str:
@@ -1169,13 +1169,13 @@ class Area_talk_getter(util.Base_getter):
                     else:
                         f.write(text + '\n')
 
-        logging.info(f'get talk {talk_type} {area_id} done.')
+        logging.info(f'get {lang} talk {talk_type} {area_id} done.')
 
     async def get_id_to_single_file(
         self, talk_id: int, lang: str = 'cn', mark_lang: str = 'cn'
     ) -> None:
         if str(talk_id) not in self.actionSets_json:
-            logging.info(f'talk {talk_id} does not exist.')
+            logging.info(f'{lang} talk {talk_id} does not exist.')
             return
 
         actionSet = self.actionSets_json[str(talk_id)]
@@ -1197,7 +1197,7 @@ class Area_talk_getter(util.Base_getter):
             ]
 
             if reactionType != 1:
-                logging.info(f'talk {talk_id} does not exist.')
+                logging.info(f'{lang} talk {talk_id} does not exist.')
                 return
 
             talk_json = await self.fetch_url_json(
@@ -1232,7 +1232,7 @@ class Area_talk_getter(util.Base_getter):
                 )
                 f.write(text + '\n')
 
-        logging.info(f'get talk {talk_id} done.')
+        logging.info(f'get {lang} talk {talk_id} done.')
 
     def tell_area_ids(self) -> list[int]:
         return [int(x) for x in self.area_name_json]
@@ -1287,7 +1287,7 @@ class After_live_getter(util.Base_getter):
 
     async def get(self, talk_id: int, lang: str = 'cn', mark_lang: str = 'cn') -> None:
         if str(talk_id) not in self.afterlivetalks_json:
-            logging.info(f'after live talk {talk_id} does not exist.')
+            logging.info(f'{lang} after live talk {talk_id} does not exist.')
             return
 
         talk = self.afterlivetalks_json[str(talk_id)]
@@ -1324,7 +1324,7 @@ class After_live_getter(util.Base_getter):
                 f.write(name + '\n\n')
                 f.write(text + '\n')
 
-        logging.info(f'get after live talk {name} done.')
+        logging.info(f'get {lang} after live talk {name} done.')
 
 
 class Getters_type(TypedDict):

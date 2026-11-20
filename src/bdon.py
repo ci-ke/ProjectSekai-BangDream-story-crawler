@@ -923,7 +923,7 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
         """该类别各自 master 表的全部 id，升序。"""
         raise NotImplementedError
 
-    async def get(self, master_id: int, langs: Iterable[tuple[str, str]] | None = None) -> None:
+    async def get(self, master_id: int, langs: Sequence[tuple[str, str]] | None = None) -> None:
         raise NotImplementedError
 
     async def fetch_script(self, script: str) -> tuple[Any, Any, Any]:
@@ -964,7 +964,7 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
         path_of: Callable[[str], str],
         title_of: Callable[[str], str],
         synopsis_of: Callable[[str], str | None],
-        langs: Iterable[tuple[str, str]] | None = None,
+        langs: Sequence[tuple[str, str]] | None = None,
         folder_regs: Sequence[str] = (),
     ) -> None:
         """抓取本数据面的剧本表并向各语言目录写出；文件头首行固定 `advId:脚本名 标题`
@@ -1081,7 +1081,7 @@ class Band_story_getter(Bdon_getter):
             if episode['chapterId'] in wanted_chapters
         )
 
-    async def get(self, episode_id: int, langs: Iterable[tuple[str, str]] | None = None) -> None:
+    async def get(self, episode_id: int, langs: Sequence[tuple[str, str]] | None = None) -> None:
         reader = self.reader
         episode = reader.story_episodes[episode_id]
         adv_id: int = episode['advId']
@@ -1217,7 +1217,7 @@ class Friendship_story_getter(Bdon_getter):
     def tell_ids(self) -> list[int]:
         return sorted(self.reader.friendship_episodes)  # MasterStoryFriendshipEpisode._id
 
-    async def get(self, episode_id: int, langs: Iterable[tuple[str, str]] | None = None) -> None:
+    async def get(self, episode_id: int, langs: Sequence[tuple[str, str]] | None = None) -> None:
         reader = self.reader
         episode = reader.friendship_episodes[episode_id]
         adv_id: int = episode['advId']
@@ -1293,7 +1293,7 @@ class Home_talk_getter(Bdon_getter):
         # 入口 id = HomeSpot._id：一个 spot 一个合并文件（场景开场 + 全部点触对话）
         return sorted(self.reader.home_spots)
 
-    async def get(self, spot_id: int, langs: Iterable[tuple[str, str]] | None = None) -> None:
+    async def get(self, spot_id: int, langs: Sequence[tuple[str, str]] | None = None) -> None:
         reader = self.reader
         if langs is None:
             langs = SIDE_LANGS[reader.side]
@@ -1407,7 +1407,7 @@ class Live_result_story_getter(Bdon_getter):
     def tell_ids(self) -> list[int]:
         return sorted(self.reader.live_result_episodes)  # MasterStoryLiveResultEpisode._id（1..325）
 
-    async def get(self, episode_id: int, langs: Iterable[tuple[str, str]] | None = None) -> None:
+    async def get(self, episode_id: int, langs: Sequence[tuple[str, str]] | None = None) -> None:
         reader = self.reader
         episode = reader.live_result_episodes[episode_id]
         adv_id: int = episode['advId']
@@ -1479,7 +1479,7 @@ class Tutorial_story_getter(Bdon_getter):
             )
         )
 
-    async def get(self, adv_id: int, langs: Iterable[tuple[str, str]] | None = None) -> None:
+    async def get(self, adv_id: int, langs: Sequence[tuple[str, str]] | None = None) -> None:
         reader = self.reader
         script: str = reader.advs[adv_id]['advEpisodeAsset']
 
