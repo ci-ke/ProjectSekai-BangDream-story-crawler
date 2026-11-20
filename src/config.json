@@ -165,7 +165,10 @@
             "special_asset_ext_replace": {
                 ".json": ".asset"
             },
-            "mysekai_talk_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/{{assetbundleName}}/{{lua}}.lua",
+            "mysekai_talk_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/{{assetbundleName}}/{{lua}}.lua.txt",
+            "mysekai_talk_asset_ext_replace": {
+                ".lua.txt": ".lua"
+            },
             "virtual_live_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/virtual_live/mc/{{mc_type}}/{{assetbundleName}}/{{assetbundleName}}.json",
             "virtual_live_asset_ext_replace": {
                 ".json": ".asset"
