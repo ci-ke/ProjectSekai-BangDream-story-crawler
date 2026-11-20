@@ -8,10 +8,9 @@ import src.bdon as bdon
 
 NET_CONNECT_LIMIT = 20
 
-# CI 的 story_jp 由国际服面的 en-jp 合成语言（国际服 dump 的日语列）产出，存储目录经
-# lang_dir 接管仍写 story_jp。日服面（side='jp'，日服 master + ja 段剧本表）待其剧本表
-# 在发布服务稳定可用后再启用：bdon.Run.create_getters(..., side='jp')。
-# 维护者不认识韩语，为确保质量，CI 不产出韩语目录（bdon.SIDE_LANGS 的国际服面默认含 kr）。
+# CI 的 story_jp 由国际服面的 en-jp（国际服 dump 的日语列）经 lang_dir 映射产出；
+# 日服面（side='jp'）不参与 CI。维护者不认识韩语，CI 不产出韩语目录
+# （bdon.SIDE_LANGS 的国际服面默认含 kr）。
 CI_LANGS: tuple[tuple[str, str], ...] = (
     ('cn', 'cn'),
     ('tw', 'cn'),

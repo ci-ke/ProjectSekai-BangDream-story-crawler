@@ -102,7 +102,7 @@ offline 模式（online=False）下缺文件且 missing_download=True 会自动�
   全语言）与日服面 `jp`（/jp/master + ja 段剧本表）。两面各自一套 reader+getter
   （`Run.create_getters(side=..., lang_dir=...)`）与独立缓存桶（bdon-{en,jp}-master /
   bdon-{en,jp}-assets）。CI 的 story_jp 由国际服面的合成语言 `en-jp` 产出，经
-  `lang_dir={'en-jp': 'jp'}` 接管存储目录写 story_jp；日服面暂不参与 action。
+  `lang_dir={'en-jp': 'jp'}` 接管存储目录写 story_jp；日服面不参与 action。
   `get(master_id, langs=...)` 的 langs 缺省取所在面的 `SIDE_LANGS`；action 的 `CI_LANGS`
   不产出 kr。语言缺失时的回落与标注机制见 `Fallback`。
 

@@ -16,11 +16,10 @@ CONFIG: dict[str, Any] = json.load(
 URLS: dict[str, Any] = CONFIG['urls_bdon']['bdon.moe']
 _SAVE_ROOTS: dict[str, str] = URLS['save_roots']  # 服务基址 → 存盘根
 
-# 数据面：日服（jp）与国际服（en）。metadata 服务按游戏服务器分区，默认区
-# （hk-tw-mo，无独立路径即 /master）与国际服 en/kr 区同为全语言 dump（含日语列），
-# 日服 /jp/master 近乎纯日语；发布剧本表按语言段落盘（可用段：zh-Hans/zh-Hant/ja/
-# en/ko，内容今日与段无关），jp 区发布只含 ja 段。story_jp 由日服面产出，其余语言
-# 由国际服面产出。两面各自持有整套 master 与剧本表缓存
+# 数据面：国际服（en）与日服（jp）。master 与资源服务按服务器分区：国际服面走默认区
+# （/master、assets/{lang}/），日服面走 /jp/master、assets/jp/ja/。国际服 dump 的文本表
+# 含全部语言列，日服区只发布 ja。CI 的 story_{lang} 全部由国际服面产出（story_jp 来自
+# en-jp），日服面只用于本地对照。两面各自持有整套 master 与资源缓存
 # （bdon-en-master / bdon-jp-master / bdon-en-assets / bdon-jp-assets）。
 SIDES: tuple[str, ...] = ('en', 'jp')
 SIDE_LANGS: dict[str, tuple[tuple[str, str], ...]] = {
@@ -29,8 +28,7 @@ SIDE_LANGS: dict[str, tuple[tuple[str, str], ...]] = {
         ('tw', 'cn'),
         ('en', 'en'),
         ('kr', 'en'),
-        # 国际服 dump 的日语列（story_en-jp）；CI 经 lang_dir 接管仍写 story_jp。
-        # 日服面（side='jp'）是另一套数据面，与 en-jp 并存，不是替代关系。
+        # 国际服 dump 的日语列，CI 经 lang_dir 映射到 story_jp
         ('en-jp', 'en'),
     ),
     'jp': (('jp', 'en'),),
@@ -128,8 +126,7 @@ class Fallback:
 
 # Episode 表 _command 列的枚举（游戏内类型名 AdvCommand，见剧本表 _header 列定义）。
 # 游戏未公开枚举对照，语义与命名由站点解析器行为、资源名及字段相关性推导，
-# 未必与游戏内部一致；未解明的指令只记其携带的字段。
-# 审计中未出现的值（8/22/40/41/42/45/55/58）不收录；新版本新增值在解析时退回裸数值。
+# 未必与游戏内部一致；未解明的指令只记其携带的字段，未收录的值在解析时退回裸数值。
 class AdvCommand(int, Enum):
     CharacterIn = 0            # 角色入场 / 移入
     CharacterOut = 1           # 角色退场 / 移出
@@ -161,7 +158,7 @@ class AdvCommand(int, Enum):
     LoadCharacterModel = 23    # 载入角色模型（targetAssetName = Live2D 模型路径），登场 / 换装
     Op24 = 24                  # targetName
     ChangeBackground = 25      # 切换背景（targetAssetName = adv_bkg_*）；217 / 333 纯白、
-                               # 218 纯黑 = 空屏（333 常见于 home / after_live 场景底图）
+                               # 218 纯黑 = 空屏
     Clip = 26                  # 播放视频（videoID）
     SkippableClip = 27         # 双语义：带 videoID = 播放视频；无 videoID 且 parameter3 =
                                # SkipClipTarget = 视频结束 / 跳过恢复点
@@ -184,7 +181,7 @@ class AdvCommand(int, Enum):
                                # 站点渲染为聊天窗气泡，含窗口标题与收发方向）；也承载机主
                                # 消息的发送态——紧随同文的 65 重现该气泡，输出以（消息）标记。
                                # parameter3 = 呈现渠道（'1' / '' 气泡为主、'2' 通知中心样式、
-                               # '3' 气泡 + 通知、'4' / '22' 罕见）；
+                               # '3' 气泡 + 通知、'4' / '22'）；
                                # parameter4 = 'SkipTalkLog' 时游戏对话履历不收录
                                # （输出仍保留，行首以 [SkipLog] 标注）
     ChatStamp = 38             # 聊天贴图（adv_data_chat_*_stamp + System），均带说话人；
@@ -324,15 +321,13 @@ class Story_reader(Bdon_fetcher):
         self.cg_add_link = cg_add_link
         self.strip_rich_text = strip_rich_text
 
-        # 资源服务路径见站点 src/lib/assets/release.ts：默认区（tw）为 /{language}/{key}，
-        # 其他区加 /{region} 前缀；JP 目录只发布 ja（非 ja 语言回落到 ja）。国际服面
-        # 用默认区短路径，日服面用 JP 目录，因此同为日语来源的 en-jp 与 jp 链接不同：
+        # 资源服务与站点一致按 {language}/{key} 发布，JP 区加 /jp 前缀且只发布 ja：
         #   en-jp → https://assets.bdon.moe/ja/...
         #   jp    → https://assets.bdon.moe/jp/ja/...
         asset_base = 'https://assets.bdon.moe' + ('' if side == 'en' else '/jp')
         # 过场大图（cmd 30）：Adv/Still/<dir>/data/<name> 按图片资源发布为
-        # <key>/<name>.webp，语言段取 Constant.asset_lang；比 legacy 桶 S3 key 多一层
-        # <name>/ 段。全量 333 张中 21 张上游未导出（死链不可避免）。
+        # <key>/<name>.webp，语言段取 Constant.asset_lang；路径比 S3 key 多一层
+        # <name>/ 段，上游未导出的图会死链。
         self.cg_link = asset_base + '/{lang}/Adv/Still/{dir}/{name}/data/{name}/{name}.webp'
         # 视频（cmd 26/27）：Video 表 assetName → Cri/Video/<path>/<name>.mp4，文件名同名，
         # 语言段同样按剧本语言取（各区文件内容相同，站点 URL 仍带语言段）。
@@ -503,8 +498,8 @@ class Story_reader(Bdon_fetcher):
     ) -> str:
         """显示名里没有真实短名时才括注：Doloris（初华）、仆人（祥子）。
 
-        判据就是「短名不在显示名里」。于是宁月的父亲 / 灯的母亲 / 幼年凪 / 睦？ 这些
-        本来就带着真名的显示名不会再标一遍，而「称呼另一个人」的条目（必有真名在显示名
+        判据是「短名不在显示名里」：亲属（宁月的父亲）、幼年（幼年凪）、存疑身份（睦？）
+        等本来就带着真名的显示名不会再标一遍，「称呼另一个人」的条目（必有真名在显示名
         里）也就天然被排除了——不需要维护亲属后缀名单。
         chara_id 缺失、display 为空或短名缺失时原样返回（宁缺不错）。"""
         if not display or chara_id is None:
@@ -703,7 +698,7 @@ class Story_reader(Bdon_fetcher):
                     continue  # 文本缺失/全空的行不输出（站点同样跳过），避免孤立的"说话人："
 
                 if command is AdvCommand.ClipLine and in_clip:
-                    # 视频字幕行（全语料仅存在于视频段内）：带 targetName（模型名）时附在标记后
+                    # 视频字幕行：带 targetName（模型名）时附在标记后
                     if telop_pending:
                         body += '\n'
                         telop_pending = False
@@ -740,7 +735,7 @@ class Story_reader(Bdon_fetcher):
                     speaker = speaker_of(row)
                     status = row.get('targetStatus')
                     if command is AdvCommand.Talk and speaker and status in (1, 2):
-                        # 实测 1 = 游戏名框显示"？？？"（身份未揭示的说话人），2 = 游戏隐藏
+                        # 1 = 游戏名框显示"？？？"（身份未揭示的说话人），2 = 游戏隐藏
                         # 名框（画外音/独白）；数据均保留真实说话人，故还原游戏表现并以括注
                         # 注明身份，避免与旁白混淆（站点同款区分）
                         wrapped = Mark_multi_lang['hidden name'][mark_lang].format(speaker)
@@ -769,8 +764,7 @@ class Story_reader(Bdon_fetcher):
                         last_marker = ''
                     # parameter4 = SkipTalkLog：游戏对话履历（talk log）不收录的行，线性
                     # 记录仍保留、行首加 [SkipLog]（特殊标记不分语言，在消息标记之后拼接
-                    # 以保持在行首）。全语料 18 条均为聊天指令：37/65 各 5/3 条消息、
-                    # 38 贴图 11 条中的 10 条
+                    # 以保持在行首）
                     if row.get('parameter4') == 'SkipTalkLog':
                         line = '[SkipLog] ' + line
                     if telop_pending:
@@ -804,9 +798,9 @@ class Story_reader(Bdon_fetcher):
                     chat_window = None  # 同名再点名 = 关窗（不产出）
             elif command is AdvCommand.ChangeBackground:
                 # 背景采用"老实标记"，与站点的渲染模型刻意不同：
-                # 站点只渲染"当前画面"，会吞掉两类指令——与当前显示相同的重指（A→台词→A）、
-                # 未落地就被覆盖的过渡切换（A→B→台词 只出 B）；纯色转场图（217/333 白、218 黑，
-                # 发布服务未导出图）也不渲染。全语料 2638 条 cmd 25 会被它吞掉约四成。
+                # 站点只渲染"当前画面"，会吞掉与当前显示相同的重指（A→台词→A）、
+                # 未落地就被覆盖的过渡切换（A→B→台词 只出 B）；纯色转场图（217/333 白、
+                # 218 黑，发布服务未导出图）也不渲染。
                 # 文本输出是线性记录，这些事件各有含义（时间/镜头的切分），因此每条 cmd 25 都
                 # 输出（背景切换），仅紧邻同资源的重复指令折叠为一条；空白屏同样按（背景切换）标记。
                 bg_asset = str(row.get('targetAssetName') or '')
@@ -943,7 +937,7 @@ class Bdon_getter(Bdon_fetcher, util.Base_getter):
                 skip_read=not self.parse,
             ),
         )
-        # 仅引用了视频的脚本（全语料 30 个）才抓 Video 表（含视频 URL 的 assetName 与场景说明 note）
+        # 仅引用了视频的脚本才抓 Video 表（含视频 URL 的 assetName 与场景说明 note）
         video_json: Any = ''
         if isinstance(episode_json, dict) and any(
             row.get('_videoID') for row in episode_json.get('_allData', [])
@@ -1106,8 +1100,8 @@ class Band_story_getter(Bdon_getter):
 
         def filename(lang: str) -> str:
             title = reader.get_adv_title(adv_id, lang)
-            # 编号 = 章节-话（均为主表原值）：视角故事（another story）的 episodeNumber 1..5 与正篇重叠，
-            # 用 another- 前缀并附角色名；番外（extra）的 episodeNumber 为 21..23，用 extra- 前缀
+            # 编号 = 章节-话（均为主表原值）：视角故事（another story）的 episodeNumber
+            # 与正篇重叠，用 another- 前缀并附角色名；番外（extra）用 extra- 前缀
             chapter_episode = (
                 f'{chapter_id:0{self.maxlen_chapterId_episodeNumber[0]}d}'
                 + f'-{ep_number:0{self.maxlen_chapterId_episodeNumber[1]}d}'
@@ -1120,8 +1114,8 @@ class Band_story_getter(Bdon_getter):
             band_name = reader.get_band_name(band_id, lang)
             chapter_part = f'：{chapter_name}' if chapter_name else ''
             folder = util.valid_filename(
-                # 编号用章节 _id 而非 bandId：同一乐队的多个章节 bandId 重复（如日服第 6 章
-                # bandId=3）；乐队名缺失时留空，冒号紧跟章节编号（无"01 ：xxx"式空格）
+                # 编号用章节 _id 而非 bandId：同一乐队的多个章节 bandId 重复；
+                # 乐队名缺失时留空，冒号紧跟章节编号（无"01 ：xxx"式空格）
                 (
                     f'{chapter_id:02d} {band_name}{chapter_part}'
                     if band_name
@@ -1405,7 +1399,7 @@ class Live_result_story_getter(Bdon_getter):
         self.maxlen_episodeId = maxlen_episodeId
 
     def tell_ids(self) -> list[int]:
-        return sorted(self.reader.live_result_episodes)  # MasterStoryLiveResultEpisode._id（1..325）
+        return sorted(self.reader.live_result_episodes)  # MasterStoryLiveResultEpisode._id
 
     async def get(self, episode_id: int, langs: Sequence[tuple[str, str]] | None = None) -> None:
         reader = self.reader
@@ -1418,7 +1412,7 @@ class Live_result_story_getter(Bdon_getter):
             title = reader.get_adv_title(adv_id, lang)
             if title:
                 return title
-            # 演出后对话通常无标题，用出场角色名兜底
+            # 无标题时用出场角色名兜底
             sep = '、' if lang in ('cn', 'tw') else ', '
             return sep.join(reader.get_chara_name(cid, lang) for cid in chara_ids)
 
@@ -1589,8 +1583,8 @@ async def main():
         tasks.append(intl['tutorial_getter'].get(10609))  # 教程（无主表，入口为 advId）
 
         # 两种日语来源并存，便于对比：
-        # story_jp    = 日服面（/jp/master + ja 段剧本表）
         # story_en-jp = 国际服面的日语列（en-jp 已在 SIDE_LANGS['en'] 中默认启用）
+        # story_jp    = 日服面（/jp/master + ja 段剧本表），CI 不用
         tasks.append(side_getters['jp']['band_getter'].get(101))
 
         await asyncio.gather(*tasks)

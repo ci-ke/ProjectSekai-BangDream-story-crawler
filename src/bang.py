@@ -79,8 +79,8 @@ class Story_reader(util.Base_fetcher):
             self.characters_main_url, force_online=self.force_master_online
         )
 
-        # 卡面 master（原由 Card_story_getter 自持，现统一由 reader 持有供解析反查）。
-        # resourceSetName（如 res001097）→ 卡号：res 编号与卡号并无规律，必须查表
+        # 卡面 master：resourceSetName（如 res001097）→ 卡号。res 编号与卡号无规律，
+        # 必须查表；名称可能被复刻卡复用，取最小卡号。
         cards_all_json = await self.fetch_url_json(
             self.cards_all_5_url, force_online=self.force_master_online
         )
@@ -92,7 +92,7 @@ class Story_reader(util.Base_fetcher):
             resource_set = card.get('resourceSetName')
             if not resource_set:
                 continue
-            # 111 个 resourceSetName 被复刻卡复用，取最早（最小）卡号
+            # 名称可能被复刻卡复用，取最小卡号
             if resource_set not in self.card_ids_by_resource or int(str_id) < int(
                 self.card_ids_by_resource[resource_set]
             ):
@@ -194,11 +194,10 @@ class Story_reader(util.Base_fetcher):
                     specialEffect['effectType']
                     == util.SpecialEffectType.ChangeCardStill
                 ):
-                    # 【实测】卡面立绘全屏插入（jp 语料 166 行：stringVal = characters/resourceset/
-                    # resXXXXXX，stringValSub = card_normal / card_after_training；haneoka 前端
-                    # 证明官方查看器按宽幅全屏渲染该资源）。资源路径是冗余的固定前缀不输出，
-                    # 只输出卡面状态并查卡面 master 把卡号以下划线拼在后面（res 编号与卡号
-                    # 无规律，必须查表）
+                    # 卡面立绘全屏插入（stringVal = characters/resourceset/resXXXXXX，
+                    # stringValSub = card_normal / card_after_training；官方查看器按宽幅全屏
+                    # 渲染）。资源路径是冗余的固定前缀不输出，只输出卡面状态并查卡面 master
+                    # 把卡号以下划线拼在后面（res 编号与卡号无规律，必须查表）
                     if next_talk_need_newline:
                         ret += '\n'
                     card_id = (
@@ -217,8 +216,8 @@ class Story_reader(util.Base_fetcher):
                     specialEffect['effectType']
                     == util.SpecialEffectType.ChangeBackgroundStill
                 ):
-                    # 【实测】静止图背景切换（jp 语料 21 行，载荷与 7 号同构的 bg 资源；haneoka
-                    # 按 4:3 背景渲染），以 ：Still 后缀与 7 号普通背景区分
+                    # 静止图背景切换（载荷与 7 号同构的 bg 资源，按 4:3 背景渲染），
+                    # 以 ：Still 后缀与 7 号普通背景区分
                     if next_talk_need_newline:
                         ret += '\n'
                     ret += (

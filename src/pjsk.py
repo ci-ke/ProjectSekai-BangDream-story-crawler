@@ -395,8 +395,8 @@ class Story_reader(Pjsk_fetcher):
                     specialEffect['EffectType']
                     == util.SpecialEffectType.ChangeCardStill
                 ):
-                    # 卡面立绘全屏插入，按插入 CG 输出（与 bang.py 同步；注意 pjsk 字段为
-                    # 大写驼峰。当前 ProSeka 语料无此特效，为枚举语义完备而保留）
+                    # 卡面立绘全屏插入，按插入 CG 输出（与 bang.py 同步；pjsk 字段为大写
+                    # 驼峰。为枚举语义完备而保留）
                     if next_talk_need_newline:
                         ret += '\n'
                     pic = specialEffect['StringVal']
@@ -409,8 +409,8 @@ class Story_reader(Pjsk_fetcher):
                     specialEffect['EffectType']
                     == util.SpecialEffectType.ChangeBackgroundStill
                 ):
-                    # 静止图背景切换，以 ：Still 后缀与 7 号普通背景区分（与 bang.py 同步；
-                    # 当前 ProSeka 语料无此特效，为枚举语义完备而保留）
+                    # 静止图背景切换，以 ：Still 后缀与 7 号普通背景区分（与 bang.py 同步，
+                    # 为枚举语义完备而保留）
                     if next_talk_need_newline:
                         ret += '\n'
                     ret += (
@@ -2183,9 +2183,9 @@ class Mysekai_talk_getter(Pjsk_getter):
             self.group_conditions_map[gid].append(cid)
 
         # Build release condition sentence map for read_event_story_episode_id
-        # 注意：master 里偶有 event_story 条件缺 releaseConditionTypeId（新活动的数据
-        # 未补全时上游会漏该字段，如 7.1.0.35 的 id=122120），无法映射到任何
-        # read_event_story_episode_id 值，跳过即可，不能让 init 直接崩。
+        # 注意：master 里偶有 event_story 条件缺 releaseConditionTypeId（上游新活动的数据
+        # 未补全时会漏该字段），无法映射到任何 read_event_story_episode_id 值，
+        # 跳过即可，不能让 init 直接崩。
         self.release_cond_eventID_map: dict[int, int] = {}
         for rc in self.releaseConditions_json:
             if rc['releaseConditionType'] != 'event_story':
@@ -2765,7 +2765,7 @@ class Virtual_live_getter(Pjsk_getter):
         （如 countdown 的 1786 实际是 KAITO，却被标成「レン」）。事件自带的
         character3dId 最可靠，其次是 cueName 末段的人物编号（_29_14 → 14、
         _64_26_piapro → 26），两者都没有才按名字取第一个候选。合唱行的
-        _90_<罗马音> 只是占位，实测从不改变归属，故不参与判断。
+        _90_<罗马音> 只是占位，不参与判断。
         '''
         raw_name: str = ev['character']
         own = ev.get('character3dId')
