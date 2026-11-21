@@ -207,8 +207,9 @@ class Story_reader(Pjsk_fetcher):
         self.debug_parse = debug_parse
         self.cg_add_link = cg_add_link
 
-        #self.cg_link = f'https://sekai-assets-bdf29c81.seiunx.net/{self.lang}-assets/ondemand/scenario/background/{{pic_name}}/{{pic_name}}.png'
-        self.cg_link = 'https://storage.sekai.best/sekai-jp-assets/scenario/background/{pic_name}/{pic_name}.webp'
+        # self.cg_link = f'https://sekai-assets-bdf29c81.seiunx.net/{self.lang}-assets/ondemand/scenario/background/{{pic_name}}/{{pic_name}}.png'
+        # self.cg_link = 'https://storage.sekai.best/sekai-jp-assets/scenario/background/{pic_name}/{pic_name}.webp'
+        self.cg_link = f'https://storage.pjsk.moe/sekai-{self.lang}-assets/scenario/background/{{pic_name}}/{{pic_name}}.webp'
 
         self.gameCharacters_url = Constant.get_srcs_url(
             lang, src, 'master', 'gameCharacters'
@@ -985,7 +986,9 @@ class Event_story_getter(Pjsk_getter):
                 f.write(episode_name + '\n\n')
                 f.write(text + '\n')
 
-        logging.info(f'get {self.reader.lang} event {event_id} {event_name} {episode_name} done.')
+        logging.info(
+            f'get {self.reader.lang} event {event_id} {event_name} {episode_name} done.'
+        )
 
     async def get_newest(
         self,
@@ -1197,7 +1200,9 @@ class Unit_story_getter(Pjsk_getter):
                 f.write(episode_name + '\n\n')
                 f.write(text + '\n')
 
-        logging.info(f'get {self.reader.lang} unit {unit_id} {unitName} {episode_name} done.')
+        logging.info(
+            f'get {self.reader.lang} unit {unit_id} {unitName} {episode_name} done.'
+        )
 
     def tell_ids(self) -> list[int]:
         ret = []
@@ -2835,9 +2840,7 @@ class Virtual_live_getter(Pjsk_getter):
         'MCTimelineCharacterUnSpawnTrack': 'unspawn',
     }
 
-    def _timeline_events_from_moe(
-        self, dump: dict[str, Any]
-    ) -> list[dict[str, Any]]:
+    def _timeline_events_from_moe(self, dump: dict[str, Any]) -> list[dict[str, Any]]:
         '''pjsk.moe 的 virtual-live-timeline 转储 → 与 __timelineParse 同构的事件表。
 
         轨道对象的 script 名即类型（Talk/Spawn/UnSpawn Track），轨道的
@@ -2944,7 +2947,9 @@ class Virtual_live_getter(Pjsk_getter):
             sl['virtualLiveSetlistType'] in ('mc', 'mc_timeline', 'virtual_message')
             for sl in setlists
         ):
-            logging.info(f'{self.reader.lang} virtual live {target} has no talk segments.')
+            logging.info(
+                f'{self.reader.lang} virtual live {target} has no talk segments.'
+            )
             return
 
         # 按 seq 顺序组装每一段的输出；MC 类段先发起 fetch
