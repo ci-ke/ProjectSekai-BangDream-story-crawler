@@ -82,14 +82,14 @@ offline 模式（online=False）下缺文件且 missing_download=True 会自动�
 
 ## pjsk 源选择与 virtual live
 
-- **pjsk 各 getter 的默认源统一为 `src=['sekai.best']`**（唯一例外是 `Mysekai_talk_getter`，
-  其文本只有 haruki / pjsk.moe 提供）。haruki 转储丢 PathID、live 台词只能推断，故不作默认；
-  sekai.best 未镜像约 1/4 的 timeline bundle，需要 pjsk.moe 补缺时由调用方传
-  `src=['sekai.best', 'pjsk.moe']`。
+- **pjsk 各 getter 的默认源统一为 `src=['pjsk.moe', 'haruki', 'sekai.best']`**，按序试取。
+  haruki 的 scenario 类转储与另两源格式一致可用；mysekai 文本 haruki / pjsk.moe 全服提供，
+  sekai.best 仅日服有（其它服 404）。
 - `virtual_live` 的 timeline 类型（mc_timeline / virtual_message）按内容自动判别两种可解析格式：
-  sekai.best 的预解析 `__timelineParse`，以及 pjsk.moe 的 `virtual-live-timeline` 转储（对象带
-  PathID、轨道 clip 经 $ref 精确指向台词对象，各语言包自含本地化文本）。haruki 的 container 转储
-  台词归属无法可靠还原，不支持，解析时会告警跳过该段。src 回退由 util 的顺序试取完成，
+  pjsk.moe 的 `virtual-live-timeline` 转储（对象带 PathID、轨道 clip 经 $ref 精确指向台词对象，
+  各语言包自含本地化文本），以及 sekai.best 的预解析 `__timelineParse`。haruki 的 container 转储
+  缺台词对象的 PathID、台词归属无法可靠还原，不支持——timeline 段的 URL 列表在构造时剔除
+  haruki，不发请求（scenario 段三源格式一致不受限）。src 回退由 util 的顺序试取完成，
   `get()` 每段只发一次 `fetch_url_json`。
 
 ## 三条产品线的语言机制差异（重要）

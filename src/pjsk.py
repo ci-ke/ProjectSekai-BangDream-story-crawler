@@ -181,7 +181,7 @@ class Story_reader(Pjsk_fetcher):
     def __init__(
         self,
         lang: str = 'cn',
-        src: list[str] = ['sekai.best'],
+        src: list[str] = ['pjsk.moe', 'haruki', 'sekai.best'],
         assets_save_dir: str = '.',
         online: bool = True,
         save_assets: bool = True,
@@ -508,7 +508,7 @@ class Event_story_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['sekai.best'],
+        src: list[str] = ['pjsk.moe', 'haruki', 'sekai.best'],
         save_dir: str = '.',
         assets_save_dir: str = '.',
         online: bool = True,
@@ -1030,7 +1030,7 @@ class Unit_story_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['sekai.best'],
+        src: list[str] = ['pjsk.moe', 'haruki', 'sekai.best'],
         save_dir: str = '.',
         assets_save_dir: str = '.',
         online: bool = True,
@@ -1210,7 +1210,7 @@ class Card_story_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['sekai.best'],
+        src: list[str] = ['pjsk.moe', 'haruki', 'sekai.best'],
         save_dir: str = '.',
         assets_save_dir: str = '.',
         online: bool = True,
@@ -1502,7 +1502,7 @@ class Area_talk_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['sekai.best'],
+        src: list[str] = ['pjsk.moe', 'haruki', 'sekai.best'],
         save_dir: str = '.',
         assets_save_dir: str = '.',
         online: bool = True,
@@ -1800,7 +1800,7 @@ class Self_intro_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['sekai.best'],
+        src: list[str] = ['pjsk.moe', 'haruki', 'sekai.best'],
         save_dir: str = '.',
         assets_save_dir: str = '.',
         online: bool = True,
@@ -1926,7 +1926,7 @@ class Special_story_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['sekai.best'],
+        src: list[str] = ['pjsk.moe', 'haruki', 'sekai.best'],
         save_dir: str = '.',
         assets_save_dir: str = '.',
         online: bool = True,
@@ -2053,7 +2053,7 @@ class Mysekai_talk_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['haruki', 'pjsk.moe', 'sekai.best'],
+        src: list[str] = ['pjsk.moe', 'haruki', 'sekai.best'],
         save_dir: str = '.',
         assets_save_dir: str = '.',
         online: bool = True,
@@ -2592,7 +2592,7 @@ class Virtual_live_getter(Pjsk_getter):
     def __init__(
         self,
         reader: Story_reader,
-        src: list[str] = ['sekai.best'],
+        src: list[str] = ['pjsk.moe', 'haruki', 'sekai.best'],
         save_dir: str = '.',
         assets_save_dir: str = '.',
         online: bool = True,
@@ -2631,6 +2631,15 @@ class Virtual_live_getter(Pjsk_getter):
         )
         self.virtual_live_asset_url = Constant.get_srcs_url(
             self.reader.lang, src, 'asset', 'virtual_live'
+        )
+        # timeline 段（mc_timeline / virtual_message）专用源列表：剔除 haruki——
+        # 其 container 转储无法解析，若参与试取会网络成功、解析却为空，本该在
+        # 网络层就换下一个源。scenario 段三源格式一致，不受此限。
+        self.virtual_live_timeline_url = Constant.get_srcs_url(
+            self.reader.lang,
+            [s for s in src if s != 'haruki'],
+            'asset',
+            'virtual_live',
         )
 
     async def init(
@@ -2962,13 +2971,19 @@ class Virtual_live_getter(Pjsk_getter):
 
             assetbundleName: str = sl['assetbundleName']
 
+            # timeline 段用剔除 haruki 后的源列表，scenario 段用全量
+            url_list = (
+                self.virtual_live_timeline_url
+                if mc_type == 'timeline'
+                else self.virtual_live_asset_url
+            )
             urls = [
                 url.format(
                     mc_type=mc_type,
                     assetbundleName=assetbundleName,
                     file_type=file_type,
                 )
-                for url in self.virtual_live_asset_url
+                for url in url_list
             ]
             entry_index = len(entries)
             entries.append(
