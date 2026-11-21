@@ -129,7 +129,7 @@
             }
         },
         "pjsk.moe": {
-            "master": "https://metadata.exmeaning.com/{lang}/master/{file}.json",
+            "master": "https://metadata.pjsk.moe/{lang}/master/{file}.json",
             "master_lang": {
                 "cn": "cn",
                 "jp": "jp",
@@ -137,39 +137,39 @@
                 "en": "en",
                 "kr": "kr"
             },
-            "unit_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/scenario/unitstory/{{assetbundleName}}/{{scenarioId}}.json",
+            "unit_asset": "https://storage.pjsk.moe/sekai-{lang}-assets/scenario/unitstory/{{assetbundleName}}/{{scenarioId}}.json",
             "unit_asset_ext_replace": {
                 ".json": ".asset"
             },
-            "event_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/event_story/{{assetbundleName}}/scenario/{{scenarioId}}.json",
+            "event_asset": "https://storage.pjsk.moe/sekai-{lang}-assets/event_story/{{assetbundleName}}/scenario/{{scenarioId}}.json",
             "event_asset_ext_replace": {
                 ".json": ".asset"
             },
-            "card_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/character/member/{{assetbundleName}}/{{scenarioId}}.json",
+            "card_asset": "https://storage.pjsk.moe/sekai-{lang}-assets/character/member/{{assetbundleName}}/{{scenarioId}}.json",
             "card_asset_ext_replace": {
                 ".json": ".asset"
             },
-            "card_asset_en": "https://storage.exmeaning.com/sekai-en-assets/character/member_scenario/{assetbundleName}/{scenarioId}.json",
+            "card_asset_en": "https://storage.pjsk.moe/sekai-en-assets/character/member_scenario/{assetbundleName}/{scenarioId}.json",
             "card_asset_en_ext_replace": {
                 ".json": ".asset"
             },
-            "talk_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/scenario/actionset/group{{group}}/{{scenarioId}}.json",
+            "talk_asset": "https://storage.pjsk.moe/sekai-{lang}-assets/scenario/actionset/group{{group}}/{{scenarioId}}.json",
             "talk_asset_ext_replace": {
                 ".json": ".asset"
             },
-            "self_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/scenario/profile/{{scenarioId}}.json",
+            "self_asset": "https://storage.pjsk.moe/sekai-{lang}-assets/scenario/profile/{{scenarioId}}.json",
             "self_asset_ext_replace": {
                 ".json": ".asset"
             },
-            "special_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/scenario/special/{{assetbundleName}}/{{scenarioId}}.json",
+            "special_asset": "https://storage.pjsk.moe/sekai-{lang}-assets/scenario/special/{{assetbundleName}}/{{scenarioId}}.json",
             "special_asset_ext_replace": {
                 ".json": ".asset"
             },
-            "mysekai_talk_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/{{assetbundleName}}/{{lua}}.lua.txt",
+            "mysekai_talk_asset": "https://storage.pjsk.moe/sekai-{lang}-assets/{{assetbundleName}}/{{lua}}.lua.txt",
             "mysekai_talk_asset_ext_replace": {
                 ".lua.txt": ".lua"
             },
-            "virtual_live_asset": "https://storage.exmeaning.com/sekai-{lang}-assets/virtual_live/mc/{{mc_type}}/{{assetbundleName}}/{{assetbundleName}}.json",
+            "virtual_live_asset": "https://storage.pjsk.moe/sekai-{lang}-assets/virtual_live/mc/{{mc_type}}/{{assetbundleName}}/{{assetbundleName}}.json",
             "virtual_live_asset_ext_replace": {
                 ".json": ".asset"
             },
@@ -182,10 +182,10 @@
             },
             "save_roots": {
                 "master": {
-                    "https://metadata.exmeaning.com/{master_lang}/master/": "pjsk-{lang}-master"
+                    "https://metadata.pjsk.moe/{master_lang}/master/": "pjsk-{lang}-master"
                 },
                 "asset": {
-                    "https://storage.exmeaning.com/sekai-{asset_lang}-assets/": "pjsk-{lang}-assets"
+                    "https://storage.pjsk.moe/sekai-{asset_lang}-assets/": "pjsk-{lang}-assets"
                 }
             }
         }
