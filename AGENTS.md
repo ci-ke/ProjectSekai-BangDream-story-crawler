@@ -129,8 +129,9 @@ full 在线抓、incremental 只读缓存）。对应输出仓库：
 | assets_pjsk / assets_bang | Story-assets (pjsk-bang-story-assets) |
 
 CI 链路：各输出仓库的 workflow 通过 `.github/workflows/common-update.yml` 模板（workflow_call）→
-clone 本仓库 →（assets 任务先 clone assets 仓库并把 `assets/` 移入本仓库根目录）→
-在仓库根目录下执行 `python -m action.xxx` → commit & push 输出仓库。
+clone 本仓库 →（assets 任务先 clone assets 仓库并把 `assets/` 移入本仓库根目录；分支默认同调用方
+分支，可用 `assets_branch` input 覆盖）→ 在仓库根目录下执行 `python -m action.xxx` →
+commit & push 输出仓库。
 
 ## test/（本地测试，gitignore）
 

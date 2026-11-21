@@ -13,6 +13,10 @@ on:
         required: false
         type: string
         default: ""
+      assets_branch:
+        required: false
+        type: string
+        default: ""
     secrets:
       PAT_TOKEN:
         required: false
@@ -52,7 +56,7 @@ jobs:
         if: ${{ inputs.assets_repo != '' }}
         working-directory: ./crawler
         run: |
-          git clone -b ${{ github.ref_name }} --single-branch https://github.com/ci-ke/${{ inputs.assets_repo }}.git __assets_repo__
+          git clone -b ${{ inputs.assets_branch || github.ref_name }} --single-branch https://github.com/ci-ke/${{ inputs.assets_repo }}.git __assets_repo__
           mv __assets_repo__/assets .
 
       - name: Install uv
