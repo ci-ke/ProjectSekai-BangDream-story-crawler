@@ -2787,21 +2787,98 @@ class Virtual_live_getter(Pjsk_getter):
         return raw_name, None
 
     def parse_mc_timeline(self, playable: dict[str, Any]) -> str:
-        '''解析 mc_timeline / virtual_message 类型（.playable）的对话。'''
-        timeline = playable['__timelineParse']
+        '''解析 mc_timeline / virtual_message 类型的对话，按内容自动判别格式：
 
-        # talk 事件只带角色名文本，不带 3d id；用带 character3dId 的事件
-        # （spawn）及 meta.characters 建立「角色名文本 → character3dId」映射
-        chara3d_map: dict[str, list[int]] = defaultdict(list)
-        for chara in timeline['meta']['characters']:
-            chara3d_map[chara['name']].append(chara['character3dId'])
-        for ev in timeline['events']:
-            if 'character3dId' in ev:
-                chara3d_map[ev['character']].append(ev['character3dId'])
+        - sekai.best 的 .playable 自带预解析 __timelineParse，直接用事件表；
+        - pjsk.moe 的 .json 是 virtual-live-timeline 整包转储（对象带 PathID，
+          轨道 clip 经 $ref 精确指向台词对象），转成同构事件表后共用渲染；
+        - 其它（如 haruki 的 container 转储，缺台词对象的 PathID，台词归属无法
+          可靠还原）告警后跳过该段。
+        '''
+        if '__timelineParse' in playable:
+            timeline = playable['__timelineParse']
 
+            # talk 事件只带角色名文本，不带 3d id；用带 character3dId 的事件
+            # （spawn）及 meta.characters 建立「角色名文本 → character3dId」映射
+            chara3d_map: dict[str, list[int]] = defaultdict(list)
+            for chara in timeline['meta']['characters']:
+                chara3d_map[chara['name']].append(chara['character3dId'])
+            for ev in timeline['events']:
+                if 'character3dId' in ev:
+                    chara3d_map[ev['character']].append(ev['character3dId'])
+            events = timeline['events']
+        elif playable.get('format') == 'virtual-live-timeline':
+            # pjsk.moe 的事件自带精确 character3dId，无需名字映射
+            chara3d_map = defaultdict(list)
+            events = self._timeline_events_from_moe(playable)
+        else:
+            logging.warning(
+                f"{playable.get('m_Name', playable.get('container', playable.get('format', '?')))}: "
+                'unknown timeline format, skipped this segment.'
+            )
+            return ''
+        return self._render_timeline_events(events, chara3d_map)
+
+    # pjsk.moe 转储里轨道对象的 script 名 → 事件类型
+    _moe_track_kind: dict[str, str] = {
+        'MCTimelineCharacterTalkTrack': 'talk',
+        'MCTimelineCharacterSpawnTrack': 'spawn',
+        'MCTimelineCharacterUnSpawnTrack': 'unspawn',
+    }
+
+    def _timeline_events_from_moe(
+        self, dump: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        '''pjsk.moe 的 virtual-live-timeline 转储 → 与 __timelineParse 同构的事件表。
+
+        轨道对象的 script 名即类型（Talk/Spawn/UnSpawn Track），轨道的
+        CharacterId 就是 character3dId；clip 的 m_Asset.$ref 是 objects 数组
+        下标，直接解引用拿 Serif/CueName。objects 顺序与时间无关，收集后按
+        m_Start 排序；同一时刻的并列事件维持 objects 顺序（空台词的合唱行不
+        输出，多人同时登场的顺序无语义，与 sekai.best 的并列顺序差异不影响
+        剧本内容）。
+        '''
+        objs = dump['objects']
+        events: list[dict[str, Any]] = []
+        for obj in objs:
+            kind = self._moe_track_kind.get(
+                (obj.get('script') or '').rsplit('.', 1)[-1]
+            )
+            if kind is None:
+                continue
+            fields = obj['fields']
+            # 轨道名形如 みのり_Talk / みのり_入場（Unity 复制轨道带 ' (1)' 后缀，
+            # 先剥再截）；通用轨道（客串角色）无角色名前缀，仅作查名失败的兜底
+            name = re.sub(r' \(\d+\)$', '', obj.get('name') or '')
+            name = re.sub(r'_(Talk|入場|退場)$', '', name)
+            for clip in fields.get('m_Clips') or []:
+                ref = (clip.get('m_Asset') or {}).get('$ref')
+                if not isinstance(ref, int) or not 0 <= ref < len(objs):
+                    logging.warning(
+                        f"{obj.get('name')}: bad clip $ref {ref!r}, skipped."
+                    )
+                    continue
+                asset = objs[ref]['fields']
+                events.append(
+                    {
+                        'type': kind,
+                        'start': clip['m_Start'],
+                        'character': name,
+                        'character3dId': fields.get('CharacterId'),
+                        'serif': asset.get('Serif', ''),
+                        'cueName': asset.get('CueName', ''),
+                    }
+                )
+        events.sort(key=lambda ev: ev['start'])
+        return events
+
+    def _render_timeline_events(
+        self, events: list[dict[str, Any]], chara3d_map: dict[str, list[int]]
+    ) -> str:
+        '''统一事件表 → 文本（talk「人名：台词」，spawn/unspawn 登场/退场）。'''
         mark_lang = self.reader.mark_lang
         lines: list[str] = []
-        for ev in timeline['events']:
+        for ev in events:
             ev_type: str = ev['type']
 
             if ev_type == 'talk':
