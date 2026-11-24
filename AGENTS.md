@@ -109,8 +109,8 @@ offline 模式（online=False）下缺文件且 missing_download=True 会自动�
 
 ## 时间戳抓取（pjsk/bang）
 
-- `TIMESTAMP13` = UTC+36h（cn/tw 服务器先行），`TIMESTAMP13_EN` 再 +15h（action/all_pjsk.py）；
-  `util.LATE_TIMESTAMP13` = +365 天 ≈ 全抓，是 timestamp13 的默认值。
+- `TIMESTAMP13` = UTC+36h（cn/tw 服务器先行，action/all_pjsk.py）；jp/en 不传该参数，
+  走默认的 `util.LATE_TIMESTAMP13` = +365 天 ≈ 全抓。
 - 带时间戳字段的 getter 的 `get()` 都带 `timestamp13` 过滤（None 为不过滤）：
   pjsk 为 event/card/special/virtual/area，bang 为 event/card。event/card 另有 `get_newest`
   （quantity=0 全抓，内部以 timestamp13=None 调 get，避免二次过滤）。

@@ -11,7 +11,6 @@ from .all_pjsk import (
     add_timestamp_tasks,
     NET_CONNECT_LIMIT,
     TIMESTAMP13,
-    TIMESTAMP13_EN,
 )
 
 
@@ -44,10 +43,10 @@ async def main() -> None:
 
         tasks: TaskList_type = []
         add_common_tasks(tasks, lang_getters)
-        add_timestamp_tasks(tasks, lang_getters['jp'])
         for lang in ('cn', 'tw'):
             add_timestamp_tasks(tasks, lang_getters[lang], TIMESTAMP13)
-        add_timestamp_tasks(tasks, lang_getters['en'], TIMESTAMP13_EN)
+        for lang in ('jp', 'en'):
+            add_timestamp_tasks(tasks, lang_getters[lang])
         await asyncio.gather(*tasks)
 
 
