@@ -422,11 +422,15 @@ class Story_reader(Pjsk_fetcher):
                     )
                     next_talk_need_newline = False
                 elif specialEffect['EffectType'] == util.SpecialEffectType.FlashbackIn:
-                    ret += '\n' + Mark_multi_lang['memory in'][self.mark_lang] + '\n'
-                    next_talk_need_newline = True
+                    if next_talk_need_newline:
+                        ret += '\n'
+                    ret += Mark_multi_lang['memory in'][self.mark_lang] + '\n'
+                    next_talk_need_newline = False
                 elif specialEffect['EffectType'] == util.SpecialEffectType.FlashbackOut:
-                    ret += '\n' + Mark_multi_lang['memory out'][self.mark_lang] + '\n'
-                    next_talk_need_newline = True
+                    if next_talk_need_newline:
+                        ret += '\n'
+                    ret += Mark_multi_lang['memory out'][self.mark_lang] + '\n'
+                    next_talk_need_newline = False
                 elif specialEffect['EffectType'] == util.SpecialEffectType.BlackOut:
                     if next_talk_need_newline:
                         ret += '\n'

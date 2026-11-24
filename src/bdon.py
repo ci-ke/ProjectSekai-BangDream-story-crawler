@@ -94,13 +94,14 @@ class Fallback:
         'en': ('english', 'japanese', 'simplifiedChinese', 'traditionalChinese', 'korean'),
     }
 
-    # 回落命中时行尾标注实际使用的语言（键为 Text 表字段名）
-    mark: dict[str, dict[str, str]] = {
-        'japanese': {'cn': '〔日文〕', 'en': '[ja]'},
-        'english': {'cn': '〔英文〕', 'en': '[en]'},
-        'traditionalChinese': {'cn': '〔繁中〕', 'en': '[zh-Hant]'},
-        'simplifiedChinese': {'cn': '〔简中〕', 'en': '[zh-Hans]'},
-        'korean': {'cn': '〔韩文〕', 'en': '[ko]'},
+    # 回落命中时行尾标注实际使用的语言（键为 Text 表字段名）。
+    # 标记统一用英语语言标签（[ja] 等），不随 mark_lang 本地化
+    mark: dict[str, str] = {
+        'japanese': '[ja]',
+        'english': '[en]',
+        'traditionalChinese': '[zh-Hant]',
+        'simplifiedChinese': '[zh-Hans]',
+        'korean': '[ko]',
     }
 
     @staticmethod
@@ -117,10 +118,10 @@ class Fallback:
         return None, None
 
     @staticmethod
-    def annotate(text: str, field: str | None, lang: str, mark_lang: str) -> str:
+    def annotate(text: str, field: str | None, lang: str) -> str:
         """回落命中（实际字段 != 目标字段）时在行尾标注实际语言。"""
         if field and field != Constant.text_field[lang]:
-            return text + Fallback.mark[field][mark_lang]
+            return text + Fallback.mark[field]
         return text
 
 
@@ -445,9 +446,7 @@ class Story_reader(Bdon_fetcher):
             | set(self.home_spots_by_adv)
         )
 
-    def get_text_marked(
-        self, text_row: dict[str, Any] | None, lang: str, mark_lang: str
-    ) -> str:
+    def get_text_marked(self, text_row: dict[str, Any] | None, lang: str) -> str:
         """台词文本；strip_rich_text 开启时剥除富文本标签（默认保留原样）。
         目标语言缺失时按 Fallback 回落并在行尾标注实际语言。"""
         text, field = Fallback.localize(text_row, lang)
@@ -455,7 +454,7 @@ class Story_reader(Bdon_fetcher):
             return ''
         if self.strip_rich_text:  # 此处右侧为模块级同名函数，self. 是开关
             text = strip_rich_text(text)
-        return Fallback.annotate(text, field, lang, mark_lang)
+        return Fallback.annotate(text, field, lang)
 
     def get_master_text(self, text_id: Any, lang: str) -> str | None:
         """MasterText 文案（标题/章节/角色名等），回落不标注。"""
@@ -562,7 +561,7 @@ class Story_reader(Bdon_fetcher):
             if not part:
                 continue
             name_row = text_lookup.get(part) or text_lookup.get('adv_' + part)
-            name = self.get_text_marked(name_row, lang, mark_lang) if name_row else ''
+            name = self.get_text_marked(name_row, lang) if name_row else ''
             # 显示名里没有真实短名时括注；未解析出名字时不标注裸 id
             display = util.newlines_to_spaces(name or part)
             if name:
@@ -616,7 +615,7 @@ class Story_reader(Bdon_fetcher):
                 target_id = str(target_id)
                 speaker_row = text_lookup.get(target_id)
                 name = (
-                    self.get_text_marked(speaker_row, lang, mark_lang)
+                    self.get_text_marked(speaker_row, lang)
                     if speaker_row
                     else ''
                 )
@@ -690,9 +689,7 @@ class Story_reader(Bdon_fetcher):
                     text = Mark_multi_lang['stamp'][mark_lang]
                 else:
                     text = util.newlines_to_spaces(
-                        self.get_text_marked(
-                            text_lookup.get(str(adv_text_id)), lang, mark_lang
-                        )
+                        self.get_text_marked(text_lookup.get(str(adv_text_id)), lang)
                     )
                 if not text.strip():
                     continue  # 文本缺失/全空的行不输出（站点同样跳过），避免孤立的"说话人："

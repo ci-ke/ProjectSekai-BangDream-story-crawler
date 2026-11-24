@@ -228,11 +228,15 @@ class Story_reader(util.Base_fetcher):
                     )
                     next_talk_need_newline = False
                 elif specialEffect['effectType'] == util.SpecialEffectType.FlashbackIn:
-                    ret += '\n' + Mark_multi_lang['memory in'][mark_lang] + '\n'
-                    next_talk_need_newline = True
+                    if next_talk_need_newline:
+                        ret += '\n'
+                    ret += Mark_multi_lang['memory in'][mark_lang] + '\n'
+                    next_talk_need_newline = False
                 elif specialEffect['effectType'] == util.SpecialEffectType.FlashbackOut:
-                    ret += '\n' + Mark_multi_lang['memory out'][mark_lang] + '\n'
-                    next_talk_need_newline = True
+                    if next_talk_need_newline:
+                        ret += '\n'
+                    ret += Mark_multi_lang['memory out'][mark_lang] + '\n'
+                    next_talk_need_newline = False
                 elif specialEffect['effectType'] == util.SpecialEffectType.BlackOut:
                     if next_talk_need_newline:
                         ret += '\n'
