@@ -183,6 +183,7 @@ Mark_multi_lang = {
     'message title': {'cn': '（消息标题）', 'en': '(Message title) '},
     'stamp': {'cn': '（贴图）', 'en': '(Stamp)'},
     'subtitle': {'cn': '（字幕）', 'en': '(Subtitle)'},
+    'screen text': {'cn': '（画面文字）：', 'en': '(On-screen text): '},
     'mystery': {'cn': '？？？', 'en': '??? '},
     'hidden name': {'cn': '（{}）', 'en': '({})'},  # 括注模板，须 .format(说话人) 使用
     'background': {'cn': '（背景切换）', 'en': '(Background change)'},

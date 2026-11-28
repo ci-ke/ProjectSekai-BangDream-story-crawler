@@ -190,7 +190,10 @@ class AdvCommand(int, Enum):
     Op39 = 39
     PostEffect = 43            # 后期滤镜（targetAssetName = adv_effect_posteffect_*，
                                # 含 reminiscence 回忆滤镜）
-    FrameOverlay = 44          # 遮幅 / 相框 / 速度线等（targetAssetName = adv_frame_*）
+    FrameOverlay = 44          # 遮幅 / 相框 / 速度线等（targetAssetName = adv_frame_*）。
+                               # 另可带 _targetTextIDs 画面文字（如 adv_frame_slander_comment
+                               # 的评论卡片）：站点播放器按每卡片 3 个 ID（显示名、账号、正文）
+                               # 消费；文本输出把整条指令的 ID 展平，不依赖该分组
     CharacterTransform1 = 46   # 角色变形 / 位移
     CharacterTransform2 = 47   # parameter1
     CharacterTransform3 = 48   # parameter1
@@ -652,7 +655,33 @@ class Story_reader(Bdon_fetcher):
                     in_clip = False
             adv_text_id = row.get('advTextID')
 
-            if adv_text_id or command is AdvCommand.ChatStamp:
+            if command is AdvCommand.FrameOverlay and row.get('targetTextIDs'):
+                # 画面文字覆盖层（如 adv_frame_slander_comment 的评论卡片）：文本在
+                # _targetTextIDs（该指令的 _advTextID 恒为空）。同一指令的文本按原顺序
+                # 整条展平成一行，字段间以 " | " 分隔（同项目多值连接的 ASCII 风格，
+                # 如说话人 " & "），不按卡片再分组（分组规则随资源而异）。
+                # 覆盖层不改变背景，last_marker 不动（同聊天消息）。
+                fields = [
+                    util.newlines_to_spaces(
+                        self.get_text_marked(
+                            text_lookup.get(str(text_id)), lang
+                        )
+                    ).strip()
+                    for text_id in row['targetTextIDs']
+                ]
+                line_text = ' | '.join(field for field in fields if field)
+                if not line_text:
+                    continue  # 文本缺失/全空：不输出空标记行
+                if telop_pending:
+                    body += '\n'
+                    telop_pending = False
+                body += (
+                    prefix
+                    + Mark_multi_lang['screen text'][mark_lang]
+                    + line_text
+                    + '\n'
+                )
+            elif adv_text_id or command is AdvCommand.ChatStamp:
                 # 凡 _advTextID 非空即有文本输出（Talk / Telop / ChatMessage / ChatMessageEx /
                 # ClipLine 均可携带），不按 command 白名单筛选，否则会丢聊天气泡与视频字幕；
                 # 聊天贴图（38）无文本行也照录，内容直接记作（贴图）
