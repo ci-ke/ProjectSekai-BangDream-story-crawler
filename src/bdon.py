@@ -228,28 +228,6 @@ def normalize_rows(table_json: Any) -> list[dict[str, Any]]:
     ]
 
 
-# TextMeshPro 富文本标签全集（与站点解析器一致）：strip_rich_text 开关开启时剥除
-# （默认关闭、正文原样保留），未知标签始终原样保留
-RICH_TAGS = frozenset((
-    'align', 'alpha', 'b', 'br', 'color', 'cspace', 'font', 'font-weight', 'gradient', 'i',
-    'indent', 'line-height', 'line-indent', 'link', 'lowercase', 'margin', 'mark', 'mspace',
-    'nobr', 'noparse', 'page', 'pos', 'r', 'rotate', 'ruby', 's', 'size', 'smallcaps', 'space',
-    'sprite', 'strikethrough', 'style', 'sub', 'sup', 'u', 'uppercase', 'voffset', 'width',
-))
-RICH_TAG = re.compile(r'<(/?)([a-zA-Z][a-zA-Z-]*)(?:\s*=\s*"?[^">]*"?)?\s*>')
-
-
-def strip_rich_text(text: str) -> str:
-    """剥除 TextMeshPro 富文本标签；<br> 转换行，标签外的正文保留。"""
-    def replace(match: re.Match[str]) -> str:
-        name = match.group(2).lower()
-        if name not in RICH_TAGS:
-            return match.group(0)
-        return '\n' if name == 'br' else ''
-
-    return RICH_TAG.sub(replace, text)
-
-
 class Bdon_fetcher(util.Base_fetcher):
     @staticmethod
     def __url_to_save_path(url: str) -> str:
@@ -303,7 +281,6 @@ class Story_reader(Bdon_fetcher):
         missing_download: bool = True,
         debug_parse: bool = False,
         cg_add_link: bool = True,
-        strip_rich_text: bool = False,
         force_master_online: bool = False,
         **args,
     ) -> None:
@@ -320,7 +297,6 @@ class Story_reader(Bdon_fetcher):
         self.side = side
         self.debug_parse = debug_parse
         self.cg_add_link = cg_add_link
-        self.strip_rich_text = strip_rich_text
 
         # 资源服务与站点一致按 {language}/{key} 发布，JP 区加 /jp 前缀且只发布 ja：
         #   en-jp → https://assets.bdon.moe/ja/...
@@ -447,13 +423,10 @@ class Story_reader(Bdon_fetcher):
         )
 
     def get_text_marked(self, text_row: dict[str, Any] | None, lang: str) -> str:
-        """台词文本；strip_rich_text 开启时剥除富文本标签（默认保留原样）。
-        目标语言缺失时按 Fallback 回落并在行尾标注实际语言。"""
+        """台词文本；目标语言缺失时按 Fallback 回落并在行尾标注实际语言。"""
         text, field = Fallback.localize(text_row, lang)
         if text is None:
             return ''
-        if self.strip_rich_text:  # 此处右侧为模块级同名函数，self. 是开关
-            text = strip_rich_text(text)
         return Fallback.annotate(text, field, lang)
 
     def get_master_text(self, text_id: Any, lang: str) -> str | None:
@@ -539,8 +512,6 @@ class Story_reader(Bdon_fetcher):
                     caption = (row or {}).get('japanese') or ''
                 else:
                     caption = self.get_master_text(text_id, lang) or ''
-                if self.strip_rich_text:
-                    caption = strip_rich_text(caption)
                 return re.sub(r'\s*\n+\s*', ' ', caption).strip()
         return ''
 
@@ -1144,22 +1115,6 @@ class Band_story_getter(Bdon_getter):
             langs,
             folder_regs=(r'(\d+)',),
         )
-
-    async def get_chapter(
-        self, chapter_id: int, langs: Sequence[tuple[str, str]] | None = None
-    ) -> None:
-        """一章一调用：并发抓写该章全部 episode（正篇/视角/番外，后两类文件名带前缀）。
-        供本地手测等按章抓取的入口；CI 的 add_all_tasks 仍按 episode 粒度遍历 tell_ids。
-        同一 langs 转发给全部 episode 的 get（各迭代一遍），传生成器会被耗尽，故标 Sequence。"""
-        episode_ids = sorted(
-            eid
-            for eid, row in self.reader.story_episodes.items()
-            if row['chapterId'] == chapter_id
-        )
-        if not episode_ids:
-            raise KeyError(f'no story episode belongs to chapter {chapter_id}')
-        await asyncio.gather(*(self.get(eid, langs) for eid in episode_ids))
-
 
 class Special_story_getter(Band_story_getter):
     """特殊剧情章 getter：目录结构与命名逻辑和 band 完全一致（目录仍按
